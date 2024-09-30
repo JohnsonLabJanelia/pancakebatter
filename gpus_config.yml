@@ -1,0 +1,30 @@
+# pancake0 configuration file
+# Establishes versions of drivers, types of onboard hardware expected,
+# etc... (Fill in later)
+
+# System Information: OS and Kernel
+system_info:
+  ubuntu_version: "22.04"
+  kernel_version: "5.19.0-32-generic"
+  esdk_version: "1.0"
+
+# GPUs
+gpus:
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA RTX A6000
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
