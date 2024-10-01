@@ -2,7 +2,7 @@
 
 The purpose of this repository is to combine the documentation created by [Jinyao Yan, PhD](https://www.janelia.org/people/jinyao-yan) (Johnson Lab Research Associate) and
 [Ratan Othayoth, PhD](https://www.janelia.org/people/ratan-othayoth-0) (Johnson Lab Research Associate) into one document for new rigs built by Jeremy Delahanty for use in
-group leaders [Misha Ahrens, PhD](https://ahrenslab.org/) and [Rob Johnson, PhD]([https://ahrenslab.org/](https://www.janelia.org/lab/johnson-lab)) labs (but also those elsewhere
+group leaders [Misha Ahrens, PhD](https://ahrenslab.org/) and [Rob Johnson, PhD](https://www.janelia.org/lab/johnson-lab) labs (but also those elsewhere
 in Janelia or even the world one day!).
 
 A secondary goal is to introduce some basic automation into installing required packages, drivers, and static versioning for rig building in the lab. There will also be a
