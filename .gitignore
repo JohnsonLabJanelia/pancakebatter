@@ -1,1 +1,4 @@
 *.run
+eSDK*/
+eCapturePro*/
+*.zip
