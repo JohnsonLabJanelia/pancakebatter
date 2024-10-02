@@ -7,7 +7,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color (Reset)
 
 # Path to the Python script
-PYTHON_SCRIPT="gpu_check.py"
+PYTHON_SCRIPT="system_check.py"
 
 # Check if the Python script exists
 if [ ! -f "$PYTHON_SCRIPT" ]; then

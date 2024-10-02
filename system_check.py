@@ -103,7 +103,7 @@ def main():
     args = parser.parse_args()
 
     # Load expected configurations from the YAML file
-    expected_configs = load_yaml_config('gpus_config.yml')
+    expected_configs = load_yaml_config('system_config.yml')
 
     if args.verbose:
         print("Expected GPU Configurations (from YAML):")
