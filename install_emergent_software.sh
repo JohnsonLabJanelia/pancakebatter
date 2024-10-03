@@ -87,7 +87,7 @@ for ZIP_FILE in "${ZIP_FILES[@]}"; do
 
         # Install Mellanox and EVT drivers
         echo "Installing Mellanox and EVT drivers"
-        sudo ./install_eSdk.sh -i Mellanox && sudo ./install_eSdk.sh -i EVT
+        sudo ./install_eSdk.sh '-i Mellanox EVT' # having the '' around -i statement required oddly
         echo ""
         echo -e "${GREEN}Mellanox and EVT drivers installed.${NC}"
         echo ""
