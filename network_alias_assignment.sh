@@ -27,13 +27,18 @@ echo -e "${YELLOW}Creating udev rules file: $rule_file${NC}"
 > $rule_file
 
 # Define aliases for each interface
+# The aliases for enp65s0 are for the Emergent NIC
+# The order of these aliases from top to bottom match
+# the ports from top of machine to the bottom
 declare -A aliases
+# Motherboard ethernet configurations
 aliases[enp36s0f0]="eth_internet1"
 aliases[enp36s0f1]="eth_internet2"
-aliases[enp65s0]="camera1_25Gb"
-aliases[enp65s0d1]="camera2_25Gb"
-aliases[enp65s0d2]="camera3_25Gb"
+# Emergent NIC configurations
 aliases[enp65s0d3]="camera4_25Gb"
+aliases[enp65s0d1]="camera3_25Gb"
+aliases[enp65s0]="camera2_25Gb"
+aliases[enp65s0d2]="camera1_25Gb"
 
 # Process each interface
 for interface in "${!aliases[@]}"; do

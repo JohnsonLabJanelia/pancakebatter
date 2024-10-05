@@ -1,0 +1,5 @@
+# Upgrade FW on emergent NICs
+./evtnicfwmanager -d 65 -f ~/FW_PH_25_QUAD_3_02.zip
+
+Setup the EVT GPU Direct
+/opt/EVT/eSDK/Examples/EVT_BenchmarkHS_GpuDirect. Refer to readme.txt to set up.
