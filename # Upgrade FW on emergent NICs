@@ -3,3 +3,6 @@
 
 Setup the EVT GPU Direct
 /opt/EVT/eSDK/Examples/EVT_BenchmarkHS_GpuDirect. Refer to readme.txt to set up.
+
+mutter terminal bug
+https://bugs.launchpad.net/ubuntu/+source/mutter/+bug/2059847/comments/135

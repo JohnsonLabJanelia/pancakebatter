@@ -3,4 +3,5 @@ eSDK*/
 eCapturePro*/
 *.zip
 rivermax_license/
-logs/*
+FW_PH*/
+logs/

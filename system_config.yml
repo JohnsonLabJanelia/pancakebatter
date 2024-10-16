@@ -5,8 +5,9 @@
 # System Information: OS and Kernel
 system_info:
   ubuntu_version: "22.04"
-  kernel_version: "5.19.0-32-generic"
+  kernel_version: 6.5.0-44-generic
   esdk_version: "1.0"
+  cuda_version: "12.2"
 
 # GPUs
 gpus:
@@ -36,78 +37,76 @@ emergent_nic:
     firmware_version: 3.02
     pcie_id: 0000:41:00.0
     mac_address: E0-55-97-1E-AB-ED
-    # Ports listed here are top to bottom
-    # on the machine with nicknames for each
-    # camera connected to the port
-    - camera4_25Gb:
-      mac_address: e0:55:97:1e:a6:3f
-      mtu: 1024
-      ip_address: 192.168.140.0
-      transceiver:
-        brand: Emergent
-        model: RX03-0009A
-        serial_number: 2206090381
-        speed: 25Gb
-        wavelength: 1310
-        max_distance: 10
-        fiber_type: SMF
-    - camera3_25Gb:
-      mac_address: e0:55:97:1e:a6:3d
-      mtu: 1024
-      ip_address: 192.168.130.0
-      transceiver:
-        brand: InnoLight
-        model: TR-PY13L-V00
-        serial_number: INLBS0450088
-        speed: 25
-        wavelength: 1310
-        max_distance: 10
-        fiber_type: SMF
-    - camera2_25Gb:
-      mac_address: e0:55:97:1e:a6:3c
-      mtu: 1024
-      ip_address: 192.168.120.0
-      transceiver:
-        brand: InnoLight
-        model: TR-PY13L-V00
-        serial_number: INLBS0450179
-        speed: 25
-        wavelength: 1310
-        max_distance: 10
-        fiber_type: SMF
-    - camera1_25Gb:
-      mac_address: e0:55:97:1e:a6:3e
-      mtu: 1024
-      ip_address: 192.168.110.0
-      transceiver:
-        brand: InnoLight
-        model: TR-PY13L-V00
-        serial_number: INLBO0680127
-        speed: 25
-        wavelength: 1310
-        max_distance: 10
-        fiber_type: SMF
+    ports:
+      - name: camera4_25Gb
+        mac_address: e0:55:97:1e:a6:3f
+        mtu: 1024
+        ip_address: 192.168.140.1/24
+        transceiver:
+          brand: Emergent
+          model: RX03-0009A
+          serial_number: 2206090381
+          speed: 25Gb
+          wavelength: 1310
+          max_distance: 10
+          fiber_type: SMF
+      - name: camera3_25Gb
+        mac_address: e0:55:97:1e:a6:3d
+        mtu: 1024
+        ip_address: 192.168.130.1/24
+        transceiver:
+          brand: InnoLight
+          model: TR-PY13L-V00
+          serial_number: INLBS0450088
+          speed: 25
+          wavelength: 1310
+          max_distance: 10
+          fiber_type: SMF
+      - name: camera2_25Gb
+        mac_address: e0:55:97:1e:a6:3c
+        mtu: 1024
+        ip_address: 192.168.120.1/24
+        transceiver:
+          brand: InnoLight
+          model: TR-PY13L-V00
+          serial_number: INLBS0450179
+          speed: 25
+          wavelength: 1310
+          max_distance: 10
+          fiber_type: SMF
+      - name: camera1_25Gb
+        mac_address: e0:55:97:1e:a6:3e
+        mtu: 1024
+        ip_address: 192.168.110.1/24
+        transceiver:
+          brand: InnoLight
+          model: TR-PY13L-V00
+          serial_number: INLBO0680127
+          speed: 25
+          wavelength: 1310
+          max_distance: 10
+          fiber_type: SMF
 
 # Cameras: Primary key is MAC address of machine
 cameras:
   E0-55-97-1E-AB-ED:
     model: HB-20000-SB-M-E2
     serial_number: 02010093
-    ip_address: 192.168.4.255
-    alias: "camera4_25Gb"
+    ip_address: 192.168.110.2
+    nic_port: camera1_25Gb
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
       serial_number: INLBO0680132
-      speed: 25Gb
+      speed: 25 # in Gbps
       wavelength: 1310 # in nanometers
       max_distance: 10 # in kilometers
       fiber_type: SMF  # Single-Mode Fiber
   E0-55-97-1E-AB-EE:
     model: HB-20000-SB-M-E2
     serial_number: 02010094
-    ip_address: null
-    alias: null
+    ip_address: 192.168.120.2
+    nic_port: camera2_25Gb
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
@@ -119,8 +118,8 @@ cameras:
   E0-55-97-1E-AB-EF:
     model: HB-20000-SB-M-E2
     serial_number: 02010095
-    ip_address: null
-    alias: null
+    ip_address: 192.168.130.2
+    nic_port: camera3_25Gb
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
@@ -132,12 +131,12 @@ cameras:
   E0-55-97-1E-AB-F0:
     model: HB-20000-SB-M-E2
     serial_number: 02010096
-    ip_address: null
-    alias: camera4
+    ip_address: 192.168.140.2
+    nic_port: camera4_25Gb
     transceiver:
       brand: Emergent
       model: RX03-0009A
-      serial_number: 2206090384
+      serial_number: 220609
       speed: 25
       wavelength: 1310
       max_distance: 10

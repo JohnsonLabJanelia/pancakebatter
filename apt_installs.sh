@@ -49,7 +49,7 @@ sudo apt install -y plocate autofs vim gcc make \
     pkg-config libglvnd-dev smartmontools \
     git openssh-server openssh-client \
     libxcb-xinerama0 filezilla dkms \
-    tmux htop curl wget
+    tmux htop curl wget arping
 
 # Check if the installation was successful
 if [ $? -eq 0 ]; then

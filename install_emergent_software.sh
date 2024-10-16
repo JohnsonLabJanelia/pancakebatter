@@ -56,6 +56,31 @@ if [ ${#ZIP_FILES[@]} -eq 0 ]; then # If there are no zip files found, tell the 
     exit 1
 fi
 
+# Move the rivermax license file to correct directory
+echo -e "${YELLOW}Moving the Rivermax license file to the correct directory.${NC}"
+
+# Attempt to copy the Rivermax license to correct directory
+if [ -d "rivermax_license" ]; then
+    echo ""
+    echo -e "${GREEN}Rivermax License directory found.${NC}"
+    echo ""
+else
+    echo ""
+    echo -e "${RED}ERROR: Rivermax License directory not found.${NC}"
+    echo ""
+    continue
+fi
+
+if sudo mv rivermax_license/rivermax.lic /opt/mellanox/rivermax/; then
+    echo ""
+    echo -e "${GREEN}Rivermax License successfully moved.${NC}"
+    echo ""
+else
+    echo ""
+    echo -e "${RED}ERROR: Failed to copy Rivermax License.${NC}"
+    echo ""
+fi
+
 # Iterate over each zip file
 for ZIP_FILE in "${ZIP_FILES[@]}"; do
     echo "Processing zip file: $ZIP_FILE"
@@ -87,35 +112,10 @@ for ZIP_FILE in "${ZIP_FILES[@]}"; do
 
         # Install Mellanox and EVT drivers
         echo "Installing Mellanox and EVT drivers"
-        sudo ./install_eSdk.sh '-i Mellanox EVT' # having the '' around -i statement required oddly
+        sudo ./install_eSdk.sh -i Mellanox -i EVT
         echo ""
         echo -e "${GREEN}Mellanox and EVT drivers installed.${NC}"
         echo ""
-
-        # Move the rivermax license file to correct directory
-        echo "Moving the Rivermax license file to the correct directory"
-
-        # Attempt to copy the Rivermax license to correct directory
-        if cd .. && [ -d "rivermax_license" ]; then
-            echo ""
-            echo -e "${GREEN}Rivermax License directory found.${NC}"
-            echo ""
-        else
-            echo ""
-            echo -e "${RED}ERROR: Rivermax License directory not found.${NC}"
-            echo ""
-            continue
-        fi
-    
-        if sudo mv rivermax_license/rivermax.lic /opt/mellanox/rivermax/; then
-            echo ""
-            echo -e "${GREEN}Rivermax License successfully moved.${NC}"
-            echo ""
-        else
-            echo ""
-            echo -e "${RED}ERROR: Failed to copy Rivermax License.${NC}"
-            echo ""
-        fi
 
     elif [[ "$ZIP_FILE" == *"eCapturePro"* ]]; then
         # eCapturePro related commands
@@ -146,7 +146,7 @@ echo "Zip files removed."
 
 # Starting HCA Driver, recommended from Installation of the eSDK
 echo ""
-echo "Starting HCA Driver..."
+echo -e "${YELLOW}Starting HCA Driver...${NC}"
 echo ""
 
 # Attempt to restart the HCA Driver
