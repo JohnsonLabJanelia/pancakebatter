@@ -30,62 +30,78 @@ gpus:
   - model: NVIDIA A16
     driver_version: 535.183.06
 
-# NIC(s)
-emergent_nic:
-  - model: PH-25-QUAD
-    serial_number: 2008636
-    firmware_version: 3.02
-    pcie_id: 0000:41:00.0
-    mac_address: E0-55-97-1E-AB-ED
-    ports:
-      - name: camera4_25Gb
-        mac_address: e0:55:97:1e:a6:3f
-        mtu: 1024
-        ip_address: 192.168.140.1/24
-        transceiver:
-          brand: Emergent
-          model: RX03-0009A
-          serial_number: 2206090381
-          speed: 25Gb
-          wavelength: 1310
-          max_distance: 10
-          fiber_type: SMF
-      - name: camera3_25Gb
-        mac_address: e0:55:97:1e:a6:3d
-        mtu: 1024
-        ip_address: 192.168.130.1/24
-        transceiver:
-          brand: InnoLight
-          model: TR-PY13L-V00
-          serial_number: INLBS0450088
-          speed: 25
-          wavelength: 1310
-          max_distance: 10
-          fiber_type: SMF
-      - name: camera2_25Gb
-        mac_address: e0:55:97:1e:a6:3c
-        mtu: 1024
-        ip_address: 192.168.120.1/24
-        transceiver:
-          brand: InnoLight
-          model: TR-PY13L-V00
-          serial_number: INLBS0450179
-          speed: 25
-          wavelength: 1310
-          max_distance: 10
-          fiber_type: SMF
-      - name: camera1_25Gb
-        mac_address: e0:55:97:1e:a6:3e
-        mtu: 1024
-        ip_address: 192.168.110.1/24
-        transceiver:
-          brand: InnoLight
-          model: TR-PY13L-V00
-          serial_number: INLBO0680127
-          speed: 25
-          wavelength: 1310
-          max_distance: 10
-          fiber_type: SMF
+nics:
+  - mlnx2_p1_25g:
+    mac_address: b8:ce:f6:22:09:76
+    brand: Mellanox
+    model: MT27800 Family [ConnectX-5]
+    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
+    pcie_id: 41:00.0
+    mtu: 9000
+    ip_address: 192.168.130.1/24
+    camera: camera3
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLBS0450180
+      speed: 25 # in Gbps
+      wavelength: 1310 # in nanometers
+      max_distance: 10 # in kilometers
+      fiber_type: SMF # Single-Mode Fiber
+
+  - mlnx2_p2_25g:
+    mac_address: b8:ce:f6:22:09:77
+    brand: Mellanox
+    model: MT27800 Family [ConnectX-5]
+    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
+    pcie_id: 41:00.1
+    mtu: 9000
+    ip_address: 192.168.140.1/24
+    camera: camera4
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLAK1610003
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
+
+  - mlnx1_p1_25g:
+    mac_address: 10:70:fd:5e:5c:28
+    brand: Mellanox
+    model: MT27800 Family [ConnectX-5]
+    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
+    pcie_id: 42:00.0
+    mtu: 9000
+    ip_address: 192.168.110.1/24
+    camera: camera1
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLAK1610002
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
+
+  - mlnx1_p2_25g:
+    mac_address: 10:70:fd:5e:5c:29
+    brand: Mellanox
+    model: MT27800 Family [ConnectX-5]
+    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
+    pcie_id: 42:00.1
+    mtu: 9000
+    ip_address: 192.168.120.1/24
+    camera: camera2
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLBO0680132
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
 
 # Cameras: Primary key is MAC address of machine
 cameras:
@@ -93,11 +109,11 @@ cameras:
     model: HB-20000-SB-M-E2
     serial_number: 02010093
     ip_address: 192.168.110.2
-    nic_port: camera1_25Gb
+    nic_port: mlnx1_p1_25g
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
-      serial_number: INLBO0680132
+      serial_number: INLBO0680127
       speed: 25 # in Gbps
       wavelength: 1310 # in nanometers
       max_distance: 10 # in kilometers
@@ -106,11 +122,11 @@ cameras:
     model: HB-20000-SB-M-E2
     serial_number: 02010094
     ip_address: 192.168.120.2
-    nic_port: camera2_25Gb
+    nic_port: mlnx1_p2_25g
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
-      serial_number: INLBS0450134
+      serial_number: INLBS045088
       speed: 25
       wavelength: 1310
       max_distance: 10
@@ -119,11 +135,11 @@ cameras:
     model: HB-20000-SB-M-E2
     serial_number: 02010095
     ip_address: 192.168.130.2
-    nic_port: camera3_25Gb
+    nic_port: mlnx2_p1_25g
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
-      serial_number: INLBS0450180
+      serial_number: INLAK1610081
       speed: 25
       wavelength: 1310
       max_distance: 10
@@ -132,11 +148,11 @@ cameras:
     model: HB-20000-SB-M-E2
     serial_number: 02010096
     ip_address: 192.168.140.2
-    nic_port: camera4_25Gb
+    nic_port: mlnx2_p2_25g
     transceiver:
-      brand: Emergent
-      model: RX03-0009A
-      serial_number: 220609
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLBS0450134
       speed: 25
       wavelength: 1310
       max_distance: 10

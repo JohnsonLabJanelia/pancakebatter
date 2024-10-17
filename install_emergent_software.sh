@@ -9,11 +9,36 @@ NC='\033[0m' # No Color (Reset)
 # Save the original directory where the script is started
 ORIGINAL_DIRECTORY=$(pwd)
 
+# Function to display usage information
+usage() {
+    echo "Usage: $0 [-n <nic_type>]"
+    echo "  -n <nic_type>    Specify the NIC type to install (emergent or Mellanox)"
+    exit 1
+}
+
+# Parse command-line arguments
+while getopts "n:" opt; do
+    case ${opt} in
+        n )
+            NIC_TYPE=$OPTARG
+            ;;
+        \? )
+            usage
+            ;;
+    esac
+done
+
+# Validate NIC_TYPE
+if [[ "$NIC_TYPE" != "emergent" && "$NIC_TYPE" != "Mellanox" ]]; then
+    echo -e "${RED}ERROR: Invalid NIC type. Please specify either 'emergent' or 'ellanox' (case sensitive).${NC}"
+    usage
+fi
+
 # Check if the script is being run with sudo
 if [ "$EUID" -ne 0 ]; then
     echo ""
     echo -e "${RED}ERROR: Please run this script as sudo with -E.${NC}"
-    echo -e "This script requires root permissions to install the Emergent Vision Technologies (EVT) drivers.${NC}"
+    echo -e "${RED}This script requires root permissions to install the Emergent Vision Technologies (EVT) drivers.${NC}"
     echo ""
     exit 1
 fi
@@ -22,14 +47,18 @@ fi
 if [ -z "$SSH_AUTH_SOCK" ]; then
     echo ""
     echo -e "${RED}ERROR: SSH environment not preserved. Please run the script with sudo -E.${NC}"
-    echo -e "The -E flag is needed to preserve your SSH environment and avoid password prompts for scp."
+    echo "The -E flag is needed to preserve your SSH environment and avoid password prompts for scp."
     echo ""
     exit 1
 fi
 
 # Attempt download of Emergent software (eSDK and eCapturePro) from Johnson Lab Server
-echo "Attempting to download the eSDK and eCapturePro zip files from Johnson Lab Server"
+echo -e "${YELLOW}Attempting to download the eSDK and eCapturePro zip files from Johnson Lab Server.${NC}"
 scp -r delahantyj@login1:/groups/johnson/johnsonlab/pancake_recipes/emergent/* .
+
+# Download NIC-specific files
+echo -e "${YELLOW} Downloading $NIC_TYPE NIC files. ${NC}"
+scp -r delahantyj@login1:/groups/johnson/johnsonlab/pancake_recipes/nics/$NIC_TYPE/* .
 
 # Check if the download was successful
 if [ $? -ne 0 ]; then
@@ -56,113 +85,103 @@ if [ ${#ZIP_FILES[@]} -eq 0 ]; then # If there are no zip files found, tell the 
     exit 1
 fi
 
-# Move the rivermax license file to correct directory
-echo -e "${YELLOW}Moving the Rivermax license file to the correct directory.${NC}"
-
-# Attempt to copy the Rivermax license to correct directory
-if [ -d "rivermax_license" ]; then
-    echo ""
-    echo -e "${GREEN}Rivermax License directory found.${NC}"
-    echo ""
-else
-    echo ""
-    echo -e "${RED}ERROR: Rivermax License directory not found.${NC}"
-    echo ""
-    continue
-fi
-
-if sudo mv rivermax_license/rivermax.lic /opt/mellanox/rivermax/; then
-    echo ""
-    echo -e "${GREEN}Rivermax License successfully moved.${NC}"
-    echo ""
-else
-    echo ""
-    echo -e "${RED}ERROR: Failed to copy Rivermax License.${NC}"
-    echo ""
+# Move the Rivermax license file to correct directory (only for Mellanox)
+if [ "$NIC_TYPE" == "Mellanox" ]; then
+    echo -e "${YELLOW}Moving the Rivermax license file to the correct directory.${NC}"
+    if [ -f "rivermax.lic" ]; then
+        if sudo mv rivermax.lic /opt/mellanox/rivermax/; then
+            echo -e "${GREEN}Rivermax License successfully moved.${NC}"
+        else
+            echo -e "${RED}ERROR: Failed to copy Rivermax License.${NC}"
+        fi
+    else
+        echo -e "${RED}ERROR: Rivermax License file not found.${NC}"
+    fi
 fi
 
 # Iterate over each zip file
 for ZIP_FILE in "${ZIP_FILES[@]}"; do
-    echo "Processing zip file: $ZIP_FILE"
+    echo -e "${YELLOW}Processing zip file: ${GREEN}$ZIP_FILE${NC}"
 
     # Define the target directory
     TARGET_DIR="${ZIP_FILE%.zip}"  # Remove the .zip extension for the directory name
 
     # Create the target directory
+    echo -e "${YELLOW}Creating directory: ${GREEN}$TARGET_DIR${NC}"
     mkdir -p "$TARGET_DIR"
 
     # Unzip the zip file into the target directory
-    unzip "$ZIP_FILE" -d "$TARGET_DIR"
+    echo -e "${YELLOW}Extracting files...${NC}"
+    if unzip "$ZIP_FILE" -d "$TARGET_DIR"; then
+        echo -e "${GREEN}Extraction successful.${NC}"
+    else
+        echo -e "${RED}Error: Failed to extract $ZIP_FILE${NC}"
+        continue
+    fi
 
     # Change ownership of the extracted files owned by root to the original user
+    echo -e "${YELLOW}Changing file ownership...${NC}"
     find "$TARGET_DIR" -user root -exec chown "$ORIGINAL_USER":"$ORIGINAL_USER" {} \;
 
     # Change into the target directory
+    echo -e "${YELLOW}Changing to directory: ${GREEN}$TARGET_DIR${NC}"
     cd "$TARGET_DIR" || { echo -e "${RED}Error: Failed to change directory to $TARGET_DIR${NC}"; exit 1; }
 
     # Print the current directory to confirm for user
-    echo "Changed directory to $(pwd)"
+    echo -e "${GREEN}Current directory: $(pwd)${NC}"
 
     # Check for the filename pattern and execute commands accordingly
     if [[ "$ZIP_FILE" == *"eSDK"* ]]; then
         # eSDK related commands
-        echo ""
-        echo "Detected eSDK in the filename. Proceeding with eSDK installation."
-        echo ""
+        echo -e "${YELLOW}Detected eSDK in the filename. Proceeding with eSDK installation.${NC}"
 
-        # Install Mellanox and EVT drivers
-        echo "Installing Mellanox and EVT drivers"
-        sudo ./install_eSdk.sh -i Mellanox -i EVT
-        echo ""
-        echo -e "${GREEN}Mellanox and EVT drivers installed.${NC}"
-        echo ""
-
-    elif [[ "$ZIP_FILE" == *"eCapturePro"* ]]; then
-        # eCapturePro related commands
-        echo "Detected eCapturePro in the filename. Proceeding with eCapturePro installation."
-
-        # Run the eCapturePro installer with the specified arguments
-        sudo ./eCaptureProInstaller_0_1_32_Ubuntu_22_04.run in -da -c --al
-    else
-        echo "Unknown file pattern: $ZIP_FILE. Skipping."
-        continue
+        # Install drivers based on NIC_TYPE
+        if [ "$NIC_TYPE" == "Mellanox" ]; then
+            echo -e "${YELLOW}Installing Mellanox drivers...${NC}"
+            if sudo ./install_eSdk.sh -i Mellanox; then
+                echo -e "${GREEN}Mellanox drivers installed successfully.${NC}"
+            else
+                echo -e "${RED}Error: Failed to install Mellanox drivers.${NC}"
+            fi
+        elif [ "$NIC_TYPE" == "emergent" ]; then
+            echo -e "${YELLOW}Installing Emergent drivers...${NC}"
+            if sudo ./install_eSdk.sh -i emergent; then
+                echo -e "${GREEN}Emergent drivers installed successfully.${NC}"
+            else
+                echo -e "${RED}Error: Failed to install Emergent drivers.${NC}"
+            fi
+        fi
     fi
 
     # Return to the parent directory after each iteration
     cd ..
+    echo -e "${YELLOW}Returned to parent directory.${NC}"
+    echo -e "${GREEN}------------------------------${NC}"
 done
-
-echo ""
-echo -e "${GREEN}All installation zip files processed!${NC}"
-echo ""
 
 # Return to the original directory before removing zip files
 cd "$ORIGINAL_DIRECTORY" || { echo -e "${RED}Error: Failed to return to original directory.${NC}"; exit 1; }
 
-echo "Cleaning up installation files..."
-echo "Removing zip files from directory."
-rm *.zip
-echo "Zip files removed."
+# Cleanup section
+echo -e "${YELLOW}Cleaning up installation files...${NC}"
+echo -e "${YELLOW}Removing zip files from directory.${NC}"
+if rm *.zip; then
+    echo -e "${GREEN}Zip files removed successfully.${NC}"
+else
+    echo -e "${RED}Error: Failed to remove zip files. Please check and remove them manually.${NC}"
+fi
 
 # Starting HCA Driver, recommended from Installation of the eSDK
-echo ""
-echo -e "${YELLOW}Starting HCA Driver...${NC}"
-echo ""
+echo -e "${YELLOW}Restarting HCA Driver...${NC}"
 
 # Attempt to restart the HCA Driver
 if sudo /etc/init.d/openibd restart; then
-    echo ""
     echo -e "${GREEN}HCA Driver successfully restarted.${NC}"
-    echo ""
 else
-    echo ""
     echo -e "${RED}ERROR: Failed to restart HCA Driver. Please check the logs or configuration.${NC}"
-    echo ""
 fi
 
 # Indicate to user that script completed successfully
-echo ""
 echo -e "${GREEN}Emergent Vision Technologies (EVT) software installation completed successfully!${NC}"
-echo ""
 
 exit 0

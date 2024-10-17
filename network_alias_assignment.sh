@@ -35,10 +35,11 @@ declare -A aliases
 aliases[enp36s0f0]="eth_internet1"
 aliases[enp36s0f1]="eth_internet2"
 # Emergent NIC configurations
-aliases[enp65s0d3]="camera4_25Gb"
-aliases[enp65s0d1]="camera3_25Gb"
-aliases[enp65s0]="camera2_25Gb"
-aliases[enp65s0d2]="camera1_25Gb"
+aliases[enp65s0d3]="evtnic1_port4_25Gb"
+aliases[enp65s0d1]="evtnic1_port3_25Gb"
+aliases[enp65s0]="evtnic1_port2_25Gb"
+aliases[enp65s0d2]="evtnic1_port1_25Gb"
+
 
 # Process each interface
 for interface in "${!aliases[@]}"; do

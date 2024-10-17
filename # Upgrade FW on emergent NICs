@@ -6,3 +6,7 @@ Setup the EVT GPU Direct
 
 mutter terminal bug
 https://bugs.launchpad.net/ubuntu/+source/mutter/+bug/2059847/comments/135
+
+# Updating mellanox stuff:
+when installing Mellanox drivers it will also check for and install updates to firmware
+on only the necessary devices.

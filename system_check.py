@@ -22,34 +22,35 @@ def parse_arguments():
     parser.add_argument('--log', action='store_true', help="Enable logging to file")
     return parser.parse_args()
 
-def get_emergent_nic_info():
-    """Get information about the Emergent NIC using lspci"""
-    try:
-        result = subprocess.run(['lspci', '-v'], capture_output=True, text=True)
-        lines = result.stdout.split('\n')
-        for i, line in enumerate(lines):
-            if 'Device 1e5e:1002' in line:
-                for j in range(i, min(i+10, len(lines))):
-                    if 'Kernel driver in use: evt_nic_driver' in lines[j]:
-                        return '\n'.join(lines[i:j+1])
-    except subprocess.CalledProcessError:
-        logging.error("Error running lspci command")
-    return None
+# TODO: Refactor this so it is agnostic to the specific NIC model, instead gets NIC info from the YAML config and checks if it is seen in lspci
+# def get_emergent_nic_info():
+#     """Get information about the Emergent NIC using lspci"""
+#     try:
+#         result = subprocess.run(['lspci', '-v'], capture_output=True, text=True)
+#         lines = result.stdout.split('\n')
+#         for i, line in enumerate(lines):
+#             if 'Device 1e5e:1002' in line:
+#                 for j in range(i, min(i+10, len(lines))):
+#                     if 'Kernel driver in use: evt_nic_driver' in lines[j]:
+#                         return '\n'.join(lines[i:j+1])
+#     except subprocess.CalledProcessError:
+#         logging.error("Error running lspci command")
+#     return None
 
-def verify_emergent_nic(expected_config, actual_info):
-    """Verify if the detected Emergent NIC matches the expected configuration"""
-    if actual_info is None:
-        logging.error("Emergent NIC not found")
-        return False
+# def verify_emergent_nic(expected_config, actual_info):
+#     """Verify if the detected Emergent NIC matches the expected configuration"""
+#     if actual_info is None:
+#         logging.error("Emergent NIC not found")
+#         return False
     
-    expected_model = expected_config['emergent_nic'][0]['model']
-    if 'Device 1e5e:1002' in actual_info and 'Kernel driver in use: evt_nic_driver' in actual_info:
-        logging.info(f"Emergent NIC detected: {actual_info}")
-        return True
-    else:
-        logging.error(f"Mismatch: Expected Emergent NIC {expected_model}, but found unexpected configuration")
-        logging.error(actual_info)
-        return False
+#     expected_model = expected_config['emergent_nic'][0]['model']
+#     if 'Device 1e5e:1002' in actual_info and 'Kernel driver in use: evt_nic_driver' in actual_info:
+#         logging.info(f"Emergent NIC detected: {actual_info}")
+#         return True
+#     else:
+#         logging.error(f"Mismatch: Expected Emergent NIC {expected_model}, but found unexpected configuration")
+#         logging.error(actual_info)
+#         return False
 
 def verify_nic_ports(expected_configs):
     camera_configs = expected_configs.get('cameras', {})
@@ -225,8 +226,8 @@ def main():
     actual_configs = get_current_gpu_configs(verbose=args.verbose)
     gpus_match = compare_configs(actual_configs, expected_configs, verbose=args.verbose)
     system_info_match = compare_system_info(expected_configs, verbose=args.verbose)
-    actual_nic_info = get_emergent_nic_info()
-    emergent_nic_match = verify_emergent_nic(expected_configs, actual_nic_info)
+    # actual_nic_info = get_emergent_nic_info()
+    # emergent_nic_match = verify_emergent_nic(expected_configs, actual_nic_info)
 
     logging.info("Detecting network interfaces...")
     network_interfaces = get_network_interfaces()
@@ -239,7 +240,8 @@ def main():
 
     cameras_match = check_camera_configurations(expected_configs, verbose=args.verbose)
 
-    if gpus_match and system_info_match and emergent_nic_match and nic_ports_match and cameras_match:
+    # if gpus_match and system_info_match and emergent_nic_match and nic_ports_match and cameras_match:
+    if gpus_match and system_info_match and nic_ports_match and cameras_match:
         logging.info("All configurations match!")
         return 0  # Success
     elif not gpus_match:
