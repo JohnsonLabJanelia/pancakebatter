@@ -45,11 +45,18 @@ echo "Installing recommended packages"
 echo ""
 
 # Execute installation
-sudo apt install -y plocate autofs vim gcc make \
+sudo apt install -y build-essential plocate autofs vim gcc make \
     pkg-config libglvnd-dev smartmontools \
     git openssh-server openssh-client \
     libxcb-xinerama0 filezilla dkms \
-    tmux htop curl wget arping
+    tmux htop curl wget arping sysstat \
+    libglfw3 libglfw3-dev libglew-dev \
+    tree yasm cmake libtool libc6 libc6-dev \
+    unzip libnuma1 libnuma-dev \
+    nasm libx264-dev libxext-dev libxfixes-dev \
+    zlib1g-dev libeigen3-dev libgflags-dev libgoogle-glog-dev \
+    automake autoconf patchelf
+
 
 # Check if the installation was successful
 if [ $? -eq 0 ]; then

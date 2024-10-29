@@ -2,12 +2,18 @@
 # Establishes versions of drivers, types of onboard hardware expected,
 # etc... (Fill in later)
 
-# System Information: OS and Kernel
+# System Information: OS, Kernel, ESDK, CUDA, FFmpeg, OpenCV, TensorRT, NVIDIA Driver, CUDA Capability
 system_info:
+  hostname: pancake0
   ubuntu_version: "22.04"
   kernel_version: 6.5.0-44-generic
   esdk_version: "1.0"
-  cuda_version: "12.2"
+  cuda_version: "12.2.140"
+  ffmpeg_version: "4.4"
+  opencv_version: "4.8.0"
+  tensorrt_version: "10.0.1.6"
+  nvidia_driver_version: "535.183.06"
+  cuda_capability: "sm_86"
 
 # GPUs
 gpus:
@@ -157,3 +163,12 @@ cameras:
       wavelength: 1310
       max_distance: 10
       fiber_type: SMF
+
+# Storage devices
+# TODO: Add storage devices
+
+
+# PCIe Slots: E = Empty
+# | E | NVIDIA RTX A6000 | Mellanox MCX512A-ACAT | E | NVIDIA A16 | E | NVIDIA A16 | Mellanox MCX512A-ACAT |
+# | - | ---------------- | --------------------- | - | ---------- | - | ---------- | --------------------- |
+# |   | Display          | 25Gbps, 2 Ports       |   | 4 GPUs     |   | 4 GPUs     | 25 Gbps, 2 Ports      |
