@@ -17,18 +17,6 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Function to check and update NetworkManager.conf
-check_networkmanager_conf() {
-    echo -e "\n${YELLOW}Checking NetworkManager configuration...${NC}"
-    if grep -q "wifi.enabled=false" /etc/NetworkManager/NetworkManager.conf; then
-        echo -e "${GREEN}WiFi is already disabled in NetworkManager.conf${NC}"
-    else
-        echo -e "${YELLOW}Updating NetworkManager.conf to disable WiFi...${NC}"
-        sed -i '/^\[main\]/a wifi.enabled=false' /etc/NetworkManager/NetworkManager.conf
-        echo -e "${GREEN}NetworkManager.conf updated successfully${NC}"
-    fi
-}
-
 # Function to check and create blacklist file
 check_blacklist() {
     echo -e "\n${YELLOW}Checking WiFi blacklist configuration...${NC}"

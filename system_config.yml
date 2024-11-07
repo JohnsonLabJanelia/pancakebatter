@@ -1,6 +1,6 @@
 # pancake0 configuration file
 # Establishes versions of drivers, types of onboard hardware expected,
-# etc... (Fill in later)
+# etc...
 
 # System Information: OS, Kernel, ESDK, CUDA, FFmpeg, OpenCV, TensorRT, NVIDIA Driver, CUDA Capability
 system_info:
@@ -42,28 +42,34 @@ nics:
     brand: Mellanox
     model: MT27800 Family [ConnectX-5]
     subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 41:00.0
+    pcie_id: 49:00.0
     mtu: 9000
     ip_address: 192.168.130.1/24
     camera: camera3
+    link_settings:
+      speed: 25000
+      autoneg: false
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
       serial_number: INLBS0450180
-      speed: 25 # in Gbps
-      wavelength: 1310 # in nanometers
-      max_distance: 10 # in kilometers
-      fiber_type: SMF # Single-Mode Fiber
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
 
   - mlnx2_p2_25g:
     mac_address: b8:ce:f6:22:09:77
     brand: Mellanox
     model: MT27800 Family [ConnectX-5]
     subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 41:00.1
+    pcie_id: 49:00.1
     mtu: 9000
     ip_address: 192.168.140.1/24
     camera: camera4
+    link_settings:
+      speed: 25000
+      autoneg: false
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
@@ -78,14 +84,17 @@ nics:
     brand: Mellanox
     model: MT27800 Family [ConnectX-5]
     subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 42:00.0
+    pcie_id: 61:00.0
     mtu: 9000
     ip_address: 192.168.110.1/24
     camera: camera1
+    link_settings:
+      speed: 25000
+      autoneg: false
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
-      serial_number: INLAK1610002
+      serial_number: INLAK1610002 
       speed: 25
       wavelength: 1310
       max_distance: 10
@@ -96,14 +105,17 @@ nics:
     brand: Mellanox
     model: MT27800 Family [ConnectX-5]
     subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 42:00.1
+    pcie_id: 61:00.1 
     mtu: 9000
     ip_address: 192.168.120.1/24
     camera: camera2
+    link_settings:
+      speed: 25000
+      autoneg: false
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
-      serial_number: INLBO0680132
+      serial_number: INLBS0450179  # Updated from ethtool output
       speed: 25
       wavelength: 1310
       max_distance: 10
@@ -116,17 +128,65 @@ cameras:
     serial_number: 02010093
     ip_address: 192.168.110.2
     nic_port: mlnx1_p1_25g
+    interface: 25GigE SFP28
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
       serial_number: INLBO0680127
-      speed: 25 # in Gbps
-      wavelength: 1310 # in nanometers
-      max_distance: 10 # in kilometers
-      fiber_type: SMF  # Single-Mode Fiber
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
+    sensor:
+      brand: Sony Pregius S
+      model: IMX530
+      mp_resolution: 20.28
+      x_resolution: 4504
+      y_resolution: 4504
+      cell_size: 2.74
+      sensor_type: CMOS
+      sensor_size: 1.1
+      shutter: Global
+      max_exposure: 1
+      min_exposure: 0.000005
+      bit_depth:
+        - 8
+        - 12
+      gpio_in: 3
+      gpio_out: 3
+      monochrome_modes:
+        - Mono8
+        - Mono12
+        - Mono12Packed
+      raw_modes:
+        - BayerRG8
+        - BayerRG12
+        - BayerRG12Packed
+      compliance:
+        - CE
+        - FCC
+        - RoHS
+        - WEEE
+        - GigE Vision
+        - GenICam
+      power_requirements:
+        - 9W
+        - 12V
+      storage_temperature:
+        - -30
+        - 60
+      operating_temperature:
+        - 0
+        - 45
+      dimensions:
+        - 97
+        - 66
+        - 52
+      weight: 500
+
   E0-55-97-1E-AB-EE:
     model: HB-20000-SB-M-E2
-    serial_number: 02010094
+    serial_number: 002010094
     ip_address: 192.168.120.2
     nic_port: mlnx1_p2_25g
     transceiver:
@@ -137,6 +197,7 @@ cameras:
       wavelength: 1310
       max_distance: 10
       fiber_type: SMF
+
   E0-55-97-1E-AB-EF:
     model: HB-20000-SB-M-E2
     serial_number: 02010095
@@ -150,6 +211,7 @@ cameras:
       wavelength: 1310
       max_distance: 10
       fiber_type: SMF
+
   E0-55-97-1E-AB-F0:
     model: HB-20000-SB-M-E2
     serial_number: 02010096
@@ -164,11 +226,7 @@ cameras:
       max_distance: 10
       fiber_type: SMF
 
-# Storage devices
-# TODO: Add storage devices
-
-
 # PCIe Slots: E = Empty
-# | E | NVIDIA RTX A6000 | Mellanox MCX512A-ACAT | E | NVIDIA A16 | E | NVIDIA A16 | Mellanox MCX512A-ACAT |
-# | - | ---------------- | --------------------- | - | ---------- | - | ---------- | --------------------- |
-# |   | Display          | 25Gbps, 2 Ports       |   | 4 GPUs     |   | 4 GPUs     | 25 Gbps, 2 Ports      |
+# | E | NVIDIA RTX A6000 | Mellanox MCX512A-ACAT | Mellanox MCX512A-ACAT | NVIDIA A16 | NVIDIA A16 |
+# | - | ---------------- | --------------------- | --------------------- | ---------- | ---------- |
+# |   | Display          | 25Gbps, 2 Ports       |  25 Gbps, 2 Ports     | 4 GPUs     | 4 GPUs     |

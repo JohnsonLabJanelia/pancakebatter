@@ -55,7 +55,7 @@ sudo apt install -y build-essential plocate autofs vim gcc make \
     unzip libnuma1 libnuma-dev \
     nasm libx264-dev libxext-dev libxfixes-dev \
     zlib1g-dev libeigen3-dev libgflags-dev libgoogle-glog-dev \
-    automake autoconf patchelf
+    automake autoconf patchelf lm-sensors
 
 
 # Check if the installation was successful

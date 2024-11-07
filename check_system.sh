@@ -294,7 +294,7 @@ check_nvenc_configuration() {
             if [[ "$VERBOSE" == true ]]; then
                 echo "$nvenc_encoders"
             else
-                echo "$nvenc_encoders" | head -n 3
+                echo "$nvenc_encoders" | head -n 6
             fi
         else
             echo -e "${RED}✗ No NVENC encoders found in FFmpeg${NC}"

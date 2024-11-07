@@ -30,7 +30,7 @@ done
 
 # Validate NIC_TYPE
 if [[ "$NIC_TYPE" != "emergent" && "$NIC_TYPE" != "Mellanox" ]]; then
-    echo -e "${RED}ERROR: Invalid NIC type. Please specify either 'emergent' or 'ellanox' (case sensitive).${NC}"
+    echo -e "${RED}ERROR: Invalid NIC type. Please specify either 'emergent' or 'Mellanox' (case sensitive).${NC}"
     usage
 fi
 
