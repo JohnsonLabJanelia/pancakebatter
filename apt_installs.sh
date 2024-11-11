@@ -56,7 +56,7 @@ sudo apt install -y build-essential plocate autofs vim gcc make \
     nasm libx264-dev libxext-dev libxfixes-dev \
     zlib1g-dev libeigen3-dev libgflags-dev libgoogle-glog-dev \
     automake autoconf patchelf lm-sensors fio \
-    nvme-cli
+    nvme-cli linuxptp
 
 
 # Check if the installation was successful
