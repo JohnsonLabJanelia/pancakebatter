@@ -64,89 +64,94 @@ gpus:
     driver_version: 535.183.06
 
 nics:
-  - mlnx2_p1_25g:
-    mac_address: b8:ce:f6:22:09:76
-    brand: Mellanox
-    model: MT27800 Family [ConnectX-5]
-    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 49:00.0
-    mtu: 9000
-    ip_address: 192.168.130.1/24
-    camera: camera3
-    link_settings:
-      speed: 25000
-      autoneg: false
-    transceiver:
-      brand: InnoLight
-      model: TR-PY13L-V00
-      serial_number: INLBS0450180
-      speed: 25
-      wavelength: 1310
-      max_distance: 10
-      fiber_type: SMF
-
-  - mlnx2_p2_25g:
-    mac_address: b8:ce:f6:22:09:77
-    brand: Mellanox
-    model: MT27800 Family [ConnectX-5]
-    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 49:00.1
-    mtu: 9000
-    ip_address: 192.168.140.1/24
-    camera: camera4
-    link_settings:
-      speed: 25000
-      autoneg: false
-    transceiver:
-      brand: InnoLight
-      model: TR-PY13L-V00
-      serial_number: INLAK1610003
-      speed: 25
-      wavelength: 1310
-      max_distance: 10
-      fiber_type: SMF
-
   - mlnx1_p1_25g:
-    mac_address: 10:70:fd:5e:5c:28
-    brand: Mellanox
-    model: MT27800 Family [ConnectX-5]
-    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 61:00.0
-    mtu: 9000
-    ip_address: 192.168.110.1/24
-    camera: camera1
-    link_settings:
-      speed: 25000
-      autoneg: false
-    transceiver:
-      brand: InnoLight
-      model: TR-PY13L-V00
-      serial_number: INLAK1610002 
-      speed: 25
-      wavelength: 1310
-      max_distance: 10
-      fiber_type: SMF
-
+      altname: eth0
+      mac_address: a0:88:c2:69:11:9e
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 25/50GbE
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.0
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.110.1/24
+      link_settings:
+        speed: 25000 # in Gbps
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLAK1610002
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
   - mlnx1_p2_25g:
-    mac_address: 10:70:fd:5e:5c:29
-    brand: Mellanox
-    model: MT27800 Family [ConnectX-5]
-    subsystem: ConnectX-5 EN network interface card, 10/25GbE dual-port SFP28, PCIe3.0 x8, tall bracket ; MCX512A-ACAT
-    pcie_id: 61:00.1 
-    mtu: 9000
-    ip_address: 192.168.120.1/24
-    camera: camera2
-    link_settings:
-      speed: 25000
-      autoneg: false
-    transceiver:
-      brand: InnoLight
-      model: TR-PY13L-V00
-      serial_number: INLBS0450179  # Updated from ethtool output
-      speed: 25
-      wavelength: 1310
-      max_distance: 10
-      fiber_type: SMF
+      altname: eth1
+      mac_address: a0:88:c2:69:11:9f
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 25/50GbE
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.1
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.120.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLBS0450179
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
+  - mlnx1_p3_25g:
+      altname: eth2
+      mac_address: a0:88:c2:69:11:a0
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 25/50GbE
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.2
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.130.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLBS0450180
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
+  - mlnx1_p4_25g:
+      altname: eth3
+      mac_address: a0:88:c2:69:11:a1
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 25/50GbE
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.3
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.140.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLAK1610003
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
 
 # Cameras: Primary key is MAC address of machine
 cameras:
@@ -197,19 +202,22 @@ cameras:
         - GigE Vision
         - GenICam
       power_requirements:
-        - 9W
-        - 12V
+        watts: 9
+        volts: 12
       storage_temperature:
-        - -30
+        - -30 # Degrees Celsius
         - 60
-      operating_temperature:
-        - 0
+      ambient_temperature:
+        - 0 # Degrees Celsius
         - 45
+      operating_temperature:
+        - 40 # Degrees Celsius
+        - 80
       dimensions:
-        - 97
+        - 97 # in cm
         - 66
         - 52
-      weight: 500
+      weight: 500 # in grams
 
   E0-55-97-1E-AB-EE:
     model: HB-20000-SB-M-E2
@@ -229,7 +237,7 @@ cameras:
     model: HB-20000-SB-M-E2
     serial_number: 02010095
     ip_address: 192.168.130.2
-    nic_port: mlnx2_p1_25g
+    nic_port: mlnx1_p3_25g
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
@@ -243,7 +251,7 @@ cameras:
     model: HB-20000-SB-M-E2
     serial_number: 02010096
     ip_address: 192.168.140.2
-    nic_port: mlnx2_p2_25g
+    nic_port: mlnx1_p4_25g
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00

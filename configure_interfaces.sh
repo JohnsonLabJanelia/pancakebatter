@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# ANSI color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Function to configure interface settings
+configure_interface() {
+    local interface=$1
+    local mtu=$2
+    local speed=$3
+    local autoneg=$4
+    local ip_address=$5
+
+    echo -e "${BLUE}Configuring interface $interface:${NC}"
+    
+    # Bring interface down first
+    ip link set dev "$interface" down
+    
+    # Clean any existing IPs
+    ip addr flush dev "$interface"
+    
+    # Configure MTU if specified
+    if [[ -n "$mtu" && "$mtu" != "null" ]]; then
+        echo -e "  Setting MTU to $mtu"
+        if ! ip link set dev "$interface" mtu "$mtu"; then
+            echo -e "${RED}  Failed to set MTU on $interface${NC}"
+            return 1
+        fi
+        echo -e "${GREEN}  MTU set successfully${NC}"
+    fi
+
+    # Configure speed and autonegotiation
+    if [[ -n "$speed" && "$speed" != "null" ]]; then
+        local ethtool_cmd="ethtool -s $interface"
+        
+        if [[ "$autoneg" == "false" ]]; then
+            ethtool_cmd+=" autoneg off speed $speed"
+            echo -e "  Setting speed to ${speed}Mbps with autoneg off"
+        else
+            ethtool_cmd+=" autoneg on"
+            echo -e "  Enabling autonegotiation"
+        fi
+
+        if ! eval "$ethtool_cmd"; then
+            echo -e "${RED}  Failed to set speed/autoneg on $interface${NC}"
+            return 1
+        fi
+        echo -e "${GREEN}  Speed/autoneg settings applied successfully${NC}"
+    fi
+
+    # Assign IP if specified
+    if [[ -n "$ip_address" && "$ip_address" != "null" ]]; then
+        echo -e "  Assigning IP address $ip_address"
+        if ! ip addr add "$ip_address" dev "$interface"; then
+            echo -e "${RED}  Failed to assign IP $ip_address to $interface${NC}"
+            return 1
+        fi
+        echo -e "${GREEN}  IP address assigned successfully${NC}"
+    fi
+
+    # Bring interface up
+    ip link set dev "$interface" up
+    
+    # Wait a moment for interface to stabilize
+    sleep 1
+    
+    # Verify interface state
+    if [[ $(ip link show dev "$interface" | grep "state UP") ]]; then
+        echo -e "${GREEN}  Interface is UP${NC}"
+    else
+        echo -e "${YELLOW}  Warning: Interface did not come UP${NC}"
+    fi
+
+    return 0
+}
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}Please run as root${NC}"
+    exit 1
+fi
+
+CONFIG_FILE="system_config.yml"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo -e "${RED}Configuration file $CONFIG_FILE not found${NC}"
+    exit 1
+fi
+
+# Get the length of the nics array
+nics_length=$(sudo -u "$SUDO_USER" yq e '.nics | length' "$CONFIG_FILE")
+
+# Configure interfaces using primary names
+echo -e "${YELLOW}Configuring network interfaces...${NC}"
+for ((i=0; i<$nics_length; i++)); do
+    nic_name=$(sudo -u "$SUDO_USER" yq e ".nics[$i] | keys | .[0]" "$CONFIG_FILE")
+    ip_address=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.ip_address" "$CONFIG_FILE")
+    mtu=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.mtu" "$CONFIG_FILE")
+    speed=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.link_settings.speed" "$CONFIG_FILE")
+    autoneg=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.link_settings.autoneg" "$CONFIG_FILE")
+    
+    if ip link show "$nic_name" &> /dev/null; then
+        configure_interface "$nic_name" "$mtu" "$speed" "$autoneg" "$ip_address"
+    else
+        echo -e "${RED}Interface $nic_name not found${NC}"
+    fi
+done
+
+# Verify configuration
+echo -e "\n${YELLOW}Verifying interface configurations:${NC}"
+for ((i=0; i<$nics_length; i++)); do
+    nic_name=$(sudo -u "$SUDO_USER" yq e ".nics[$i] | keys | .[0]" "$CONFIG_FILE")
+    if ip link show "$nic_name" &> /dev/null; then
+        echo -e "${BLUE}Interface $nic_name:${NC}"
+        ip addr show dev "$nic_name"
+        ethtool "$nic_name" | grep -E "Speed|Auto-negotiation"
+    fi
+done
+
+echo -e "${GREEN}All network configurations have been completed.${NC}"
