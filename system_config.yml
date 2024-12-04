@@ -68,7 +68,7 @@ nics:
       altname: eth0
       mac_address: a0:88:c2:69:11:9e
       brand: Mellanox
-      model: NVIDIA ConnectX-7 25/50GbE
+      model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
       pcie_id: 61:00.0
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
@@ -90,7 +90,7 @@ nics:
       altname: eth1
       mac_address: a0:88:c2:69:11:9f
       brand: Mellanox
-      model: NVIDIA ConnectX-7 25/50GbE
+      model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
       pcie_id: 61:00.1
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
@@ -112,7 +112,7 @@ nics:
       altname: eth2
       mac_address: a0:88:c2:69:11:a0
       brand: Mellanox
-      model: NVIDIA ConnectX-7 25/50GbE
+      model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
       pcie_id: 61:00.2
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
@@ -134,7 +134,7 @@ nics:
       altname: eth3
       mac_address: a0:88:c2:69:11:a1
       brand: Mellanox
-      model: NVIDIA ConnectX-7 25/50GbE
+      model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
       pcie_id: 61:00.3
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
@@ -152,6 +152,94 @@ nics:
         wavelength: 1310
         max_distance: 10
         fiber_type: SMF
+  - mlnx2_p1_25g:
+      altname: eth4
+      mac_address: c4:70:bd:d4:b5:f0
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 49:00.0
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2438XZ09N2
+      mtu: 9000
+      ip_address: 192.168.150.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: null
+        model: null
+        serial_number: null
+        speed: null
+        wavelength: null
+        max_distance: null
+        fiber_type: null
+  - mlnx2_p2_25g:
+      altname: eth5
+      mac_address: c4:70:bd:d4:b5:f1
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 49:00.1
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2438XZ09N2
+      mtu: 9000
+      ip_address: 192.168.160.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: null
+        model: null
+        serial_number: null
+        speed: null
+        wavelength: null
+        max_distance: null
+        fiber_type: null
+  - mlnx2_p3_25g:
+    altname: eth6
+    mac_address: c4:70:bd:d4:b5:f2
+    brand: Mellanox
+    model: NVIDIA ConnectX-7 MT2910 Family
+    part_number: MCX713104AS-ADAT
+    pcie_id: 49:00.2
+    subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+    serial_number: MT2438XZ09N2
+    mtu: 9000
+    ip_address: 192.168.170.1/24
+    link_settings:
+      speed: 25000
+      autoneg: false
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+  - mlnx2_p4_25g:
+    altname: eth7
+    mac_address: c4:70:bd:d4:b5:f3
+    brand: Mellanox
+    model: NVIDIA ConnectX-7 MT2910 Family
+    part_number: MCX713104AS-ADAT
+    pcie_id: 49:00.3
+    subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+    serial_number: MT2438XZ09N2
+    mtu: 9000
+    ip_address: 192.168.180.1/24
+    link_settings:
+      speed: 25000
+      autoneg: false
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
 
 # Cameras: Primary key is MAC address of machine
 cameras:
