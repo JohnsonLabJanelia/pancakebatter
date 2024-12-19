@@ -1,0 +1,9 @@
+Rivermax License File: “rivermax.lic“
+
+Using the License File with Rivermax
+For Rivermax to operate correctly, the license file should be saved to a specific location.
+* Windows:
+o The default path where Rivermax expects* to find the license file is C:\Program Files\Mellanox\Rivermax\lib\rivermax.lic
+* Linux:
+o The default path where Rivermax expects* to find the license file is /opt/mellanox/rivermax/rivermax.lic
+If you require further technical assistance, please contact support@emergentvisiontec.com to get in touch and our support team will be happy to help you.
