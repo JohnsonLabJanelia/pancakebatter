@@ -14,6 +14,8 @@ system_info:
   tensorrt_version: "10.0.1.6"
   nvidia_driver_version: "535.183.06"
   cuda_capability: "sm_86"
+  network_renderer: "NetworkManager"
+  network_renderer_version: "2"
 
 # Storage Devices
 storage_devices:
