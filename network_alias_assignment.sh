@@ -1,83 +1,57 @@
 #!/bin/bash
 
+# Script to create udev rules for persistent network interface naming.
+# Reads MAC addresses and desired names from config, validates, and generates rules.
+# Requires a reboot for names to take effect.
+
 # Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No color
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+NC="\033[0m"  # No Color
 
-# Get the directory where the script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CONFIG_FILE="${SCRIPT_DIR}/system_config.yml"
+# --- Configuration ---
+# Get hostname (use -s for short name, adjust if your naming needs FQDN)
+HOSTNAME=$(hostname -s)
+CONFIG_FILE="./${HOSTNAME}_config.yml"
 UDEV_RULES_FILE="/etc/udev/rules.d/10-network-aliases.rules"
+# User who invoked sudo, for running yq safely
+INVOKING_USER="$SUDO_USER"
 
-# Validation functions
+# --- Helper Functions ---
+
+# Function to check for required commands
+check_dependencies() {
+    echo -e "${YELLOW}Checking dependencies...${NC}"
+    local missing_deps=0
+    local deps=("yq") # Only yq is needed now
+    for cmd in "${deps[@]}"; do
+        if ! command -v "$cmd" &> /dev/null; then
+            echo -e "${RED}Error: Required command '$cmd' not found.${NC}"
+            missing_deps=1
+        fi
+    done
+    if [[ "$missing_deps" -eq 1 ]]; then
+        echo -e "${RED}Please install missing dependencies and try again.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}All dependencies found.${NC}"
+}
+
+# Function to safely parse YAML using yq as the invoking user
+safe_yq_get() {
+    local query=$1
+    local file=$2
+    sudo -u "$INVOKING_USER" yq e "$query" "$file" 2>/dev/null
+    return $? # Return yq's exit code
+}
+
 validate_mac_address() {
     local mac=$1
-    local valid_mac_regex="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
-    if [[ ! $mac =~ $valid_mac_regex ]]; then
-        echo -e "${RED}Invalid MAC address format: $mac${NC}"
-        return 1
-    fi
-    return 0
-}
-
-validate_ip_address() {
-    local ip=$1
-    # Remove CIDR notation for validation
-    local ip_addr=${ip%/*}
-    local cidr=${ip#*/}
-    
-    # Validate IP format
-    local valid_ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-    if [[ ! $ip_addr =~ $valid_ip_regex ]]; then
-        echo -e "${RED}Invalid IP address format: $ip_addr${NC}"
-        return 1
-    fi
-    
-    # Validate each octet
-    local IFS='.'
-    read -r -a octets <<< "$ip_addr"
-    for octet in "${octets[@]}"; do
-        if [ "$octet" -gt 255 ] || [ "$octet" -lt 0 ]; then
-            echo -e "${RED}Invalid IP octet value: $octet${NC}"
-            return 1
-        fi
-    done
-    
-    # Validate CIDR
-    if [ "$cidr" -lt 1 ] || [ "$cidr" -gt 32 ]; then
-        echo -e "${RED}Invalid CIDR notation: $cidr${NC}"
-        return 1
-    fi
-    
-    return 0
-}
-
-validate_mtu() {
-    local mtu=$1
-    # Standard MTU range: 68 to 65536
-    if ! [[ "$mtu" =~ ^[0-9]+$ ]] || [ "$mtu" -lt 68 ] || [ "$mtu" -gt 65536 ]; then
-        echo -e "${RED}Invalid MTU value: $mtu (must be between 68 and 65536)${NC}"
-        return 1
-    fi
-    return 0
-}
-
-validate_speed() {
-    local speed=$1
-    # Valid speeds: 1000, 10000, 25000, 40000, 100000 (Mbps)
-    local valid_speeds=(1000 10000 25000 40000 100000)
-    local valid=0
-    for valid_speed in "${valid_speeds[@]}"; do
-        if [ "$speed" -eq "$valid_speed" ]; then
-            valid=1
-            break
-        fi
-    done
-    if [ $valid -eq 0 ]; then
-        echo -e "${RED}Invalid speed value: $speed (must be one of: ${valid_speeds[*]} Mbps)${NC}"
+    local valid_mac_regex="^([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})$"
+    if [[ -z "$mac" || "$mac" == "null" || ! $mac =~ $valid_mac_regex ]]; then
+        echo -e "${RED}  Invalid or missing MAC address format: '$mac'${NC}"
         return 1
     fi
     return 0
@@ -85,238 +59,132 @@ validate_speed() {
 
 validate_interface_name() {
     local name=$1
-    # Interface name must be alphanumeric and no longer than 15 characters
+    local context=$2 # e.g., "primary name" or "altname"
+    # Interface name must be alphanumeric, underscore, hyphen and no longer than 15 characters (IFNAMSIZ)
     local valid_name_regex="^[a-zA-Z0-9_-]{1,15}$"
-    if [[ ! $name =~ $valid_name_regex ]]; then
-        echo -e "${RED}Invalid interface name: $name${NC}"
+    if [[ -z "$name" || "$name" == "null" || ! $name =~ $valid_name_regex ]]; then
+        echo -e "${RED}  Invalid or missing $context format: '$name' (must be 1-15 alphanumeric/underscore/hyphen chars)${NC}"
         return 1
     fi
     return 0
 }
 
-check_ip_conflicts() {
-    local ip=$1
-    local interface=$2
-    local ip_addr=${ip%/*}
-    
-    # Check if IP is already assigned to a different interface
-    local existing_interface=$(ip addr show | grep -B2 "$ip_addr" | grep -v "$interface" | grep "^[0-9]" | awk -F: '{print $2}' | tr -d ' ')
-    if [ -n "$existing_interface" ]; then
-        echo -e "${RED}IP address $ip_addr is already assigned to interface $existing_interface${NC}"
-        return 1
-    fi
-    return 0
-}
+# --- Main Script ---
 
-validate_nic_config() {
-    local name=$1
-    local mac=$2
-    local altname=$3
-    local ip=$4
-    local mtu=$5
-    local speed=$6
-    local errors=0
-
-    echo -e "${BLUE}Validating configuration for NIC: $name${NC}"
-    
-    # Validate MAC address
-    if ! validate_mac_address "$mac"; then
-        ((errors++))
-    else
-        echo -e "${GREEN}✓ MAC address format is valid${NC}"
-    fi
-    
-    # Validate interface name
-    if ! validate_interface_name "$altname"; then
-        ((errors++))
-    else
-        echo -e "${GREEN}✓ Interface name format is valid${NC}"
-    fi
-    
-    # Validate IP address
-    if ! validate_ip_address "$ip"; then
-        ((errors++))
-    else
-        echo -e "${GREEN}✓ IP address format is valid${NC}"
-        # Check for IP conflicts only if format is valid
-        if ! check_ip_conflicts "$ip" "$altname"; then
-            ((errors++))
-        else
-            echo -e "${GREEN}✓ No IP conflicts detected${NC}"
-        fi
-    fi
-    
-    # Validate MTU
-    if ! validate_mtu "$mtu"; then
-        ((errors++))
-    else
-        echo -e "${GREEN}✓ MTU value is valid${NC}"
-    fi
-    
-    # Validate Speed
-    if ! validate_speed "$speed"; then
-        ((errors++))
-    else
-        echo -e "${GREEN}✓ Speed value is valid${NC}"
-    fi
-    
-    return $errors
-}
-
-# Function to clean up existing IP addresses
-clean_interface_ips() {
-    local interface=$1
-    echo -e "${BLUE}Cleaning existing IPs from $interface${NC}"
-    
-    if ip addr flush dev "$interface" scope global; then
-        echo -e "${GREEN}  Successfully cleaned IPs from $interface${NC}"
-    else
-        echo -e "${RED}  Failed to clean IPs from $interface${NC}"
-        return 1
-    fi
-}
-
-# Function to create udev rules for interface naming
-create_udev_rules() {
-    local mac=$1
-    local name=$2
-    local altname=$3
-    
-    echo -e "${GREEN}Adding udev rule for MAC address $mac -> $name (alt: $altname)${NC}"
-    
-    # Create the primary interface name rule
-    echo "SUBSYSTEM==\"net\", ACTION==\"add\", ATTR{address}==\"$mac\", NAME=\"$name\"" >> "$UDEV_RULES_FILE"
-    
-    # Create symlink for alternative name
-    echo "SUBSYSTEM==\"net\", ACTION==\"add\", ATTR{address}==\"$mac\", SYMLINK+=\"$altname\"" >> "$UDEV_RULES_FILE"
-}
-
-# Main script execution starts here
-echo -e "${YELLOW}Starting network interface configuration...${NC}"
-
-# Debug information
-echo -e "${YELLOW}Debug Information:${NC}"
-echo "Script Directory: $SCRIPT_DIR"
-echo "Config File Path: $CONFIG_FILE"
-echo "Current User: $(whoami)"
-echo "SUDO_USER: $SUDO_USER"
-ls -l "$CONFIG_FILE"
-
-# Check if config file exists and is readable
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo -e "${RED}Error: Config file not found at $CONFIG_FILE${NC}"
+# Check if running as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo -e "${RED}Please run as root using sudo${NC}"
     exit 1
 fi
 
-# Create udev rules file for network aliases
-echo -e "${YELLOW}Creating udev rules file at $UDEV_RULES_FILE...${NC}"
-echo '# Custom udev rules for network interface naming and aliases' > "$UDEV_RULES_FILE"
-
-# Empty the rules file if it exists, or create a new one
-echo '# Custom udev rules for network alias assignment' > "$UDEV_RULES_FILE"
-
-# Check required tools
-for tool in yq ethtool ip; do
-    if ! command -v $tool &> /dev/null; then
-        echo -e "${RED}Error: Required tool '$tool' is not installed${NC}"
-        exit 1
-    fi
-done
-
-# Get the length of the nics array
-nics_length=$(sudo -u "$SUDO_USER" yq e '.nics | length' "$CONFIG_FILE")
-validation_errors=0
-
-# First pass: Validate all configurations
-echo -e "${BLUE}Validating all NIC configurations...${NC}"
-for ((i=0; i<$nics_length; i++)); do
-    nic_name=$(sudo -u "$SUDO_USER" yq e ".nics[$i] | keys | .[0]" "$CONFIG_FILE")
-    mac_address=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.mac_address" "$CONFIG_FILE" | tr '[:upper:]' '[:lower:]')
-    altname=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.altname" "$CONFIG_FILE")
-    ip_address=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.ip_address" "$CONFIG_FILE")
-    mtu=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.mtu" "$CONFIG_FILE")
-    speed=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.link_settings.speed" "$CONFIG_FILE")
-    
-    echo -e "\n${YELLOW}Validating NIC: $nic_name${NC}"
-    if ! validate_nic_config "$nic_name" "$mac_address" "$altname" "$ip_address" "$mtu" "$speed"; then
-        ((validation_errors++))
-    fi
-done
-
-# Check if there were any validation errors
-if [ $validation_errors -gt 0 ]; then
-    echo -e "${RED}Found $validation_errors validation error(s). Please fix the configuration and try again.${NC}"
-    exit 1
+# Ensure SUDO_USER is set
+if [[ -z "$INVOKING_USER" ]]; then
+     echo -e "${RED}Error: Could not determine the original user. Please run using sudo.${NC}"
+     exit 1
 fi
 
-# If all validations passed, proceed with configuration
-echo -e "${GREEN}All configurations validated successfully. Proceeding with interface configuration...${NC}"
+# Check dependencies first
+check_dependencies
+
+# Check if config file exists
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo -e "${RED}Configuration file '$CONFIG_FILE' not found for hostname '$HOSTNAME'.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}Using configuration file: $CONFIG_FILE${NC}"
+
+# Prepare udev rules file
+echo -e "${YELLOW}Preparing udev rules file at $UDEV_RULES_FILE...${NC}"
+# Create/overwrite the file with a header
+cat > "$UDEV_RULES_FILE" << EOF
+# Custom udev rules for network interface naming and aliases
+# Generated by network_alias_assignment_v2.sh on $(date)
+# Based on MAC addresses from $CONFIG_FILE
+# Apply rules with: udevadm control --reload-rules && udevadm trigger --action=add --subsystem-match=net
+# Or simply reboot the system.
+
+EOF
+# Ensure root owns the file and permissions are correct (usually 644)
+chown root:root "$UDEV_RULES_FILE"
+chmod 644 "$UDEV_RULES_FILE"
+echo -e "${GREEN}Initialized $UDEV_RULES_FILE${NC}"
+
+
+# Parse the number of NICs from the config file
+nics_length=$(safe_yq_get '.nics | length' "$CONFIG_FILE")
+if ! [[ "$nics_length" =~ ^[0-9]+$ ]]; then
+     echo -e "${RED}Error: Could not parse number of NICs from $CONFIG_FILE${NC}"
+     exit 1
+fi
+
+echo -e "${YELLOW}Generating udev rules...${NC}"
+local_errors=0
 
 # Iterate through the nics array
 for ((i=0; i<$nics_length; i++)); do
-    # Get the NIC name (key of the first map in the object)
-    nic_name=$(sudo -u "$SUDO_USER" yq e ".nics[$i] | keys | .[0]" "$CONFIG_FILE")
-    
-    # Extract values using the correct path
-    mac_address=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.mac_address" "$CONFIG_FILE" | tr '[:upper:]' '[:lower:]')
-    altname=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.altname" "$CONFIG_FILE")
-    ip_address=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.ip_address" "$CONFIG_FILE")
-    mtu=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.mtu" "$CONFIG_FILE")
-    speed=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.link_settings.speed" "$CONFIG_FILE")
-    autoneg=$(sudo -u "$SUDO_USER" yq e ".nics[$i].$nic_name.link_settings.autoneg" "$CONFIG_FILE")
-    
-    # Debug output
-    echo -e "${YELLOW}Found NIC:${NC}"
-    echo "  Name: $nic_name"
-    echo "  MAC: $mac_address"
-    echo "  Altname: $altname"
-    echo "  IP: $ip_address"
-    echo "  MTU: $mtu"
-    echo "  Speed: $speed"
-    echo "  AutoNeg: $autoneg"
+    nic_index_errors=0
+    echo -e "${BLUE}Processing NIC definition index: $i${NC}"
 
-    # Skip if any required fields are missing or null
-    if [[ -n "$altname" && -n "$mac_address" && "$mac_address" != "null" ]]; then
-        echo -e "${GREEN}Adding udev rule for MAC address $mac_address -> $nic_name (alt: $altname)${NC}"
-        # Create the primary interface name rule
-        echo "SUBSYSTEM==\"net\", ACTION==\"add\", ATTR{address}==\"$mac_address\", NAME=\"$nic_name\"" >> "$UDEV_RULES_FILE"
-        # Create symlink for alternative name
-        echo "SUBSYSTEM==\"net\", ACTION==\"add\", ATTR{address}==\"$mac_address\", SYMLINK+=\"$altname\"" >> "$UDEV_RULES_FILE"
-        
-        # Store settings for later configuration
-        if [[ -n "$ip_address" && "$ip_address" != "null" ]]; then
-            declare "NIC_IP_$nic_name=$ip_address"
-        fi
-        if [[ -n "$mtu" && "$mtu" != "null" ]]; then
-            declare "NIC_MTU_$nic_name=$mtu"
-        fi
-        if [[ -n "$speed" && "$speed" != "null" ]]; then
-            declare "NIC_SPEED_$nic_name=$speed"
-        fi
-        declare "NIC_AUTONEG_$nic_name=$autoneg"
+    # Get the primary interface name (the key under nics[i])
+    nic_name=$(safe_yq_get ".nics[$i] | keys | .[0]" "$CONFIG_FILE")
+    if ! validate_interface_name "$nic_name" "primary name"; then
+        ((nic_index_errors++))
     fi
-done
 
-# After writing all udev rules, prompt for reboot instead of configuring
-echo -e "${YELLOW}Network interface rules have been written to $UDEV_RULES_FILE${NC}"
-echo -e "${YELLOW}To apply these changes safely, a reboot is required.${NC}"
+    # Extract MAC and altname using the primary name
+    mac_address=$(safe_yq_get ".nics[$i].$nic_name.mac_address" "$CONFIG_FILE" | tr '[:upper:]' '[:lower:]') # Ensure lowercase for consistency
+    if ! validate_mac_address "$mac_address"; then
+        ((nic_index_errors++))
+    fi
+
+    altname=$(safe_yq_get ".nics[$i].$nic_name.altname" "$CONFIG_FILE")
+    if ! validate_interface_name "$altname" "altname"; then
+        ((nic_index_errors++))
+    fi
+
+    # Skip writing rules for this NIC if any validation failed
+    if [[ "$nic_index_errors" -gt 0 ]]; then
+         echo -e "${RED}  Skipping udev rule generation for NIC index $i due to validation errors.${NC}"
+         ((local_errors++))
+         continue
+    fi
+
+    # If validations passed, write the rules
+    echo -e "  Adding udev rule for MAC $mac_address -> NAME=$nic_name, SYMLINK+=$altname"
+    # Create the primary interface name rule
+    echo "SUBSYSTEM==\"net\", ACTION==\"add\", ATTR{address}==\"$mac_address\", NAME=\"$nic_name\"" >> "$UDEV_RULES_FILE"
+    # Create symlink for alternative name
+    echo "SUBSYSTEM==\"net\", ACTION==\"add\", ATTR{address}==\"$mac_address\", SYMLINK+=\"$altname\"" >> "$UDEV_RULES_FILE"
+    echo "" >> "$UDEV_RULES_FILE" # Add a blank line for readability
+
+done # End loop through NICs
+
+
+# Final status message
+if [[ "$local_errors" -gt 0 ]]; then
+    echo -e "${YELLOW}Finished generating rules, but $local_errors NIC definition(s) had errors and were skipped.${NC}"
+else
+    echo -e "${GREEN}Successfully generated all udev rules.${NC}"
+fi
+echo -e "${GREEN}Network interface naming rules written to $UDEV_RULES_FILE${NC}"
+
+# Prompt for reboot
+echo -e "\n${YELLOW}To apply these persistent interface names, the system needs to reload udev rules and re-trigger device events, or be rebooted.${NC}"
+echo -e "${YELLOW}A reboot is the simplest way to ensure names are applied correctly before network configuration.${NC}"
 echo -e "${YELLOW}Would you like to:${NC}"
-echo "1. Save changes and reboot now"
-echo "2. Save changes only (manual reboot required)"
+echo "1. Save rules and reboot now"
+echo "2. Save rules only (manual reboot required)"
 read -p "Enter choice (1 or 2): " choice
 
 case $choice in
     1)
         echo -e "${GREEN}Rebooting system...${NC}"
-        sync  # Ensure all changes are written to disk
+        sync # Ensure all changes are written to disk
         systemctl reboot
         ;;
-    2)
-        echo -e "${GREEN}Changes saved. Please reboot your system when convenient.${NC}"
-        echo -e "${YELLOW}After reboot, run this script again to configure interface settings.${NC}"
-        ;;
-    *)
-        echo -e "${RED}Invalid choice. Please reboot manually when convenient.${NC}"
+    2|*) # Default to saving only if choice is not 1
+        echo -e "${GREEN}Rules saved to $UDEV_RULES_FILE. Please reboot your system when convenient.${NC}"
+        echo -e "${YELLOW}After reboot, run the configure_interfaces_v2.sh script to apply IP settings to the newly named interfaces.${NC}"
         ;;
 esac
 
