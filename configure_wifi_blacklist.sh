@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Script for setting up network configurations on rig machines
-# Jeremy Delahanty, Claude Sonnet 3.5 10/02/2024
+# Script for blacklisting wifi on pancakes
 
 # ANSI color codes for formatting output
 RED='\033[0;31m'
