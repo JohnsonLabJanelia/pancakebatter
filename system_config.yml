@@ -352,6 +352,7 @@ cameras:
       fiber_type: SMF
 
 # PCIe Slots: E = Empty
-# | E | NVIDIA RTX A6000 | Mellanox MCX512A-ACAT | Mellanox MCX512A-ACAT | NVIDIA A16 | NVIDIA A16 |
-# | - | ---------------- | --------------------- | --------------------- | ---------- | ---------- |
-# |   | Display          | 25Gbps, 2 Ports       |  25 Gbps, 2 Ports     | 4 GPUs     | 4 GPUs     |
+# | E | NVIDIA RTX A6000  | Mellanox MCX713104AS-ADAT | Mellanox MCX713104AS-ADAT | NVIDIA A16 | NVIDIA A16 |
+# | - | ----------------- | ------------------------- | ------------------------- | ---------- | ---------- |
+# |   | Display,Projector | 25Gbps, 4 Ports           |  25 Gbps, 4 Ports         | 4 GPUs     | 4 GPUs     |
+

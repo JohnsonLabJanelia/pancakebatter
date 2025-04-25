@@ -1,0 +1,357 @@
+# pancake0 configuration file
+# Establishes versions of drivers, types of onboard hardware expected,
+# etc...
+
+# System Information: OS, Kernel, ESDK, CUDA, FFmpeg, OpenCV, TensorRT, NVIDIA Driver, CUDA Capability
+system_info:
+  hostname: pancake0
+  ubuntu_version: "22.04"
+  kernel_version: 6.5.0-44-generic
+  esdk_version: "1.0"
+  cuda_version: "12.2.140"
+  ffmpeg_version: "4.4"
+  opencv_version: "4.8.0"
+  tensorrt_version: "10.0.1.6"
+  nvidia_driver_version: "535.183.06"
+  cuda_capability: "sm_86"
+  network_renderer: "NetworkManager"
+  network_renderer_version: "2"
+
+# Storage Devices
+storage_devices:
+  - nvme0n1: Sabrent SB-RKT4P-8TB
+    serial_number: 48816072200219
+    capacity: 8 # in TB
+    device_path: /dev/nvme0n1
+    firmware_version: R4PTLC.4
+    format: 512 # Block size in bytes
+    sequential_read_speed: 7000 # in MB/s
+    sequential_write_speed: 6000 # in MB/s
+  - nvme1n1: Sabrent SB-RKT4P-8TB
+    serial_number: 48816072200222
+    capacity: 8
+    device_path: /dev/nvme1n1
+    firmware_version: R4PTLC.4
+    format: 512
+    sequential_read_speed: 7000 MB/s
+    sequential_write_speed: 6000 MB/s
+  - nvme2n1: Sabrent SB-RKT4P-8TB
+    serial_number: 48804572201297
+    capacity: 8
+    device_path: /dev/nvme2n1
+    firmware_version: R4PTLC.3
+    format: 512
+    sequential_read_speed: 7000
+    sequential_write_speed: 6000
+
+# GPUs
+gpus:
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA RTX A6000
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+  - model: NVIDIA A16
+    driver_version: 535.183.06
+
+nics:
+  - mlnx1_p1_25g:
+      altname: eth0
+      mac_address: a0:88:c2:69:11:9e
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.0
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.110.1/24
+      link_settings:
+        speed: 25000 # in Gbps
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLAK1610002
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
+  - mlnx1_p2_25g:
+      altname: eth1
+      mac_address: a0:88:c2:69:11:9f
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.1
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.120.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLBS0450179
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
+  - mlnx1_p3_25g:
+      altname: eth2
+      mac_address: a0:88:c2:69:11:a0
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.2
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.130.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLBS0450180
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
+  - mlnx1_p4_25g:
+      altname: eth3
+      mac_address: a0:88:c2:69:11:a1
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 61:00.3
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2336XZ09PC
+      mtu: 9000
+      ip_address: 192.168.140.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLAK1610003
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
+  - mlnx2_p1_25g:
+      altname: eth4
+      mac_address: c4:70:bd:d4:b5:f0
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 49:00.0
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2438XZ09N2
+      mtu: 9000
+      ip_address: 192.168.150.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: null
+        model: null
+        serial_number: null
+        speed: null
+        wavelength: null
+        max_distance: null
+        fiber_type: null
+  - mlnx2_p2_25g:
+      altname: eth5
+      mac_address: c4:70:bd:d4:b5:f1
+      brand: Mellanox
+      model: NVIDIA ConnectX-7 MT2910 Family
+      part_number: MCX713104AS-ADAT
+      pcie_id: 49:00.1
+      subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+      serial_number: MT2438XZ09N2
+      mtu: 9000
+      ip_address: 192.168.160.1/24
+      link_settings:
+        speed: 25000
+        autoneg: false
+      transceiver:
+        brand: null
+        model: null
+        serial_number: null
+        speed: null
+        wavelength: null
+        max_distance: null
+        fiber_type: null
+  - mlnx2_p3_25g:
+    altname: eth6
+    mac_address: c4:70:bd:d4:b5:f2
+    brand: Mellanox
+    model: NVIDIA ConnectX-7 MT2910 Family
+    part_number: MCX713104AS-ADAT
+    pcie_id: 49:00.2
+    subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+    serial_number: MT2438XZ09N2
+    mtu: 9000
+    ip_address: 192.168.170.1/24
+    link_settings:
+      speed: 25000
+      autoneg: false
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+  - mlnx2_p4_25g:
+    altname: eth7
+    mac_address: c4:70:bd:d4:b5:f3
+    brand: Mellanox
+    model: NVIDIA ConnectX-7 MT2910 Family
+    part_number: MCX713104AS-ADAT
+    pcie_id: 49:00.3
+    subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
+    serial_number: MT2438XZ09N2
+    mtu: 9000
+    ip_address: 192.168.180.1/24
+    link_settings:
+      speed: 25000
+      autoneg: false
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+
+# Cameras: Primary key is MAC address of machine
+cameras:
+  E0-55-97-1E-AB-ED:
+    model: HB-20000-SB-M-E2
+    serial_number: 02010093
+    ip_address: 192.168.110.2
+    nic_port: mlnx1_p1_25g
+    interface: 25GigE SFP28
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLBO0680127
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
+    sensor:
+      brand: Sony Pregius S
+      model: IMX530
+      mp_resolution: 20.28
+      x_resolution: 4504
+      y_resolution: 4504
+      cell_size: 2.74
+      sensor_type: CMOS
+      sensor_size: 1.1
+      shutter: Global
+      max_exposure: 1
+      min_exposure: 0.000005
+      bit_depth:
+        - 8
+        - 12
+      gpio_in: 3
+      gpio_out: 3
+      monochrome_modes:
+        - Mono8
+        - Mono12
+        - Mono12Packed
+      raw_modes:
+        - BayerRG8
+        - BayerRG12
+        - BayerRG12Packed
+      compliance:
+        - CE
+        - FCC
+        - RoHS
+        - WEEE
+        - GigE Vision
+        - GenICam
+      power_requirements:
+        watts: 9
+        volts: 12
+      storage_temperature:
+        - -30 # Degrees Celsius
+        - 60
+      ambient_temperature:
+        - 0 # Degrees Celsius
+        - 45
+      operating_temperature:
+        - 40 # Degrees Celsius
+        - 80
+      dimensions:
+        - 97 # in cm
+        - 66
+        - 52
+      weight: 500 # in grams
+
+  E0-55-97-1E-AB-EE:
+    model: HB-20000-SB-M-E2
+    serial_number: 002010094
+    ip_address: 192.168.120.2
+    nic_port: mlnx1_p2_25g
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLBS045088
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
+
+  E0-55-97-1E-AB-EF:
+    model: HB-20000-SB-M-E2
+    serial_number: 02010095
+    ip_address: 192.168.130.2
+    nic_port: mlnx1_p3_25g
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLAK1610081
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
+
+  E0-55-97-1E-AB-F0:
+    model: HB-20000-SB-M-E2
+    serial_number: 02010096
+    ip_address: 192.168.140.2
+    nic_port: mlnx1_p4_25g
+    transceiver:
+      brand: InnoLight
+      model: TR-PY13L-V00
+      serial_number: INLBS0450134
+      speed: 25
+      wavelength: 1310
+      max_distance: 10
+      fiber_type: SMF
+
+# PCIe Slots: E = Empty
+# | E | NVIDIA RTX A6000 | Mellanox MCX512A-ACAT | Mellanox MCX512A-ACAT | NVIDIA A16 | NVIDIA A16 |
+# | - | ---------------- | --------------------- | --------------------- | ---------- | ---------- |
+# |   | Display          | 25Gbps, 2 Ports       |  25 Gbps, 2 Ports     | 4 GPUs     | 4 GPUs     |

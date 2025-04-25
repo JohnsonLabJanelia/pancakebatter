@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # OpenCV Build Script with Custom Installation Directory
-# Updated by Claude for Jeremy Delahanty, October 2024
+# Updated for Jeremy Delahanty, February 2025
 
 # ANSI color codes
 RED='\033[0;31m'
@@ -20,7 +20,7 @@ INSTALL_DIR="/opt/orange"
 OPENCV_DIR="${INSTALL_DIR}/lib/opencv"
 
 # OpenCV version
-OPENCV_VERSION="4.8.0"
+OPENCV_VERSION="4.10.0"
 
 # Function to exit with an error message
 error_exit() {
@@ -34,6 +34,17 @@ error_exit() {
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     error_exit "This script must be run as root. Please use sudo."
+fi
+
+# Check CUDA availability
+echo -e "${BLUE}Checking CUDA installation...${NC}"
+if ! command -v nvcc &> /dev/null; then
+    echo -e "${YELLOW}CUDA toolkit not found! Disabling CUDA support...${NC}"
+    CUDA_ENABLED=false
+else
+    CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $6}' | cut -c2-)
+    echo -e "${GREEN}CUDA toolkit found (version $CUDA_VERSION). Enabling CUDA support...${NC}"
+    CUDA_ENABLED=true
 fi
 
 # Install required packages
@@ -83,23 +94,52 @@ cd build
 # Create build directory with proper permissions
 chown -R $SUDO_USER:$SUDO_USER ../build
 
+# Set CUDA options based on availability
+if [ "$CUDA_ENABLED" = true ]; then
+    # Get CUDA compute capability
+    CUDA_ARCH="8.6"  # Default for your A6000 and A16
+    
+    # Check if CUDNN is installed
+    if [ -f "/usr/local/cuda/include/cudnn.h" ]; then
+        echo -e "${GREEN}cuDNN found. Enabling cuDNN support...${NC}"
+        CUDNN_OPTIONS="-D WITH_CUDNN=ON -D OPENCV_DNN_CUDA=ON"
+    else
+        echo -e "${YELLOW}cuDNN not found. Disabling cuDNN support...${NC}"
+        CUDNN_OPTIONS="-D WITH_CUDNN=OFF -D OPENCV_DNN_CUDA=OFF"
+    fi
+    
+    CUDA_OPTIONS="-D WITH_CUDA=ON \
+    -D CUDA_FAST_MATH=1 \
+    -D WITH_CUBLAS=1 \
+    -D CUDA_ARCH_BIN=$CUDA_ARCH \
+    -D BUILD_opencv_cudacodec=ON \
+    $CUDNN_OPTIONS"
+else
+    CUDA_OPTIONS="-D WITH_CUDA=OFF -D OPENCV_DNN_CUDA=OFF"
+fi
+
 # Configure with CMake as the regular user
 echo -e "${YELLOW}Running CMake...${NC}"
 sudo -u $SUDO_USER cmake \
     -D CMAKE_BUILD_TYPE=RELEASE \
     -D CMAKE_INSTALL_PREFIX="$OPENCV_DIR" \
+    -D OPENCV_PC_FILE_NAME=opencv4.pc \
     -D INSTALL_PYTHON_EXAMPLES=OFF \
-    -D INSTALL_C_EXAMPLES=OFF \
+    -D INSTALL_C_EXAMPLES=ON \
     -D WITH_TBB=ON \
     -D WITH_V4L=ON \
+    -D WITH_QT=ON \
+    -D WITH_GTK=ON \
     -D WITH_OPENGL=ON \
-    -D WITH_CUDA=OFF \
-    -D BUILD_opencv_cudacodec=OFF \
+    -D WITH_GTK_2_X=OFF \
+    -D WITH_GSTREAMER=ON \
+    -D WITH_FFMPEG=ON \
     -D ENABLE_FAST_MATH=1 \
     -D OPENCV_ENABLE_NONFREE=ON \
     -D OPENCV_GENERATE_PKGCONFIG=ON \
     -D OPENCV_EXTRA_MODULES_PATH="$OPENCV_CONTRIB_BUILD/opencv_contrib-${OPENCV_VERSION}/modules" \
-    -D BUILD_EXAMPLES=OFF .. || error_exit "CMake configuration failed"
+    -D BUILD_EXAMPLES=ON \
+    $CUDA_OPTIONS .. || error_exit "CMake configuration failed"
 
 # Build OpenCV
 echo -e "${YELLOW}Building OpenCV...${NC}"
@@ -111,12 +151,12 @@ make install || error_exit "OpenCV installation failed"
 
 # Set up environment variables
 echo -e "${BLUE}Setting up environment variables...${NC}"
-cat > /etc/profile.d/opencv-orange.sh << 'EOF'
+cat > /etc/profile.d/opencv-orange.sh << EOF
 # OpenCV configuration for Orange project
 export OPENCV_HOME=${OPENCV_DIR}
-export PATH=$OPENCV_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$OPENCV_HOME/lib:$LD_LIBRARY_PATH
-export PKG_CONFIG_PATH=$OPENCV_HOME/lib/pkgconfig:$PKG_CONFIG_PATH
+export PATH=\$OPENCV_HOME/bin:\$PATH
+export LD_LIBRARY_PATH=\$OPENCV_HOME/lib:\$LD_LIBRARY_PATH
+export PKG_CONFIG_PATH=\$OPENCV_HOME/lib/pkgconfig:\$PKG_CONFIG_PATH
 EOF
 
 # Update library cache
@@ -141,5 +181,10 @@ echo -e "\n${BLUE}Verification Information:${NC}"
 echo "OpenCV Version: $(pkg-config --modversion opencv4)"
 echo "Installation Location: ${OPENCV_DIR}"
 echo "Environment File: /etc/profile.d/opencv-orange.sh"
+if [ "$CUDA_ENABLED" = true ]; then
+    echo "CUDA Support: Enabled (Compute Capability: $CUDA_ARCH)"
+else
+    echo "CUDA Support: Disabled"
+fi
 
 exit 0

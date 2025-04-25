@@ -56,7 +56,8 @@ sudo apt install -y build-essential plocate autofs vim gcc make \
     nasm libx264-dev libxext-dev libxfixes-dev \
     zlib1g-dev libeigen3-dev libgflags-dev libgoogle-glog-dev \
     automake autoconf patchelf lm-sensors fio \
-    nvme-cli linuxptp mesa-utils
+    nvme-cli linuxptp mesa-utils libgtk-3-dev \
+    libgtkglext1-dev libenet
 
 
 # Check if the installation was successful
