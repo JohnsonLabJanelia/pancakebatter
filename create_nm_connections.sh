@@ -132,7 +132,6 @@ for ((i=0; i<$nics_length; i++)); do
         ((local_errors++))
         continue # Skip to next NIC
     fi
-    # --- End Check Block ---
 
     # If we reach here, nic_name is valid and parsed correctly.
     echo -e "\n${BLUE}Processing interface: $nic_name${NC}"

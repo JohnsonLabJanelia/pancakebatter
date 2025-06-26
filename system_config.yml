@@ -70,23 +70,42 @@ pdus:
 
 # Storage Devices
 storage_devices:
-  - nvme0n1: Sabrent SB-RKT4P-8TB
+  - name: nvme0n1
+    model: Sabrent SB-RKT4P-8TB
     serial_number: 48816072200219
-    capacity: 8 # in TB
+    capacity: 8  # in TB
     device_path: /dev/nvme0n1
     firmware_version: R4PTLC.4
-    format: 512 # Block size in bytes
-    sequential_read_speed: 7000 # in MB/s
-    sequential_write_speed: 6000 # in MB/s
-  - nvme1n1: Sabrent SB-RKT4P-8TB
+    format: 512  # Block size in bytes
+    sequential_read_speed: 7000  # MB/s
+    sequential_write_speed: 6000  # MB/s
+    partitions:
+      - partition: nvme0n1p1
+        fs_type: vfat
+        mount_point: /boot/efi
+      - partition: nvme0n1p2
+        fs_type: ext4
+        mount_point: /mnt/Data2
+
+  - name: nvme1n1
+    model: Sabrent SB-RKT4P-8TB
     serial_number: 48816072200222
     capacity: 8
     device_path: /dev/nvme1n1
     firmware_version: R4PTLC.4
     format: 512
-    sequential_read_speed: 7000 MB/s
-    sequential_write_speed: 6000 MB/s
-  - nvme2n1: Sabrent SB-RKT4P-8TB
+    sequential_read_speed: 7000
+    sequential_write_speed: 6000
+    partitions:
+      - partition: nvme1n1p1
+        fs_type: vfat
+        mount_point: /boot/efi
+      - partition: nvme1n1p2
+        fs_type: ext4
+        mount_point: /var/snap/firefox/common/host-hunspell
+
+  - name: nvme2n1
+    model: Sabrent SB-RKT4P-8TB
     serial_number: 48804572201297
     capacity: 8
     device_path: /dev/nvme2n1
@@ -94,6 +113,11 @@ storage_devices:
     format: 512
     sequential_read_speed: 7000
     sequential_write_speed: 6000
+    partitions:
+      - partition: nvme2n1p1
+        fs_type: ext4
+        mount_point: /mnt/Data1
+
 
 # GPUs
 gpus:
