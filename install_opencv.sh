@@ -59,7 +59,7 @@ apt-get install -y build-essential cmake pkg-config \
     libopencore-amrnb-dev libopencore-amrwb-dev \
     libatlas-base-dev gfortran libeigen3-dev \
     python3-dev python3-numpy python3-pip \
-    libtbb2 libtbb-dev
+    libtbb-dev
 
 # Create all required directories
 echo -e "${BLUE}Creating directories...${NC}"
@@ -69,21 +69,26 @@ mkdir -p "$OPENCV_BUILD" || error_exit "Failed to create OpenCV build directory"
 mkdir -p "$OPENCV_CONTRIB_BUILD" || error_exit "Failed to create OpenCV contrib directory"
 mkdir -p "$OPENCV_DIR" || error_exit "Failed to create installation directory"
 
+# Set username and group for correct ownership
+USER_NAME=${SUDO_USER:-$(logname)}
+USER_GROUP=$(id -gn "$USER_NAME")
+
 # Set ownership for build directory
-chown -R $SUDO_USER:$SUDO_USER "$BUILD_DIR" || error_exit "Failed to change ownership of build directory"
+chown -R "$USER_NAME":"$USER_GROUP" "$BUILD_DIR" || error_exit "Failed to change ownership of build directory"
 
 # Download OpenCV and OpenCV contrib
 echo -e "${BLUE}Downloading OpenCV ${OPENCV_VERSION}...${NC}"
-cd "$OPENCV_BUILD" || error_exit "Failed to change to OpenCV directory"
-sudo -u $SUDO_USER wget -q "https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip" || error_exit "Failed to download OpenCV"
-sudo -u $SUDO_USER unzip -q "${OPENCV_VERSION}.zip" || error_exit "Failed to unzip OpenCV"
-rm "${OPENCV_VERSION}.zip"
+cd "$BUILD_DIR" || error_exit "Failed to enter build directory"
+sudo -u $SUDO_USER curl -sL "https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.tar.gz" -o "opencv.tar.gz" || error_exit "Failed to download OpenCV"
+sudo -u $SUDO_USER tar -xzf opencv.tar.gz || error_exit "Failed to extract OpenCV"
+rm opencv.tar.gz
+mv "opencv-${OPENCV_VERSION}" "$OPENCV_BUILD"
 
 echo -e "${BLUE}Downloading OpenCV Contrib ${OPENCV_VERSION}...${NC}"
-cd "$OPENCV_CONTRIB_BUILD" || error_exit "Failed to change to OpenCV Contrib directory"
-sudo -u $SUDO_USER wget -q "https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip" || error_exit "Failed to download OpenCV Contrib"
-sudo -u $SUDO_USER unzip -q "${OPENCV_VERSION}.zip" || error_exit "Failed to unzip OpenCV Contrib"
-rm "${OPENCV_VERSION}.zip"
+sudo -u $SUDO_USER curl -sL "https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.tar.gz" -o "opencv_contrib.tar.gz" || error_exit "Failed to download OpenCV Contrib"
+sudo -u $SUDO_USER tar -xzf opencv_contrib.tar.gz || error_exit "Failed to extract OpenCV Contrib"
+rm opencv_contrib.tar.gz
+mv "opencv_contrib-${OPENCV_VERSION}" "$OPENCV_CONTRIB_BUILD"
 
 # Configure and build OpenCV
 echo -e "${YELLOW}Configuring OpenCV...${NC}"
@@ -92,7 +97,7 @@ mkdir -p build
 cd build
 
 # Create build directory with proper permissions
-chown -R $SUDO_USER:$SUDO_USER ../build
+chown -R $USER_NAME:$USER_GROUP ../build
 
 # Set CUDA options based on availability
 if [ "$CUDA_ENABLED" = true ]; then
@@ -118,6 +123,16 @@ else
     CUDA_OPTIONS="-D WITH_CUDA=OFF -D OPENCV_DNN_CUDA=OFF"
 fi
 
+# Use GCC 12 for CUDA builds, as of 07162025, GCC>12 not supported for NVIDIA CUDA Kernels
+if [ -x /usr/bin/gcc-12 ]; then
+    export CC=/usr/bin/gcc-12
+    export CXX=/usr/bin/g++-12
+    HOST_COMPILER_OPTION="-D CUDA_HOST_COMPILER=/usr/bin/gcc-12"
+else
+    echo -e "${YELLOW}GCC 12 not found, CUDA build may fail. Run: sudo apt install gcc-12 g++-12${NC}"
+    HOST_COMPILER_OPTION=""
+fi
+
 # Configure with CMake as the regular user
 echo -e "${YELLOW}Running CMake...${NC}"
 sudo -u $SUDO_USER cmake \
@@ -139,7 +154,9 @@ sudo -u $SUDO_USER cmake \
     -D OPENCV_GENERATE_PKGCONFIG=ON \
     -D OPENCV_EXTRA_MODULES_PATH="$OPENCV_CONTRIB_BUILD/opencv_contrib-${OPENCV_VERSION}/modules" \
     -D BUILD_EXAMPLES=ON \
-    $CUDA_OPTIONS .. || error_exit "CMake configuration failed"
+    $CUDA_OPTIONS \
+    $HOST_COMPILER_OPTION \
+    .. || error_exit "CMake configuration failed"
 
 # Build OpenCV
 echo -e "${YELLOW}Building OpenCV...${NC}"

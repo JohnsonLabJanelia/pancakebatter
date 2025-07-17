@@ -45,8 +45,12 @@ mkdir -p "$FFMPEG_BUILD" || error_exit "Failed to create FFmpeg build directory"
 mkdir -p "$NVCODEC_BUILD" || error_exit "Failed to create NVCODEC build directory"
 mkdir -p "$INSTALL_DIR/lib" || error_exit "Failed to create installation directory"
 
+# Get username and usergroup
+USER_NAME=${SUDO_USER:-$(logname)}
+USER_GROUP=$(id -gn "$USER_NAME")
+
 # Set correct ownership
-chown -R $SUDO_USER:$SUDO_USER "$BUILD_DIR" || error_exit "Failed to change ownership of build directory"
+chown -R "$USER_NAME":"$USER_GROUP" "$BUILD_DIR" || error_exit "Failed to change ownership of build directory"
 
 # Install required packages
 echo -e "${YELLOW}Installing required packages...${NC}"
