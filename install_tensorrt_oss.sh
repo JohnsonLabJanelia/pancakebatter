@@ -20,7 +20,7 @@ SYSTEM_TRT_LIB="${SYSTEM_TRT_DIR}/lib"
 
 echo ""
 echo -e "${BLUE}TensorRT OSS EfficientNMS Plugin Installation${NC}"
-echo "Installing in: ${ORANGE_ROOT}"
+echo "Integrating with Orange ecosystem at: ${ORANGE_ROOT}"
 echo ""
 
 # Check if running as root
@@ -137,12 +137,40 @@ build_plugins() {
     # Clean previous build
     rm -rf ./*
     
-    # Get CUDA version for build
+    # Set up CUDA environment
     local cuda_version=$(nvcc --version | grep "release" | awk '{print $6}' | cut -c2-)
+    local cuda_root="/usr/local/cuda-${cuda_version}"
+    local cuda_link="/usr/local/cuda"
+    
     echo -e "${BLUE}Building for CUDA ${cuda_version}${NC}"
+    echo -e "${BLUE}CUDA root: ${cuda_root}${NC}"
+    
+    # Ensure CUDA symlink exists
+    if [ ! -L "$cuda_link" ] && [ -d "$cuda_root" ]; then
+        echo -e "${YELLOW}Creating CUDA symlink...${NC}"
+        ln -sf "$cuda_root" "$cuda_link"
+    fi
+    
+    # Set CUDA environment variables for the build
+    export CUDA_HOME="$cuda_link"
+    export CUDA_PATH="$cuda_link"
+    export CUDA_ROOT="$cuda_link"
+    export PATH="$cuda_link/bin:$PATH"
+    export LD_LIBRARY_PATH="$cuda_link/lib64:$LD_LIBRARY_PATH"
+    
+    echo -e "${BLUE}CUDA environment:${NC}"
+    echo "  CUDA_HOME=$CUDA_HOME"
+    echo "  CUDA_PATH=$CUDA_PATH"
+    echo "  nvcc location: $(which nvcc)"
     
     # Configure with CMake
-    sudo -u "${SUDO_USER}" cmake "${SOURCE_DIR}" \
+    sudo -u "${SUDO_USER}" env \
+        CUDA_HOME="$CUDA_HOME" \
+        CUDA_PATH="$CUDA_PATH" \
+        CUDA_ROOT="$CUDA_ROOT" \
+        PATH="$PATH" \
+        LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+        cmake "${SOURCE_DIR}" \
         -DTRT_LIB_DIR="${SYSTEM_TRT_LIB}" \
         -DTRT_OUT_DIR="${PLUGINS_DIR}" \
         -DCMAKE_BUILD_TYPE=Release \
@@ -150,6 +178,7 @@ build_plugins() {
         -DCMAKE_CUDA_ARCHITECTURES="80;86" \
         -DBUILD_PLUGINS=ON || {
         echo -e "${RED}CMake configuration failed${NC}"
+        echo -e "${YELLOW}Check the CMake log at: ${BUILD_DIR}/CMakeFiles/CMakeOutput.log${NC}"
         exit 1
     }
     
