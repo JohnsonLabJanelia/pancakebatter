@@ -2,6 +2,10 @@
 # Establishes versions of drivers, types of onboard hardware expected,
 # etc...
 
+schema:
+  name: system_config
+  version: 1
+
 # System Information: OS, Kernel, ESDK, CUDA, FFmpeg, OpenCV, TensorRT, NVIDIA Driver, CUDA Capability
 system_info:
   hostname: pancake0
@@ -144,6 +148,9 @@ gpus:
 nics:
   - mlnx1_p1_25g:
       altname: eth0
+      role: camera
+      managed: true
+      expected_link: true
       mac_address: a0:88:c2:69:11:9e
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -155,7 +162,7 @@ nics:
       ip_address: 192.168.110.1/24
       link_settings:
         speed: 25000 # in Gbps
-        autoneg: false
+        autoneg: true
       transceiver:
         brand: InnoLight
         model: TR-PY13L-V00
@@ -166,6 +173,9 @@ nics:
         fiber_type: SMF
   - mlnx1_p2_25g:
       altname: eth1
+      role: camera
+      managed: true
+      expected_link: true
       mac_address: a0:88:c2:69:11:9f
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -177,7 +187,7 @@ nics:
       ip_address: 192.168.120.1/24
       link_settings:
         speed: 25000
-        autoneg: false
+        autoneg: true
       transceiver:
         brand: InnoLight
         model: TR-PY13L-V00
@@ -188,6 +198,9 @@ nics:
         fiber_type: SMF
   - mlnx1_p3_25g:
       altname: eth2
+      role: spare
+      managed: false
+      expected_link: false
       mac_address: a0:88:c2:69:11:a0
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -199,17 +212,20 @@ nics:
       ip_address: 192.168.130.1/24
       link_settings:
         speed: 25000
-        autoneg: false
+        autoneg: true
       transceiver:
-        brand: InnoLight
-        model: TR-PY13L-V00
-        serial_number: INLBS0450180
-        speed: 25
-        wavelength: 1310
-        max_distance: 10
-        fiber_type: SMF
+        brand: null
+        model: null
+        serial_number: null
+        speed: null
+        wavelength: null
+        max_distance: null
+        fiber_type: null
   - mlnx1_p4_25g:
       altname: eth3
+      role: spare
+      managed: false
+      expected_link: false
       mac_address: a0:88:c2:69:11:a1
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -221,17 +237,20 @@ nics:
       ip_address: 192.168.140.1/24
       link_settings:
         speed: 25000
-        autoneg: false
+        autoneg: true
       transceiver:
-        brand: InnoLight
-        model: TR-PY13L-V00
-        serial_number: INLAK1610003
-        speed: 25
-        wavelength: 1310
-        max_distance: 10
-        fiber_type: SMF
+        brand: null
+        model: null
+        serial_number: null
+        speed: null
+        wavelength: null
+        max_distance: null
+        fiber_type: null
   - mlnx2_p1_25g:
       altname: eth4
+      role: spare
+      managed: false
+      expected_link: false
       mac_address: c4:70:bd:d4:b5:f0
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -254,6 +273,9 @@ nics:
         fiber_type: SMF
   - mlnx2_p2_25g:
       altname: eth5
+      role: spare
+      managed: false
+      expected_link: false
       mac_address: c4:70:bd:d4:b5:f1
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -276,6 +298,9 @@ nics:
         fiber_type: null
   - mlnx2_p3_25g:
       altname: eth6
+      role: camera
+      managed: true
+      expected_link: true
       mac_address: c4:70:bd:d4:b5:f2
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -287,17 +312,20 @@ nics:
       ip_address: 192.168.170.1/24
       link_settings:
         speed: 25000
-        autoneg: false
+        autoneg: true
       transceiver:
-        brand: null
-        model: null
-        serial_number: null
-        speed: null
-        wavelength: null
-        max_distance: null
-        fiber_type: null
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLBS0450180
+        speed: 25
+        wavelength: 1310
+        max_distance: 10
+        fiber_type: SMF
   - mlnx2_p4_25g:
       altname: eth7
+      role: camera
+      managed: true
+      expected_link: true
       mac_address: c4:70:bd:d4:b5:f3
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
@@ -309,18 +337,15 @@ nics:
       ip_address: 192.168.180.1/24
       link_settings:
         speed: 25000
-        autoneg: false
+        autoneg: true
       transceiver:
-        brand: Mellanox/NVIDIA
-        model: SFP-25GLR-31
-        serial_number: S2435306257
+        brand: InnoLight
+        model: TR-PY13L-V00
+        serial_number: INLAK1610003
         speed: 25
         wavelength: 1310
         max_distance: 10
         fiber_type: SMF
-
-# Cameras: Primary key is MAC address of machine
-# Static per-camera hardware belongs here; keep calibration in a separate file.
 cameras:
   E0-55-97-1E-AB-ED:
     model: HB-20000-SB-M-E2
@@ -473,8 +498,8 @@ cameras:
       mount: EF
       focal_length_mm: 100
       max_aperture_f: 2.8
-    ip_address: 192.168.130.2
-    nic_port: mlnx1_p3_25g
+    ip_address: 192.168.170.2
+    nic_port: mlnx2_p3_25g
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00
@@ -543,8 +568,8 @@ cameras:
       mount: EF
       focal_length_mm: 100
       max_aperture_f: 2.8
-    ip_address: 192.168.140.2
-    nic_port: mlnx1_p4_25g
+    ip_address: 192.168.180.2
+    nic_port: mlnx2_p4_25g
     transceiver:
       brand: InnoLight
       model: TR-PY13L-V00

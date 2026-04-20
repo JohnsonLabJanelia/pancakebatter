@@ -7,3 +7,5 @@ FW_PH*/
 logs/
 docs/*.pdf
 pancake*_config.yml
+pancake*_config.yml.bak.*
+__pycache__/

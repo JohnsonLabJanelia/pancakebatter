@@ -14,6 +14,12 @@ The active machine config is named from the short hostname:
 For `pancake0`, that file is `pancake0_config.yml`. The network scripts derive this
 path internally, so run them from the repo root.
 
+The config uses `system_config` v1. The schema contract is documented in
+[`system_config_v1.md`](system_config_v1.md), with a JSON Schema at
+[`../schemas/system_config.v1.schema.json`](../schemas/system_config.v1.schema.json).
+For the operational checklist used when moving a camera between NIC ports, see
+[`camera_nic_move_runbook.md`](camera_nic_move_runbook.md).
+
 ## What The Config Owns
 
 The hostname config is the source of truth for:
@@ -32,12 +38,15 @@ Example:
 nics:
   - mlnx1_p1_25g:
       altname: eth0
+      role: camera
+      managed: true
+      expected_link: true
       mac_address: a0:88:c2:69:11:9e
       mtu: 9000
       ip_address: 192.168.110.1/24
       link_settings:
         speed: 25000
-        autoneg: false
+        autoneg: true
 
 cameras:
   E0-55-97-1E-AB-ED:
@@ -48,6 +57,19 @@ cameras:
 
 In this example, the host NIC is `192.168.110.1/24` and the attached camera is
 `192.168.110.2`.
+
+Use `managed: false` for ports that should stay in hardware inventory but should
+not be configured or checked as active camera links. The scripts still create
+stable names for unmanaged NICs, but `create_nm_connections.sh`,
+`configure_interfaces.sh`, and the network checker skip their operational
+NetworkManager/link requirements.
+
+Activate an unmanaged spare before assigning a camera to it:
+
+```bash
+./camera_net_config.py activate-nic --nic mlnx2_p4_25g
+./camera_net_config.py activate-nic --nic mlnx2_p4_25g --apply
+```
 
 ## Before Changing The Network
 
@@ -68,6 +90,10 @@ lspci -vv | grep Mellanox
 
 ## Redefining Which NIC A Camera Uses
 
+For the step-by-step runbook, use
+[`camera_nic_move_runbook.md`](camera_nic_move_runbook.md). The notes below are
+the underlying configuration model.
+
 For each moved camera:
 
 1. Move the physical fiber/cable to the target NIC port.
@@ -76,11 +102,36 @@ For each moved camera:
 4. Program the camera itself to use that IP address.
 5. Apply and verify the host NetworkManager settings.
 
-The repo scripts configure the host NICs only. They do not permanently write camera
-IP settings into the cameras. Use eCapture's IP Configurator, or an eSDK tool using
-`EVT_IPConfig()`, to make camera IP changes persistent. `force_ip.cpp` is only a
-temporary ForceIP example; it explicitly notes that the camera will revert on reboot
-unless the persistent camera IP configuration is written.
+Use `camera_net_config.py` when moving a configured camera between managed NIC
+ports. It plans the YAML update and, when run with `--apply`, can call Emergent
+`evttools` before writing the config:
+
+```bash
+./camera_net_config.py move --camera 2010093 --nic mlnx1_p1_25g
+sudo ./camera_net_config.py move --camera 2010093 --nic mlnx1_p1_25g --apply
+```
+
+After `evttools` exits, the wrapper probes the target camera IP with `arping`.
+If the camera does not respond, the YAML config is left unchanged. If you already
+used eCapture or another tool to program the camera IP, add
+`--no-program-camera` and let the post-check verify reachability.
+
+If the host-side optic moved with the camera cable, add
+`--move-nic-transceiver`. If the old port is now empty, also add
+`--retire-old-nic` so the vacated port is marked `managed: false` and
+`expected_link: false`. If the old and target host-side optics were swapped, add
+`--swap-nic-transceivers`.
+
+To retire a port after a physical move:
+
+```bash
+./camera_net_config.py deactivate-nic --nic mlnx1_p4_25g
+./camera_net_config.py deactivate-nic --nic mlnx1_p4_25g --apply
+```
+
+The lower-level host scripts configure host NICs only. `force_ip.cpp` is only a
+temporary ForceIP example; it explicitly notes that the camera will revert on
+reboot unless the persistent camera IP configuration is written.
 
 ## Step 1: Generate Persistent NIC Names
 
@@ -154,13 +205,32 @@ nmcli connection show
 Check the configured camera NIC assignments and camera reachability:
 
 ```bash
-python3 ./check_network_settings.py "$(hostname -s)_config.yml" --verbose
+sudo ./check_system.sh --only network --verbose
+```
+
+To run only the network checker directly:
+
+```bash
+sudo python3 ./check_network_settings.py --config "$(hostname -s)_config.yml" --verbose
+```
+
+For host-side validation without touching the cameras with ARP probes:
+
+```bash
+python3 ./check_network_settings.py --config "$(hostname -s)_config.yml" --skip-camera-arping --verbose
 ```
 
 For a single camera, an ARP-level check is usually more useful than ping:
 
 ```bash
 arping -c 3 192.168.110.2
+```
+
+Emergent SDK discovery is the next verification layer. Until it is wired into the
+checker, run it manually:
+
+```bash
+sudo /opt/EVT/eSDK/tools/evttools -d
 ```
 
 ## Troubleshooting

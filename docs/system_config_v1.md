@@ -1,0 +1,197 @@
+# system_config v1
+
+`system_config` v1 is the machine inventory and camera network assignment
+contract used by the Pancake/Orange setup scripts.
+
+The active host config is named from the short hostname:
+
+```bash
+./$(hostname -s)_config.yml
+```
+
+For `pancake0`, that is `pancake0_config.yml`. `system_config.yml` is the tracked
+example/snapshot. The machine config declares its schema with:
+
+```yaml
+schema:
+  name: system_config
+  version: 1
+```
+
+The JSON Schema is tracked at:
+
+```text
+schemas/system_config.v1.schema.json
+```
+
+For the operational camera move checklist, see
+[`camera_nic_move_runbook.md`](camera_nic_move_runbook.md).
+
+## NIC Lifecycle Fields
+
+Every NIC entry must declare these v1 fields:
+
+```yaml
+nics:
+  - mlnx1_p1_25g:
+      altname: eth0
+      role: camera
+      managed: true
+      expected_link: true
+      mac_address: a0:88:c2:69:11:9e
+      mtu: 9000
+      ip_address: 192.168.110.1/24
+      link_settings:
+        speed: 25000
+        autoneg: true
+```
+
+`role` describes intended use. Current values are:
+
+- `camera`: port is assigned to an Emergent camera.
+- `spare`: hardware inventory or reserved subnet, but not currently used.
+- `management`: non-camera host/admin network.
+- `uplink`: upstream network.
+- `unknown`: inventoried, purpose not decided yet.
+
+`managed` controls whether the repo scripts should configure the port:
+
+- `true`: create/check NetworkManager profile, static IP, MTU, and link settings.
+- `false`: keep the port in inventory, but skip NetworkManager and live-link checks.
+
+`expected_link` controls whether a physical carrier is expected during checks:
+
+- `true`: link down is an error.
+- `false`: link down is acceptable.
+
+On `pancake0`, these fields reflect the current physical camera layout. Ports
+with connected cameras should be active; empty ports should be kept as spares.
+
+## Camera Assignments
+
+Camera entries use their MAC address as the key. A camera must point to a
+managed NIC through `nic_port`, and the camera IP must be inside that NIC's
+subnet.
+
+```yaml
+cameras:
+  E0-55-97-1E-AB-ED:
+    serial_number: 2010093
+    ip_address: 192.168.110.2
+    nic_port: mlnx1_p1_25g
+```
+
+The host NIC is `192.168.110.1/24`; the attached camera is `192.168.110.2`.
+
+## Script Behavior
+
+`network_alias_assignment.sh` still names every listed NIC, including unmanaged
+spares. Stable naming is useful for inventory and future activation.
+
+`create_nm_connections.sh` and `configure_interfaces.sh` skip NICs where
+`managed: false`.
+
+`check_network_settings.py` validates the v1 metadata and the network subset of
+the schema. It enforces operational checks only for `managed: true` NICs.
+
+## Activating A Spare Port
+
+Use `camera_net_config.py activate-nic` to put a spare port into service. It is
+dry-run by default:
+
+```bash
+./camera_net_config.py activate-nic --nic mlnx2_p4_25g
+```
+
+To update the host config:
+
+```bash
+./camera_net_config.py activate-nic --nic mlnx2_p4_25g --apply
+```
+
+That sets the NIC to `role: camera`, `managed: true`, `expected_link: true`, and
+`link_settings.autoneg: true` by default. Then run:
+
+```bash
+sudo ./create_nm_connections.sh
+sudo ./configure_interfaces.sh
+sudo ./check_system.sh --only network --verbose
+```
+
+The manual equivalent is:
+
+1. Change `role` to `camera` or another active role.
+2. Set `managed: true`.
+3. Set `expected_link: true` if a cable/camera should be connected.
+4. Confirm `ip_address`, `mtu`, and `link_settings`.
+5. Point the camera's `nic_port` at that NIC and set the camera IP inside the NIC subnet.
+
+## Moving A Camera
+
+Use the runbook in [`camera_nic_move_runbook.md`](camera_nic_move_runbook.md)
+for the complete physical move, eCapture fallback, and verification sequence.
+
+Use `camera_net_config.py` to coordinate the camera IP assignment and the host
+config update. It is dry-run by default:
+
+```bash
+./camera_net_config.py move --camera 2010093 --nic mlnx1_p1_25g
+```
+
+The wrapper resolves the camera by serial number or MAC address, checks that the
+target NIC is managed, verifies the requested camera IP is inside the target NIC
+subnet, and checks for duplicate camera IP/NIC assignments.
+
+To apply the change and program the camera with Emergent `evttools`:
+
+```bash
+sudo ./camera_net_config.py move --camera 2010093 --nic mlnx1_p1_25g --apply
+```
+
+By default, the camera IP is inferred as the target host NIC IP plus one. For
+example, `192.168.110.1/24` maps to camera IP `192.168.110.2`.
+
+For v1, camera programming uses:
+
+```bash
+/opt/EVT/eSDK/tools/evttools -f <host_nic_ip> -o p
+```
+
+That `evttools` mode assigns persistent IPs starting at `<host_nic_ip> + 1`, so
+the wrapper only allows this backend when the desired camera IP is that first
+camera IP. After `evttools` exits, the wrapper probes the target IP with
+`arping` before it writes YAML. This protects the config from being updated when
+`evttools` returns success but did not actually find or program the target
+camera.
+
+If the camera has already been programmed some other way, update only the YAML
+assignment with:
+
+```bash
+sudo ./camera_net_config.py move --camera 2010093 --nic mlnx1_p1_25g --no-program-camera --apply
+```
+
+Host-side optics are tracked on each NIC's `transceiver:` block. A camera move
+does not assume the host-side optic moved with the cable. If the optic was moved
+from the old NIC port to the target NIC port, include:
+
+```bash
+sudo ./camera_net_config.py move --camera 2010096 --nic mlnx2_p4_25g --move-nic-transceiver --retire-old-nic --apply
+```
+
+That moves the old NIC `transceiver:` block to the target NIC and clears the old
+NIC transceiver fields to `null`. `--retire-old-nic` also marks the vacated port
+as `role: spare`, `managed: false`, and `expected_link: false`.
+
+If the old and target NIC optics were physically swapped, include:
+
+```bash
+sudo ./camera_net_config.py move --camera 2010096 --nic mlnx2_p4_25g --swap-nic-transceivers --apply
+```
+
+To retire an already-vacated port after the fact:
+
+```bash
+./camera_net_config.py deactivate-nic --nic mlnx1_p4_25g
+./camera_net_config.py deactivate-nic --nic mlnx1_p4_25g --apply
+```

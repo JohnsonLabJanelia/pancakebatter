@@ -9,12 +9,15 @@ CYAN="\033[0;36m"
 NC="\033[0m"  # No Color
 
 # Paths
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HOSTNAME_SHORT="$(hostname -s)"
 ORANGE_ROOT="/opt/orange"
 FFMPEG_ROOT="${ORANGE_ROOT}/lib/ffmpeg-nvidia"
 OPENCV_ROOT="${ORANGE_ROOT}/lib/opencv"
 TENSORRT_ROOT="/usr/local/TensorRT-10.0.1.6"
 CUDA_ROOT="/usr/local/cuda"
-CONFIG_FILE="system_config.yml"
+CONFIG_FILE="${SCRIPT_DIR}/${HOSTNAME_SHORT}_config.yml"
+NETWORK_CHECKER="${SCRIPT_DIR}/check_network_settings.py"
 
 # Counters
 errors=0
@@ -23,10 +26,13 @@ warnings=0
 # Debug flags
 DRY_RUN=false
 VERBOSE=false
+ONLY_CHECKS=""
+SKIP_CHECKS=""
 
 # Log file setup
 LOG_DIR="logs"
 LOG_FILE="${LOG_DIR}/orange_check_$(date '+%Y%m%d_%H%M%S').log"
+LOGGING_ACTIVE=false
 
 # Create logs directory if it doesn't exist
 mkdir -p "$LOG_DIR"
@@ -42,6 +48,7 @@ log_setup() {
     tee -a "$LOG_FILE" < /tmp/orange_check_pipe &
     exec 3>&1 4>&2
     exec 1>/tmp/orange_check_pipe 2>&1
+    LOGGING_ACTIVE=true
     
     # Log script start
     echo "==============================================="
@@ -56,6 +63,10 @@ log_setup() {
 # Function to clean up logging
 log_cleanup() {
     local exit_code=$?
+    if [[ "$LOGGING_ACTIVE" != true ]]; then
+        exit $exit_code
+    fi
+
     exec 1>&3 2>&4
     rm -f /tmp/orange_check_pipe
     
@@ -80,11 +91,17 @@ usage() {
     echo "Options:"
     echo "  -d, --dry-run     Show what would be checked without making changes"
     echo "  -v, --verbose     Show detailed output for all checks"
+    echo "  -c, --config PATH Use a specific host config file"
+    echo "  --only LIST       Run only comma-separated checks: gpu,nvenc,cuda,opencv,ffmpeg,tensorrt,network"
+    echo "  --skip LIST       Skip comma-separated checks"
     echo "  -h, --help        Show this help message"
     echo ""
     echo "Example:"
-    echo "  $0 --dry-run --verbose"
+    echo "  $0 --only network --verbose"
+    echo "  $0 --config pancake0_config.yml --only network"
 }
+
+ORIGINAL_ARGS=("$@")
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -96,6 +113,18 @@ while [[ $# -gt 0 ]]; do
         -v|--verbose)
             VERBOSE=true
             shift
+            ;;
+        -c|--config)
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        --only)
+            ONLY_CHECKS="$2"
+            shift 2
+            ;;
+        --skip)
+            SKIP_CHECKS="$2"
+            shift 2
             ;;
         -h|--help)
             usage
@@ -110,7 +139,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Initialize logging
-log_setup "$@"  # Pass all script arguments to log
+log_setup "${ORIGINAL_ARGS[@]}"  # Pass all script arguments to log
 
 # Check if script is run as root
 if [ "$EUID" -ne 0 ]; then
@@ -132,6 +161,56 @@ dry_run() {
         return 0
     fi
     return 1
+}
+
+resolve_config_file() {
+    local config_path="$1"
+    if [[ "$config_path" = /* ]]; then
+        echo "$config_path"
+    elif [[ -f "$config_path" ]]; then
+        echo "$config_path"
+    else
+        echo "${SCRIPT_DIR}/${config_path}"
+    fi
+}
+
+list_contains() {
+    local needle="$1"
+    local list="$2"
+    local item
+    local -a items
+    if [[ -z "$list" ]]; then
+        return 1
+    fi
+    IFS=',' read -ra items <<< "$list"
+    for item in "${items[@]}"; do
+        item="${item//[[:space:]]/}"
+        if [[ "$item" == "$needle" || "$item" == "all" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+should_run_check() {
+    local check_name="$1"
+    if [[ -n "$ONLY_CHECKS" ]] && ! list_contains "$check_name" "$ONLY_CHECKS"; then
+        return 1
+    fi
+    if list_contains "$check_name" "$SKIP_CHECKS"; then
+        return 1
+    fi
+    return 0
+}
+
+run_check() {
+    local check_name="$1"
+    local check_function="$2"
+    if should_run_check "$check_name"; then
+        "$check_function"
+    else
+        echo -e "\n${YELLOW}Skipping ${check_name} check${NC}"
+    fi
 }
 
 # Version comparison function
@@ -465,10 +544,25 @@ check_tensorrt_installation() {
     fi
 }
 
+record_network_summary() {
+    local checker_output="$1"
+    local checker_exit="$2"
+
+    if [[ "$checker_output" =~ FAILED:\ ([0-9]+)\ error\(s\),\ ([0-9]+)\ warning\(s\) ]]; then
+        let errors+=${BASH_REMATCH[1]}
+        let warnings+=${BASH_REMATCH[2]}
+    elif [[ "$checker_output" =~ PASSED\ WITH\ WARNINGS:\ ([0-9]+)\ warning\(s\) ]]; then
+        let warnings+=${BASH_REMATCH[1]}
+    elif [ "$checker_exit" -ne 0 ]; then
+        let errors++
+    fi
+}
+
 # Network interface check
 check_network_interfaces() {
     echo -e "\n${BLUE}Checking Network Interfaces:${NC}"
-    local config_path="$(dirname $0)/system_config.yml"
+    local config_path
+    config_path="$(resolve_config_file "$CONFIG_FILE")"
     
     debug "Looking for config file at: $config_path"
     
@@ -481,24 +575,29 @@ check_network_interfaces() {
     fi
     
     if [ -f "$config_path" ]; then
-        if [ -f "./check_network_settings.py" ]; then
+        if [ -f "$NETWORK_CHECKER" ]; then
+            if dry_run "Run network checker with $config_path"; then
+                return 0
+            fi
+
+            local -a network_args=(--config "$config_path")
             if [[ "$VERBOSE" == true ]]; then
                 debug "Running Python network check script with verbose output"
-                python3 ./check_network_settings.py "$config_path" --verbose
-            else
-                python3 ./check_network_settings.py "$config_path"
+                network_args+=(--verbose)
             fi
+
+            local checker_output
+            checker_output="$(python3 "$NETWORK_CHECKER" "${network_args[@]}" 2>&1)"
             local python_exit=$?
-            if [ $python_exit -ne 0 ]; then
-                let errors+=$python_exit
-            fi
+            printf '%s\n' "$checker_output"
+            record_network_summary "$checker_output" "$python_exit"
         else
             echo -e "${RED}✗ Network check script (check_network_settings.py) not found${NC}"
             let errors++
         fi
     else
         echo -e "${RED}✗ Configuration file not found: $config_path${NC}"
-        echo -e "${YELLOW}  ⚠ Please ensure system_config.yml is in the same directory as this script${NC}"
+        echo -e "${YELLOW}  ⚠ Please provide --config or create ${HOSTNAME_SHORT}_config.yml in the repo root${NC}"
         let errors++
     fi
 }
@@ -522,14 +621,14 @@ if [[ "$VERBOSE" == true ]]; then
     uname -a
 fi
 
-# Run all checks
-check_gpu_configuration
-check_nvenc_configuration
-check_cuda_installation
-check_opencv_installation
-check_ffmpeg_installation
-check_tensorrt_installation
-check_network_interfaces
+# Run selected checks
+run_check "gpu" check_gpu_configuration
+run_check "nvenc" check_nvenc_configuration
+run_check "cuda" check_cuda_installation
+run_check "opencv" check_opencv_installation
+run_check "ffmpeg" check_ffmpeg_installation
+run_check "tensorrt" check_tensorrt_installation
+run_check "network" check_network_interfaces
 
 # Print summary
 echo -e "\n${BLUE}Verification Summary:${NC}"
