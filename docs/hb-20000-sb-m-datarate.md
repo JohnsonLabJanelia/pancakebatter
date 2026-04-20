@@ -38,5 +38,4 @@ The software `orange` synchronizes the cameras in concert with one another and p
 
 ### Disk Writing Benchmarking
 
-Proper disk read/write performance has not been evaluated for these cameras as of writing (11/07/24) for the cameras at `pancake0`. The disks on the machine are described in the [system_config.yml](../system_config.yml) file in this repo.
-
+Proper disk read/write performance has not been evaluated for these cameras as of writing (11/07/24) for the cameras at `pancake0`. The disks on the machine are described in the [pancake0_config.yml](../pancake0_config.yml) file in this repo.
