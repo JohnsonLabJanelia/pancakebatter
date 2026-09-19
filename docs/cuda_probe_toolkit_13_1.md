@@ -69,9 +69,11 @@ The new headers define `CU_AD_FORMAT_NV12`,
 `CUDA_ARRAY3D_VIDEO_ENCODE_DECODE`, and `cuArrayGetPlane`. The standalone probe
 uses NVIDIA's Video Codec SDK 13.1 interface headers. Its 2026-09-19 acceptance
 ran linear and native-array NV12 input, both per-frame and prefilled, for 600
-frames per mode at 4512x4512 and 100 fps. All four streams decoded completely,
-sampled Y planes matched the source exactly with neutral UV, their bitstreams
-were identical, and the Nsight traces covered the expected CUDA copies through
+frames per mode at 4512x4512. The target rate was 100 fps; all four profiled
+modes achieved about 86 fps. All four streams decoded completely. Sampled
+decoded Y comparisons were lossy, with MAE 0.0386-0.2605 and PSNR
+50.4-61.2 dB, while UV remained neutral. The four encoded bitstreams were
+byte-identical, and the Nsight traces covered the expected CUDA copies through
 resource teardown. The retained artifact is
 `/mnt/Data2/nvenc-native-nv12-investigation-20260919`.
 
