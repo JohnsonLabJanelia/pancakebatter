@@ -1,0 +1,39 @@
+{
+  "release": "13.1.1",
+  "platform": "linux-x86_64",
+  "manifest_url": "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.1.1.json",
+  "manifest_sha256": "97cf605ccc4751825b1865f4af571c9b50dd29ffd13e9a38b296a9ecb1f0d422",
+  "base_url": "https://developer.download.nvidia.com/compute/cuda/redist/",
+  "components": {
+    "cuda_nvcc": {
+      "version": "13.1.115",
+      "relative_path": "cuda_nvcc/linux-x86_64/cuda_nvcc-linux-x86_64-13.1.115-archive.tar.xz",
+      "sha256": "858a74e6caa36fc9b4fa1ec5e8d38f568ab8046ef93dca9ba8b3f01dee09f30d",
+      "size": "29853656"
+    },
+    "cuda_crt": {
+      "version": "13.1.115",
+      "relative_path": "cuda_crt/linux-x86_64/cuda_crt-linux-x86_64-13.1.115-archive.tar.xz",
+      "sha256": "e2861bbc6400815be6689cdc84afddfedc51103189888c8e51a2e9543e55a5b3",
+      "size": "79628"
+    },
+    "cuda_cudart": {
+      "version": "13.1.80",
+      "relative_path": "cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.1.80-archive.tar.xz",
+      "sha256": "b626f4790f46bc9324a1047f2fbcc9a42bc4a722b053056e61cc00da54ad6f32",
+      "size": "1549648"
+    },
+    "cuda_cccl": {
+      "version": "13.1.115",
+      "relative_path": "cuda_cccl/linux-x86_64/cuda_cccl-linux-x86_64-13.1.115-archive.tar.xz",
+      "sha256": "b0fff2704e59d4e6f6f4b7b5b64f96a7bf86760a5696fd6cb6936f8f9cd92d4c",
+      "size": "1094324"
+    },
+    "libnvvm": {
+      "version": "13.1.115",
+      "relative_path": "libnvvm/linux-x86_64/libnvvm-linux-x86_64-13.1.115-archive.tar.xz",
+      "sha256": "9038a2bf1237d9decdf99d90c4b43639536c9dbe4b3a40d1e6add5413a02096f",
+      "size": "44800332"
+    }
+  }
+}
