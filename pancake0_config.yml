@@ -632,3 +632,36 @@ cameras:
 # | E | NVIDIA RTX A6000  | Mellanox MCX713104AS-ADAT | Mellanox MCX713104AS-ADAT | NVIDIA A16 | NVIDIA A16 |
 # | - | ----------------- | ------------------------- | ------------------------- | ---------- | ---------- |
 # |   | Display,Projector | 25Gbps, 4 Ports           |  25 Gbps, 4 Ports         | 4 GPUs     | 4 GPUs     |
+
+# Kernel-side tuning the Orange rig depends on (recorded by check_kernel_tuning.py --record).
+# Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
+kernel_tuning:
+  cmdline:
+    isolcpus: "1,2,6,8,10,12,38,40,42,44"
+    nohz_full: "1,2,6,8,10,12,38,40,42,44"
+    rcu_nocbs: "1,2,6,8,10,12,38,40,42,44"
+    tsc: "reliable"
+    iommu: "pt"
+  isolated_cores: "1,2,6,8,10,12,38,40,42,44"
+  sysctl_file: "/etc/sysctl.d/90-orange-writeback.conf"  # copy of configs/sysctl/90-orange-writeback.conf
+  sysctl:
+    vm.dirty_background_bytes: 67108864
+    vm.dirty_bytes: 536870912
+    vm.compaction_proactiveness: 0
+  transparent_hugepage:
+    enabled: madvise
+    defrag: madvise
+    khugepaged_defrag: 1
+  camera_ports:
+    mlnx1_p1_25g:
+      mtu: 9000
+      mlx5_irq_cpus: [0, 3, 4, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 41, 43, 45, 46, 47, 48, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+    mlnx1_p2_25g:
+      mtu: 9000
+      mlx5_irq_cpus: [0, 3, 4, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 41, 43, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+    mlnx2_p3_25g:
+      mtu: 9000
+      mlx5_irq_cpus: [0, 3, 4, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 43, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+    mlnx2_p4_25g:
+      mtu: 9000
+      mlx5_irq_cpus: [0, 3, 4, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 41, 43, 46, 48, 49, 50, 51, 52, 53, 54, 56, 58, 59, 60, 61, 62, 63]
