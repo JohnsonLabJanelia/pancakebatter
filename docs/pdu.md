@@ -33,6 +33,9 @@ Use Ratan's rig utils scripts for templates on how to communicate with your PDU,
 
 ## Username/pass stored in a secret place. Ask Jeremy for it if you really need it.
 
+## Python environment
+`pdu.py` needs `pexpect`, `pyyaml`, and `rich`. Create the env once with `conda env create -f environments/rig_control.yaml`, then `conda activate rig_control` before running it (or point `RIG_CONTROL_PYTHON` at that env's python for `reboot_cams.sh`).
+
 ## Run the CLI Tool pdu.py like this:
 ./pdu.py --host 192.168.20.177 --action on --outlet 1,2,3,4
 

@@ -16,9 +16,12 @@
 #   ORANGE_CAMERA_CONFIG   camera config folder with <serial>.json
 #                          (default ~/orange_data/config/local/100_cam4_ptp_fourcam)
 #   PDU_HOST               default 192.168.20.177
+#   RIG_CONTROL_PYTHON     python with pexpect/pyyaml/rich for pdu.py (default:
+#                          python3 on PATH, e.g. after "conda activate rig_control")
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PDU_HOST="${PDU_HOST:-192.168.20.177}"
+RIG_CONTROL_PYTHON="${RIG_CONTROL_PYTHON:-python3}"
 # ORANGE_ROOT is a system-wide variable on this host (/opt/orange), so use a
 # dedicated one for the readiness tool.
 ORANGE_CAMERA_READY_ROOT="${ORANGE_CAMERA_READY_ROOT:-/home/jeremy/orange-integration-20260921}"
@@ -40,7 +43,7 @@ done
 [[ -x "$READY_BIN" ]] || { echo "missing $READY_BIN (build target evt_camera_ready)" >&2; exit 2; }
 
 # Serials come from the PDU outlet descriptions in system_config.yml ("SN: 2010093").
-SERIALS="$(python3 - "$HERE/system_config.yml" "$PDU_HOST" <<'PY'
+SERIALS="$("$RIG_CONTROL_PYTHON" - "$HERE/system_config.yml" "$PDU_HOST" <<'PY'
 import re, sys, yaml
 cfg = yaml.safe_load(open(sys.argv[1]))
 pdus = cfg.get("pdus") or cfg.get("pdu") or []
@@ -66,7 +69,7 @@ LOG_DIR="$HERE/logs/camera_power_cycle"; mkdir -p "$LOG_DIR"
 REPORT="$LOG_DIR/camera_ready_${STAMP}.json"
 
 echo "[reboot_cams] PDU $PDU_HOST outlet=$OUTLET reboot ($STAMP)"
-(cd "$HERE" && ./pdu.py --host "$PDU_HOST" --action reboot --outlet "$OUTLET" --verify)
+(cd "$HERE" && "$RIG_CONTROL_PYTHON" ./pdu.py --host "$PDU_HOST" --action reboot --outlet "$OUTLET" --verify)
 
 echo "[reboot_cams] waiting for cameras $SERIALS (up to ${WAIT_SECONDS}s), then checking lens mounts"
 ARGS=(--serials "$SERIALS" --wait-seconds "$WAIT_SECONDS" --config-dir "$ORANGE_CAMERA_CONFIG" --json "$REPORT")

@@ -28,7 +28,7 @@ Problems with the current pattern:
 
 Representative examples already present in the current repos:
 
-- `pdu.py` uses a personal Conda shebang: `/home/jeremy/miniforge3/envs/rig_control/bin/python`
+- `pdu.py` used a personal Conda shebang (fixed 2026-09-29: now `#!/usr/bin/env python3`, run inside the `rig_control` env or set `RIG_CONTROL_PYTHON` for `reboot_cams.sh`)
 - `environment.yaml` hard-coded a personal Conda prefix (fixed 2026-09-29: now `environments/rig_control.yaml` with no prefix)
 - `orange-jeremy/src/orange.cpp` derives `orange_data` under `/home/<user>/orange_data`
 - `citrus/scripts/system_checkup.py` defaults to `/home/jeremy/pancakebatter/system_config.yml`
@@ -89,7 +89,7 @@ Suggested baseline model:
 
 - [ ] Replace hard-coded `/home/jeremy/...` paths in scripts and docs with configurable paths.
 - [x] Remove personal Conda prefixes from committed environment files where possible. (`environments/rig_control.yaml`, `environments/juicebox.yaml`)
-- [ ] Replace personal shebangs with portable ones when appropriate.
+- [x] Replace personal shebangs with portable ones when appropriate. (`pdu.py`)
 - [ ] Introduce environment variables or config keys for shared roots where the code currently assumes a home path.
 - [ ] Make Citrus consume one authoritative machine inventory path instead of relying on a duplicate local copy.
 - [ ] Review all repo docs for commands that assume user `jeremy`.

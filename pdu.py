@@ -1,4 +1,4 @@
-#!/home/jeremy/miniforge3/envs/rig_control/bin/python
+#!/usr/bin/env python3
 """
 CyberPower PDU control utility via SSH.
 
