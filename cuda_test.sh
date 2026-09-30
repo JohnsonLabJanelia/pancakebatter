@@ -10,6 +10,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/apt_packages.sh
+source "${SCRIPT_DIR}/lib/apt_packages.sh" || exit 1
+
 # Build directories (temporary)
 BUILD_DIR="/tmp/ffmpeg-build-$$"  # Using $$ (PID) to make unique
 FFMPEG_BUILD="${BUILD_DIR}/ffmpeg"
@@ -67,13 +71,8 @@ chown $SUDO_USER:$SUDO_USER "$BUILD_DIR"
 
 # Install dependencies
 echo -e "${YELLOW}Installing dependencies...${NC}"
-apt-get update || error_exit "Failed to update package lists"
-apt-get install -y \
-    build-essential \
-    yasm \
-    pkg-config \
-    git \
-    nasm || error_exit "Failed to install dependencies"
+install_apt_manifest_packages "CUDA debug dependencies" cuda_test \
+    || error_exit "Failed to install dependencies"
 
 # Clone and build nv-codec-headers
 echo -e "${YELLOW}Building nv-codec-headers...${NC}"

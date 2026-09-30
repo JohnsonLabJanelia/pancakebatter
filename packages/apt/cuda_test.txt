@@ -1,0 +1,6 @@
+# CUDA/FFmpeg debug dependencies
+build-essential
+yasm
+pkg-config
+git
+nasm

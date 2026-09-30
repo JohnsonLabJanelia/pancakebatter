@@ -1,0 +1,13 @@
+# FFmpeg CUDA build dependencies
+build-essential
+pkg-config
+yasm
+cmake
+libtool
+libc6
+libc6-dev
+unzip
+wget
+git
+libnuma1
+libnuma-dev

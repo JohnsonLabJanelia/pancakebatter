@@ -10,6 +10,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/apt_packages.sh
+source "${SCRIPT_DIR}/lib/apt_packages.sh" || exit 1
+
 # Build directories (temporary)
 BUILD_DIR="/tmp/ffmpeg-build-$$"
 FFMPEG_BUILD="${BUILD_DIR}/ffmpeg"
@@ -54,8 +58,8 @@ chown -R "$USER_NAME":"$USER_GROUP" "$BUILD_DIR" || error_exit "Failed to change
 
 # Install required packages
 echo -e "${YELLOW}Installing required packages...${NC}"
-apt-get update
-apt-get install -y pkg-config build-essential yasm cmake libtool libc6 libc6-dev unzip wget libnuma1 libnuma-dev
+install_apt_manifest_packages "FFmpeg CUDA build dependencies" ffmpeg_cuda \
+    || error_exit "Failed to install required apt packages"
 
 # Verify NVENC libraries
 echo -e "${BLUE}Checking for NVIDIA libraries...${NC}"

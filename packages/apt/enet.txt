@@ -1,0 +1,6 @@
+# ENet build dependencies
+build-essential
+automake
+autoconf
+libtool
+wget

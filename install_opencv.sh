@@ -10,6 +10,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/apt_packages.sh
+source "${SCRIPT_DIR}/lib/apt_packages.sh" || exit 1
+
 # Build directories (temporary)
 BUILD_DIR="/tmp/opencv-build-$$"
 OPENCV_BUILD="${BUILD_DIR}/opencv"
@@ -49,17 +53,8 @@ fi
 
 # Install required packages
 echo -e "${YELLOW}Installing required packages...${NC}"
-apt-get update
-apt-get install -y build-essential cmake pkg-config \
-    libjpeg-dev libpng-dev libtiff-dev \
-    libavcodec-dev libavformat-dev libswscale-dev \
-    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-    libxvidcore-dev x264 libx264-dev libfaac-dev libmp3lame-dev libtheora-dev \
-    libfaac-dev libmp3lame-dev libvorbis-dev \
-    libopencore-amrnb-dev libopencore-amrwb-dev \
-    libatlas-base-dev gfortran libeigen3-dev \
-    python3-dev python3-numpy python3-pip \
-    libtbb-dev
+install_apt_manifest_packages "OpenCV build dependencies" opencv \
+    || error_exit "Failed to install required apt packages"
 
 # Create all required directories
 echo -e "${BLUE}Creating directories...${NC}"

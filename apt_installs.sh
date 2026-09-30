@@ -8,6 +8,10 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color (Reset)
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/apt_packages.sh
+source "${SCRIPT_DIR}/lib/apt_packages.sh" || exit 1
+
 echo ""
 echo "Checking if the script is being run with sudo"
 echo ""
@@ -20,54 +24,33 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Update apt repository
-echo ""
-echo "Updating apt repository"
-echo ""
-
-sudo apt update
-
-# Check if apt update succeeded
-if [ $? -eq 0 ]; then
-    echo ""
-    echo -e "${GREEN}Apt repository updated successfully!${NC}"
-    echo ""
-else
-    echo ""
-    echo -e "${RED}Apt update failed. Please check the errors above.${NC}"
-    echo ""
-    exit 1
-fi
-
 # Install recommended packages
 echo ""
 echo "Installing recommended packages"
 echo ""
 
-# Execute installation
-sudo apt install -y build-essential plocate autofs vim gcc make \
-    pkg-config libglvnd-dev smartmontools \
-    git openssh-server openssh-client \
-    libxcb-xinerama0 filezilla dkms \
-    tmux htop curl wget arping sysstat \
-    libglfw3 libglfw3-dev libglew-dev \
-    tree yasm cmake libtool libc6 libc6-dev \
-    unzip libnuma1 libnuma-dev \
-    nasm libx264-dev libxext-dev libxfixes-dev \
-    zlib1g-dev libeigen3-dev libgflags-dev libgoogle-glog-dev \
-    automake autoconf patchelf lm-sensors fio \
-    nvme-cli linuxptp mesa-utils libgtk-3-dev \
-    libgtkglext1-dev libenet
-
-
-# Check if the installation was successful
-if [ $? -eq 0 ]; then
+if install_apt_manifest_packages "recommended packages" base network_tools; then
     echo ""
     echo -e "${GREEN}Basic Linux packages installed successfully!${NC}"
     echo ""
 else
     echo ""
     echo -e "${RED}Package installation failed. Please check the errors above.${NC}"
+    echo ""
+    exit 1
+fi
+
+echo ""
+echo "Installing compatible yq"
+echo ""
+
+if "${SCRIPT_DIR}/install_yq.sh"; then
+    echo ""
+    echo -e "${GREEN}Compatible yq installed successfully!${NC}"
+    echo ""
+else
+    echo ""
+    echo -e "${RED}yq installation failed. Please check the errors above.${NC}"
     echo ""
     exit 1
 fi

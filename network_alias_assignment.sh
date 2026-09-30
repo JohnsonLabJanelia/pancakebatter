@@ -32,6 +32,10 @@ check_dependencies() {
             missing_deps=1
         fi
     done
+    if [[ "$missing_deps" -eq 0 ]] && ! printf '{}\n' | sudo -u "$INVOKING_USER" yq e '.test' - >/dev/null 2>&1; then
+        echo -e "${RED}Error: Installed yq does not support 'yq e' syntax. Run install_yq.sh.${NC}"
+        missing_deps=1
+    fi
     if [[ "$missing_deps" -eq 1 ]]; then
         echo -e "${RED}Please install missing dependencies and try again.${NC}"
         exit 1

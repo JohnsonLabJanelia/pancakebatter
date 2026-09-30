@@ -6,6 +6,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/apt_packages.sh
+source "${SCRIPT_DIR}/lib/apt_packages.sh" || exit 1
+
 # Check if the script is run as root
 if [ "$EUID" -ne 0 ]; then
   echo -e "${RED}Error: This script must be run as root. Please use sudo.${NC}"
@@ -14,8 +18,7 @@ fi
 
 # Install necessary dependencies
 echo -e "${YELLOW}Updating package list and installing dependencies...${NC}"
-apt-get update
-apt-get install -y build-essential automake autoconf libtool wget
+install_apt_manifest_packages "ENet build dependencies" enet || exit 1
 
 # Download ENet source code
 echo -e "${YELLOW}Downloading ENet source code...${NC}"
