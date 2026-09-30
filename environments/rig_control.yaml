@@ -1,3 +1,9 @@
+# Conda environment for rig control scripts (pdu.py, reboot_cams.sh helpers).
+#
+# Create:  conda env create -f environments/rig_control.yaml
+# Update:  conda env update -n rig_control -f environments/rig_control.yaml --prune
+#
+# Full solved export from pancake0 (conda-forge, linux-64). No personal prefix.
 name: rig_control
 channels:
   - conda-forge
@@ -32,4 +38,3 @@ dependencies:
   - tzdata=2025b=h78e105d_0
   - wheel=0.45.1=pyhd8ed1ab_1
   - yaml=0.2.5=h7f98852_2
-prefix: /home/jeremy/miniforge3/envs/rig_control

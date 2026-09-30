@@ -15,7 +15,7 @@ Current manifests:
 - `network_tools.txt` - networking utilities installed by `apt_installs.sh`.
 - `build_tools.txt` - extra toolchain packages installed by `apt_installs.sh`.
 - `sysadmin.txt` - admin, storage, and network diagnostics installed by `apt_installs.sh`.
-- `data_diagnostics.txt` - HDF5, graphviz, imagemagick, and Tk tools installed by `apt_installs.sh`.
+- `data_diagnostics.txt` - HDF5 CLI tools, graphviz, imagemagick, and Tk installed by `apt_installs.sh`.
 - `domain_join.txt` - SSSD/Kerberos/realmd packages for joining the machine to a domain. Opt-in: not run by `apt_installs.sh` because `krb5-user` prompts for a realm and joining is a deliberate step. Install with:
 
   ```bash

@@ -12,4 +12,4 @@ Cross-repo ownership for machine inventory, orange runtime camera config, and ci
 
 Multi-user communal machine migration work is tracked in [`docs/shared_machine_setup_todo.md`](docs/shared_machine_setup_todo.md).
 
-Apt package manifests used by the installer scripts live in [`packages/apt`](packages/apt/README.md). An optional conda environment for data analysis and plotting is described in [`environments/juicebox.yaml`](environments/juicebox.yaml).
+Apt package manifests used by the installer scripts live in [`packages/apt`](packages/apt/README.md). Conda environment files live in [`environments/`](environments/): `rig_control.yaml` for the rig control scripts and the optional `juicebox.yaml` for data analysis and plotting.
