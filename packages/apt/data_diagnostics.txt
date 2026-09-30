@@ -1,0 +1,7 @@
+# Data inspection and diagnostic tools
+hdf5-tools
+hdfview
+graphviz
+imagemagick
+python3-tk
+tk

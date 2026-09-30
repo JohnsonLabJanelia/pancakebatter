@@ -1,0 +1,28 @@
+# Optional data-analysis conda environment ("juicebox").
+#
+# Used for offline inspection of run records (CSV/JSON/HDF5), plotting, and
+# image work on the rig. Not required by any rig control or recording script.
+#
+# Create:  conda env create -f environments/juicebox.yaml
+# Update:  conda env update -n juicebox -f environments/juicebox.yaml --prune
+#
+# Versions are the ones captured from pancake0 on 2026-09-29. The pip TensorRT
+# wheel matches the system TensorRT 10.0.1.6 install and is only needed for
+# loading engine files from Python; drop it if you do not need that.
+name: juicebox
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy=2.2
+  - pandas=2.3
+  - polars=1.31
+  - h5py=3.16
+  - matplotlib=3.10
+  - seaborn=0.13
+  - pillow=11.3
+  - opencv=4.13
+  - pyyaml
+  - pip
+  - pip:
+      - tensorrt==10.0.1

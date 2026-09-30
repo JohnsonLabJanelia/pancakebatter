@@ -1,0 +1,7 @@
+# Active Directory / Kerberos domain join packages (opt-in, not installed by apt_installs.sh)
+# krb5-user prompts for the default realm via debconf; join is a deliberate admin step.
+sssd
+sssd-tools
+realmd
+adcli
+krb5-user
