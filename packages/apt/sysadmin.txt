@@ -1,0 +1,18 @@
+# System administration, storage, and network diagnostic tools
+net-tools
+nfs-common
+cifs-utils
+smbclient
+sshfs
+arp-scan
+nmap
+wireshark
+lldpd
+hwloc
+numactl
+hwinfo
+read-edid
+mokutil
+jq
+ripgrep
+parallel

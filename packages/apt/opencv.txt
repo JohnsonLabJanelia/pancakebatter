@@ -28,6 +28,4 @@ python3-numpy
 python3-pip
 libtbb-dev
 
-# Optional CUDA host compiler compatibility:
-# gcc-12
-# g++-12
+# CUDA host compiler compatibility (gcc-12, g++-12) lives in build_tools.txt.

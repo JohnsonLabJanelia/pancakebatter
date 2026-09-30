@@ -1,0 +1,13 @@
+# Extra build toolchain packages used by rig software builds
+gcc-12
+g++-12
+meson
+ninja-build
+bison
+flex
+swig
+m4
+nlohmann-json3-dev
+flatbuffers-compiler
+qtbase5-dev
+freeglut3-dev
