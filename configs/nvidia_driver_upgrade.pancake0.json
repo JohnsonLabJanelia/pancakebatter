@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "machine": "pancake0",
+  "status": "experimental_unqualified",
+  "expected": {
+    "os_id": "ubuntu",
+    "os_version_id": "22.04",
+    "architecture": "amd64",
+    "kernel": "6.5.0-44-generic",
+    "driver_version": "535.183.06",
+    "driver_owner": "runfile",
+    "driver_flavor": "proprietary",
+    "dkms_version": "2.8.7-2ubuntu2",
+    "ofed_dkms_version": "24.01.OFED.24.01.0.3.3.1",
+    "ofed_package_version": "24.01.OFED.24.01.0.3.3.1-1",
+    "cuda_symlink_target": "/usr/local/cuda-12.2",
+    "tensorrt_root": "/usr/local/TensorRT-10.0.1.6",
+    "gpu_uuids": [
+      "GPU-e4e87ee6-3e67-a9f0-21bf-40868a5a30f3",
+      "GPU-c37c3690-5fbc-361c-5a77-8c525a47840f",
+      "GPU-0e3759cd-e4fe-c5e3-2aea-0838e470567b",
+      "GPU-3be73ccb-2a89-fcab-7ca2-cb79e3b05e84",
+      "GPU-dea91594-1c62-95af-c22b-e3cb8caeeac9",
+      "GPU-840b0989-697c-1bf7-84d3-ad5a8c24e898",
+      "GPU-4e59dc78-3c68-73d5-ad3e-2983e7389b11",
+      "GPU-d00424a5-79aa-99fb-9152-4eac9ebdda7c",
+      "GPU-55b8a972-49a2-8419-dbca-0c7e6153c84b"
+    ]
+  },
+  "target": {
+    "driver_version": "610.57.04",
+    "package_version": "610.57.04-1ubuntu1",
+    "driver_metapackage": "cuda-drivers",
+    "pin_package": "nvidia-driver-pinning-610.57.04",
+    "pin_package_version": "610.57.04-1ubuntu1",
+    "dkms_package_version": "1:3.2.1-1ubuntu1",
+    "module_flavor": "proprietary",
+    "repository_url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/",
+    "repository_key_url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub",
+    "repository_key_fingerprint": "EB693B3035CD5710E231E123A4B469963BF863CC",
+    "install_recommends": false,
+    "allowed_dependency_packages": [
+      "screen-resolution-extra"
+    ],
+    "dependency_package_versions": {
+      "screen-resolution-extra": "0.18.2"
+    },
+    "framework_package_versions": {
+      "libnvidia-egl-gbm1": "1.1.4-2ubuntu1",
+      "libnvidia-egl-wayland21": "1.0.2-1ubuntu1",
+      "libnvidia-egl-xcb1": "1.0.6-1ubuntu1",
+      "libnvidia-egl-xlib1": "1.0.6-1ubuntu1"
+    }
+  },
+  "recovery": {
+    "backup_image": "/mnt/Data2/pre-nvenc-native-surface-20260918",
+    "backup_filesystem_uuid": "bb4ea7ac-11f3-4f20-80b1-5e3cb0927711",
+    "source_disk": "nvme1n1",
+    "source_disk_serial": "48816072200222",
+    "clonezilla_image_check": "user_reported_passed_2026-09-19",
+    "session_recovery": "/mnt/Data2/nvenc-session-recovery-20260919",
+    "rollback_installer": "/mnt/Data2/nvenc-session-recovery-20260919/NVIDIA-Linux-x86_64-535.183.06.run",
+    "rollback_installer_sha256": "c7bb0a0569c5347845479ed4e3e4d885c6ee3b8adf068c3401cdf754d5ba3d3b",
+    "rollback_installer_url": "https://us.download.nvidia.com/tesla/535.183.06/NVIDIA-Linux-x86_64-535.183.06.run",
+    "rollback_verification_evidence": "/mnt/Data2/nvenc-session-recovery-20260919/rollback-verification.json"
+  },
+  "qualification": {
+    "status": "not_started",
+    "preserve": [
+      "kernel",
+      "CUDA 12.2 default",
+      "TensorRT 10.0.1.6",
+      "MLNX_OFED 24.01",
+      "EVT 2.55.02",
+      "Rivermax 1.41.11",
+      "camera network configuration"
+    ],
+    "required_after_reboot": [
+      "nine-GPU inventory and driver parity",
+      "nvidia_peermem against existing OFED",
+      "one-camera EVT GPUDirect streaming",
+      "multi-camera PTP recording parity and decoded video",
+      "YOLO/TensorRT latency and GUI validation"
+    ]
+  }
+}

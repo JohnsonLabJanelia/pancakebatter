@@ -7,3 +7,7 @@ A secondary goal is to introduce some basic automation into installing required 
 Longer term plans could include utilizing tools like [spack](https://spack.readthedocs.io/en/latest/index.html) and [Warewolf](https://warewolf.io/index.php) so its very well documented and maintained with infra as code. That's very low priority for now.
 
 Check out the docs folder for documentation about how to use the scripts and what they are for.
+
+Cross-repo ownership for machine inventory, orange runtime camera config, and citrus rig/canvas calibration is documented in [`docs/rig_canvas_contract.md`](docs/rig_canvas_contract.md).
+
+Multi-user communal machine migration work is tracked in [`docs/shared_machine_setup_todo.md`](docs/shared_machine_setup_todo.md).
