@@ -14,4 +14,6 @@ Multi-user communal machine migration work is tracked in [`docs/shared_machine_s
 
 Per-machine files (`config.yml` inventory, driver-upgrade manifest) live in `hosts/<hostname>/`; scripts pick the directory from `hostname -s`, or from `PANCAKEBATTER_HOST`. To add a machine, run `./capture_inventory.py` on it to draft `hosts/<hostname>/config.captured.yml` (see [`hosts/README.md`](hosts/README.md)), or copy [`system_config.example.yml`](system_config.example.yml) by hand. See [`docs/system_config_v1.md`](docs/system_config_v1.md).
 
+New cameras are discovered, given their port's camera IP, and recorded in the host config by `camera_adopt.py` (see [`docs/camera_adopt.md`](docs/camera_adopt.md)).
+
 Apt package manifests used by the installer scripts live in [`packages/apt`](packages/apt/README.md). Conda environment files live in [`environments/`](environments/): `rig_control.yaml` for the rig control scripts and the optional `juicebox.yaml` for data analysis and plotting.

@@ -9,3 +9,4 @@ docs/*.pdf
 hosts/*/config.yml.bak.*
 __pycache__/
 .codex
+build/
