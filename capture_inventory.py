@@ -12,6 +12,13 @@ Usage:
     ./capture_inventory.py                 # -> hosts/<hostname>/config.captured.yml
     ./capture_inventory.py --stdout
     ./capture_inventory.py --output /tmp/draft.yml
+
+Refresh an existing, human-edited config with newly detected hardware (a new transceiver,
+a firmware update, a swapped disk) without touching roles, IPs, cameras or anything else
+you set by hand. Previews by default; nothing is erased, only added or updated:
+    ./capture_inventory.py --refresh                    # preview changes to hosts/<hostname>/config.yml
+    ./capture_inventory.py --refresh --write            # apply (validated, timestamped backup)
+    ./capture_inventory.py --refresh --config PATH
 """
 from __future__ import annotations
 
@@ -30,8 +37,9 @@ from typing import Any
 import yaml
 
 import hostconfig
+import refresh_config
+from configio import load, save, validate  # noqa: F401  (validate is re-exported for other tools)
 
-SCHEMA_PATH = hostconfig.REPO_ROOT / "schemas" / "system_config.v1.schema.json"
 UNASSIGNED_IP = "0.0.0.0/0"
 ROOT_PROBE = "/usr/local/libexec/pancakebatter/root_probe.py"  # see install_root_probe.sh
 NOTES: list[str] = []
@@ -407,32 +415,6 @@ def build_config() -> dict[str, Any]:
     }
 
 
-def validate(config: dict[str, Any]) -> list[str]:
-    try:
-        import jsonschema
-    except ImportError:
-        return validate_with_repo_checker(config)
-    schema = json.loads(SCHEMA_PATH.read_text())
-    return [f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
-            for e in sorted(jsonschema.Draft202012Validator(schema).iter_errors(config), key=lambda e: list(e.absolute_path))]
-
-
-def validate_with_repo_checker(config: dict[str, Any]) -> list[str]:
-    """Fallback when jsonschema is missing: reuse check_network_settings' v1 checks, quietly."""
-    import check_network_settings as cns
-
-    class QuietReporter(cns.Reporter):
-        def section(self, title): pass
-        def ok(self, message): pass
-        def warn(self, message): self.warnings.append(message)
-        def error(self, message): self.errors.append(message)
-
-    rep = QuietReporter()
-    cns.check_schema_metadata(config, rep)
-    cns.validate_system_config_v1(cns.parse_nic_configs(config), cns.parse_camera_configs(config), rep)
-    return rep.errors
-
-
 HEADER = """\
 # DRAFT captured by capture_inventory.py -- review before use.
 # Auto-filled: system_info, storage_devices, gpus, nics (hardware/link facts).
@@ -443,11 +425,62 @@ HEADER = """\
 """
 
 
+def refresh(config_path: Path, write: bool) -> int:
+    """Preview (or, with write=True, apply) newly captured facts on top of an existing config."""
+    if not config_path.exists():
+        raise SystemExit(f"{config_path} does not exist; capture a draft first (no --refresh)")
+    fresh = build_config()
+    try:
+        merged, changes, notes = refresh_config.merge_facts(load(config_path), fresh)
+    except refresh_config.RefreshError as exc:
+        raise SystemExit(str(exc))
+
+    print(f"Refreshing {config_path}")
+    if changes:
+        print(f"\n{len(changes)} change(s):")
+        for c in changes:
+            print(f"  ~ {c}")
+    else:
+        print("\nNo changes: recorded hardware facts already match this machine.")
+    capture_notes = [n for n in NOTES if "link down" not in n]
+    if notes or capture_notes:
+        print("\nNotes:")
+        for n in notes + capture_notes:
+            print(f"  - {n}")
+
+    problems = validate(merged)
+    if problems:
+        print("\nThe merged config would not validate; nothing written:", file=sys.stderr)
+        for p in problems:
+            print(f"  schema: {p}", file=sys.stderr)
+        return 1
+    if not changes:
+        return 0
+    if not write:
+        print("\nPreview only. Re-run with --write to apply (a timestamped backup is kept).")
+        return 0
+    errors = save(config_path, merged)
+    if errors:
+        for e in errors:
+            print(f"  schema: {e}", file=sys.stderr)
+        return 1
+    print(f"\nWrote {config_path} (previous version saved as {config_path.name}.bak.<timestamp>).")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--output", type=Path, help="default: hosts/<hostname>/config.captured.yml")
     ap.add_argument("--stdout", action="store_true", help="print instead of writing a file")
+    ap.add_argument("--refresh", action="store_true",
+                    help="merge newly detected hardware facts into an existing config (preview unless --write)")
+    ap.add_argument("--write", action="store_true", help="with --refresh: apply the changes")
+    ap.add_argument("--config", type=Path, help="with --refresh: default hosts/<hostname>/config.yml")
     args = ap.parse_args(argv)
+    if args.write and not args.refresh:
+        ap.error("--write only applies to --refresh")
+    if args.refresh:
+        return refresh(args.config or hostconfig.default_config_path(socket.gethostname().split(".")[0]), args.write)
 
     config = build_config()
     text = HEADER + yaml.safe_dump(config, sort_keys=False, width=120)

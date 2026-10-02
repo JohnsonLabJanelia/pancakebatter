@@ -99,18 +99,6 @@ storage_devices:
   - partition: nvme1n1p1
     fs_type: ext4
     mount_point: /nvme0
-- name: nvme3n1
-  model: KINGSTON SFYR2D8T1
-  serial_number: 50026B7283C5937A
-  capacity: 8.19
-  device_path: /dev/nvme3n1
-  firmware_version: SHW00105
-  format: 512
-  transport: nvme
-  partitions:
-  - partition: nvme3n1p1
-    fs_type: ext4
-    mount_point: /nvme2
 - name: nvme0n1
   model: KINGSTON SFYR2D8T1
   serial_number: 50026B7283C59333
@@ -123,6 +111,18 @@ storage_devices:
   - partition: nvme0n1p1
     fs_type: ext4
     mount_point: /nvme1
+- name: nvme3n1
+  model: KINGSTON SFYR2D8T1
+  serial_number: 50026B7283C5937A
+  capacity: 8.19
+  device_path: /dev/nvme3n1
+  firmware_version: SHW00105
+  format: 512
+  transport: nvme
+  partitions:
+  - partition: nvme3n1p1
+    fs_type: ext4
+    mount_point: /nvme2
 gpus:
 - model: NVIDIA A16
   driver_version: 580.178.04
@@ -235,8 +235,8 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp241s0f0np0:
-    altname: null
+- mlnx1_p1_25g:
+    altname: enp241s0f0np0
     role: unknown
     managed: false
     expected_link: false
@@ -250,8 +250,8 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.110.1/24
     link_settings:
       speed: 25000
       autoneg: true
@@ -263,8 +263,8 @@ nics:
       wavelength: 1310
       max_distance: 10000
       fiber_type: SMF
-- enp241s0f1np1:
-    altname: null
+- mlnx1_p2_25g:
+    altname: enp241s0f1np1
     role: unknown
     managed: false
     expected_link: false
@@ -278,21 +278,21 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.120.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
-      brand: null
-      model: null
-      serial_number: null
-      speed: null
-      wavelength: null
-      max_distance: null
-      fiber_type: null
-- enp241s0f2np2:
-    altname: null
+      brand: FS
+      model: SFP-25GLR-31
+      serial_number: S2435306851
+      speed: 25
+      wavelength: 1310
+      max_distance: 10000
+      fiber_type: SMF
+- mlnx1_p3_25g:
+    altname: enp241s0f2np2
     role: unknown
     managed: false
     expected_link: false
@@ -306,8 +306,8 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.130.1/24
     link_settings:
       speed: 50000
       autoneg: true
@@ -319,8 +319,8 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp241s0f3np3:
-    altname: null
+- mlnx1_p4_25g:
+    altname: enp241s0f3np3
     role: unknown
     managed: false
     expected_link: false
@@ -334,8 +334,8 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.140.1/24
     link_settings:
       speed: 50000
       autoneg: true
@@ -347,8 +347,8 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f0np0:
-    altname: null
+- mlnx2_p1_25g:
+    altname: enp33s0f0np0
     role: unknown
     managed: false
     expected_link: false
@@ -375,8 +375,8 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f1np1:
-    altname: null
+- mlnx2_p2_25g:
+    altname: enp33s0f1np1
     role: unknown
     managed: false
     expected_link: false
@@ -403,8 +403,8 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f2np2:
-    altname: null
+- mlnx2_p3_25g:
+    altname: enp33s0f2np2
     role: unknown
     managed: false
     expected_link: false
@@ -431,8 +431,8 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f3np3:
-    altname: null
+- mlnx2_p4_25g:
+    altname: enp33s0f3np3
     role: unknown
     managed: false
     expected_link: false

@@ -19,10 +19,8 @@ from __future__ import annotations
 import argparse
 import json
 import secrets
-import shutil
 import sys
 import webbrowser
-from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -30,8 +28,8 @@ from urllib.parse import parse_qs, urlparse
 
 import yaml
 
-import capture_inventory
 import hostconfig
+from configio import load, save
 
 
 def default_file() -> Path:
@@ -40,30 +38,6 @@ def default_file() -> Path:
         if path.exists():
             return path
     raise SystemExit(f"no config for {hostconfig.host_name()}: run ./capture_inventory.py first (or pass --file)")
-
-
-def load(path: Path) -> dict[str, Any]:
-    return yaml.safe_load(path.read_text()) or {}
-
-
-def save(path: Path, config: dict[str, Any]) -> list[str]:
-    """Validate then write. Returns schema errors (file untouched) or [] on success."""
-    errors = capture_inventory.validate(config)
-    if errors:
-        return errors
-    header = ""
-    if path.exists():
-        lines = path.read_text().splitlines(keepends=True)
-        n = 0
-        while n < len(lines) and lines[n].startswith("#"):
-            n += 1
-        header = "".join(lines[:n])
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        shutil.copy2(path, path.with_name(f"{path.name}.bak.{stamp}"))
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(header + yaml.safe_dump(config, sort_keys=False, width=120))
-    tmp.replace(path)
-    return []
 
 
 def make_handler(path: Path, token: str, port: int):

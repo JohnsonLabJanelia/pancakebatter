@@ -44,3 +44,18 @@ ever gains writes, shell use, extra commands, or argument handling.
 
 The installed copy does not update itself: re-run the installer after changing the probe
 (needed once now to pick up the slot table).
+
+## Refreshing hardware facts (new transceiver, firmware update, swapped disk)
+
+After `config.yml` has been edited by hand, re-capturing would clobber your choices. Use refresh instead:
+
+```bash
+./capture_inventory.py --refresh            # preview what would change in hosts/<hostname>/config.yml
+./capture_inventory.py --refresh --write    # apply (validated; timestamped .bak kept)
+```
+
+It updates only facts: NIC identity/serials/firmware, transceiver modules, storage, GPUs and
+`system_info`. Roles, IPs, MTU, altnames, `link_settings`, cameras, PDUs and kernel tuning are never
+touched. It never erases: an empty reading (e.g. no root probe) does not replace a recorded value, and
+anything no longer detected is only reported. NICs are matched by MAC address, so renamed ports are
+fine; new NICs are reported, not added. It refuses to run against another machine's config.
