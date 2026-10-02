@@ -193,6 +193,23 @@ sudo ./create_nm_connections.sh
 This script is idempotent. It checks whether each configured interface exists and
 whether a NetworkManager connection profile already exists before creating one.
 
+## Step 2b: Keep DHCP Off the Camera Ports
+
+NetworkManager automatically creates a DHCP "Wired connection N" profile for any Ethernet
+port that has no profile, which must not happen on the static camera network (including
+`spare` ports, which later become camera ports). Preview, then apply:
+
+```bash
+./disable_nm_autodhcp.py --dry-run
+sudo ./disable_nm_autodhcp.py
+```
+
+For every NIC with role `camera` or `spare` it writes
+`/etc/NetworkManager/conf.d/90-pancakebatter-no-auto-default.conf` (their MAC addresses under
+`no-auto-default`) and deletes the generic profiles already created for them. Management and
+`unknown` NICs, including the SSH port, are never listed or deleted, and the profiles this repo
+creates (named after the interface) are never deleted. Re-run it after changing roles.
+
 ## Step 3: Apply Static NIC Settings
 
 Apply the static IP, MTU, speed, and autonegotiation settings from the hostname
