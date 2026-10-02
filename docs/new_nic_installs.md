@@ -135,28 +135,51 @@ reboot unless the persistent camera IP configuration is written.
 
 ## Step 1: Generate Persistent NIC Names
 
-The udev naming script reads `hosts/$(hostname -s)/config.yml` and writes:
+The naming script reads `hosts/$(hostname -s)/config.yml` and writes one systemd
+`.link` file per NIC:
 
 ```text
-/etc/udev/rules.d/10-network-aliases.rules
+/etc/systemd/network/10-pancakebatter-<name>.link
 ```
 
-Run:
+Preview the files first (needs no root, writes nothing):
+
+```bash
+./network_alias_assignment.sh --dry-run
+```
+
+Then apply them:
 
 ```bash
 sudo ./network_alias_assignment.sh
 ```
 
-The generated rules map each NIC MAC address to the configured interface name and
-alias. For example:
+Each file matches a NIC by its permanent MAC address and sets the configured name
+and alias. For example:
 
-```udev
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="a0:88:c2:69:11:9e", NAME="mlnx1_p1_25g"
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="a0:88:c2:69:11:9e", SYMLINK+="eth0"
+```ini
+[Match]
+PermanentMACAddress=a0:88:c2:69:11:9e
+
+[Link]
+Name=mlnx1_p1_25g
+AlternativeName=eth0
+AlternativeNamesPolicy=database onboard slot path
 ```
 
-Reboot after changing NIC names. Reloading udev rules can work in some cases, but
-a reboot is the cleanest way to make sure NetworkManager sees the final names.
+`ip -d link show` then lists `altname eth0` plus the kernel's own `enp...` altname
+(kept by `AlternativeNamesPolicy`). NICs with `altname: null` (onboard/management
+ports) are left unchanged. Re-running the script replaces all earlier
+`10-pancakebatter-*.link` files, so the config stays the source of truth.
+
+Older versions wrote `NAME=` rules to `/etc/udev/rules.d/10-network-aliases.rules`
+and `SYMLINK+=` aliases, which never created usable `ethN` names. The script renames
+that file to `*.disabled-<date>` when it installs the new files, because the two
+mechanisms would conflict.
+
+If the links are needed in early boot, run `sudo update-initramfs -u` before
+rebooting. Reboot after changing NIC names; a reboot is the cleanest way to make
+sure NetworkManager sees the final names.
 
 ## Step 2: Create NetworkManager Profiles
 

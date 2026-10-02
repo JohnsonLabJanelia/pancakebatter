@@ -1,9 +1,5 @@
-# DRAFT captured by capture_inventory.py -- review before use.
-# Auto-filled: system_info, storage_devices, gpus, nics (hardware/link facts).
-# Still needs a human: nic role/managed/expected_link/ip_address, cameras, pdus,
-# kernel_tuning. NIC part/serial and transceiver details are only filled when run as root;
-# otherwise enter them with gui_config_editor.py.
-# NICs keep their current kernel names; rename them via the udev/NIC scripts once roles are set.
+# Proposed by suggest_nic_layout.py from config.captured.yml -- review before use.
+# NIC names/IPs follow the pancake0 convention; cameras, pdus, kernel_tuning are still yours to fill in.
 schema:
   name: system_config
   version: 1
@@ -235,11 +231,11 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp241s0f0np0:
-    altname: null
-    role: unknown
-    managed: false
-    expected_link: false
+- mlnx1_p1_25g:
+    altname: eth0
+    role: camera
+    managed: true
+    expected_link: true
     mac_address: 60:5e:65:5c:8b:ee
     brand: Mellanox Technologies
     model: MT2910 Family [ConnectX-7]
@@ -250,8 +246,8 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.110.1/24
     link_settings:
       speed: 25000
       autoneg: true
@@ -263,11 +259,12 @@ nics:
       wavelength: 1310
       max_distance: 10000
       fiber_type: SMF
-- enp241s0f1np1:
-    altname: null
-    role: unknown
-    managed: false
-    expected_link: false
+    card: 1
+- mlnx1_p2_25g:
+    altname: eth1
+    role: camera
+    managed: true
+    expected_link: true
     mac_address: 60:5e:65:5c:8b:ef
     brand: Mellanox Technologies
     model: MT2910 Family [ConnectX-7]
@@ -278,10 +275,10 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.120.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
       brand: null
@@ -291,11 +288,12 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp241s0f2np2:
-    altname: null
-    role: unknown
-    managed: false
-    expected_link: false
+    card: 1
+- mlnx1_p3_25g:
+    altname: eth2
+    role: camera
+    managed: true
+    expected_link: true
     mac_address: 60:5e:65:5c:8b:f0
     brand: Mellanox Technologies
     model: MT2910 Family [ConnectX-7]
@@ -306,10 +304,10 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.130.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
       brand: null
@@ -319,11 +317,12 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp241s0f3np3:
-    altname: null
-    role: unknown
-    managed: false
-    expected_link: false
+    card: 1
+- mlnx1_p4_25g:
+    altname: eth3
+    role: camera
+    managed: true
+    expected_link: true
     mac_address: 60:5e:65:5c:8b:f1
     brand: Mellanox Technologies
     model: MT2910 Family [ConnectX-7]
@@ -334,10 +333,10 @@ nics:
     serial_number: MT2542XZ06ZH
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.140.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
       brand: null
@@ -347,9 +346,10 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f0np0:
-    altname: null
-    role: unknown
+    card: 1
+- mlnx2_p1_25g:
+    altname: eth4
+    role: spare
     managed: false
     expected_link: false
     mac_address: 54:9b:24:5d:34:22
@@ -362,10 +362,10 @@ nics:
     serial_number: MT2538XZ06VF
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.150.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
       brand: null
@@ -375,9 +375,10 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f1np1:
-    altname: null
-    role: unknown
+    card: 2
+- mlnx2_p2_25g:
+    altname: eth5
+    role: spare
     managed: false
     expected_link: false
     mac_address: 54:9b:24:5d:34:23
@@ -390,10 +391,10 @@ nics:
     serial_number: MT2538XZ06VF
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.160.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
       brand: null
@@ -403,9 +404,10 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f2np2:
-    altname: null
-    role: unknown
+    card: 2
+- mlnx2_p3_25g:
+    altname: eth6
+    role: spare
     managed: false
     expected_link: false
     mac_address: 54:9b:24:5d:34:24
@@ -418,10 +420,10 @@ nics:
     serial_number: MT2538XZ06VF
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.170.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
       brand: null
@@ -431,9 +433,10 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
-- enp33s0f3np3:
-    altname: null
-    role: unknown
+    card: 2
+- mlnx2_p4_25g:
+    altname: eth7
+    role: spare
     managed: false
     expected_link: false
     mac_address: 54:9b:24:5d:34:25
@@ -446,10 +449,10 @@ nics:
     serial_number: MT2538XZ06VF
     driver: mlx5_core
     firmware_version: 28.44.1036 (MT_0000000849)
-    mtu: 1500
-    ip_address: 0.0.0.0/0
+    mtu: 9000
+    ip_address: 192.168.180.1/24
     link_settings:
-      speed: 50000
+      speed: 25000
       autoneg: true
     transceiver:
       brand: null
@@ -459,4 +462,5 @@ nics:
       wavelength: null
       max_distance: null
       fiber_type: null
+    card: 2
 cameras: {}

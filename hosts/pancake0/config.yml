@@ -155,7 +155,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 61:00.0
+      pcie_id: "61:00.0"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2336XZ09PC
       mtu: 9000
@@ -180,7 +180,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 61:00.1
+      pcie_id: "61:00.1"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2336XZ09PC
       mtu: 9000
@@ -205,7 +205,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 61:00.2
+      pcie_id: "61:00.2"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2336XZ09PC
       mtu: 9000
@@ -230,7 +230,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 61:00.3
+      pcie_id: "61:00.3"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2336XZ09PC
       mtu: 9000
@@ -255,7 +255,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 49:00.0
+      pcie_id: "49:00.0"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2438XZ09N2
       mtu: 9000
@@ -280,7 +280,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 49:00.1
+      pcie_id: "49:00.1"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2438XZ09N2
       mtu: 9000
@@ -305,7 +305,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 49:00.2
+      pcie_id: "49:00.2"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2438XZ09N2
       mtu: 9000
@@ -330,7 +330,7 @@ nics:
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
       part_number: MCX713104AS-ADAT
-      pcie_id: 49:00.3
+      pcie_id: "49:00.3"
       subsystem: NVIDIA ConnectX-7 HHHL Adapter Card, 25/50GbE, Quad-Port SFP56, PCIe 4.0 x16
       serial_number: MT2438XZ09N2
       mtu: 9000

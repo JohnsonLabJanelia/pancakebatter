@@ -50,7 +50,7 @@ class ParserTests(unittest.TestCase):
             "Vendor name : InnoLight\nVendor PN : TR-PY13L-V00\nVendor SN : INL1\n"
             "Laser wavelength : 1310.000nm\nBR, Nominal : 25500MBd\nLength (SMF) : 10km\n")
         self.assertEqual(trx, {"brand": "InnoLight", "model": "TR-PY13L-V00", "serial_number": "INL1",
-                               "speed": 26, "wavelength": 1310, "max_distance": 10000, "fiber_type": "SMF"})
+                               "speed": 25, "wavelength": 1310, "max_distance": 10000, "fiber_type": "SMF"})
 
     def test_lsblk_keeps_only_physical_disks(self):
         devs = ci.parse_lsblk(LSBLK)
@@ -58,6 +58,81 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(devs[0]["model"], "Acme 8TB")
         self.assertEqual(devs[0]["capacity"], 8.0)
         self.assertEqual(devs[0]["partitions"][0]["mount_point"], "/data")
+
+
+DMI = """# dmidecode 3.5
+Getting SMBIOS data from sysfs.
+
+Handle 0x0030, DMI type 9, 17 bytes
+System Slot Information
+\tDesignation: PCIEX16_1
+\tType: PCI Express 5 x16
+\tCurrent Usage: In Use
+\tBus Address: 0000:21:00.1
+
+Handle 0x0031, DMI type 9, 17 bytes
+System Slot Information
+\tDesignation: PCIEX16_2
+\tType: PCI Express 5 x16
+\tCurrent Usage: Available
+\tBus Address: 0000:c0:00.0
+
+Handle 0x0032, DMI type 9, 17 bytes
+System Slot Information
+\tDesignation: M.2_1
+\tType: M.2 Socket 3
+\tCurrent Usage: Unknown
+"""
+
+
+class SlotTests(unittest.TestCase):
+    def test_parse_dmi_slots(self):
+        slots = ci.parse_dmi_slots(DMI)
+        self.assertEqual([s["designation"] for s in slots], ["PCIEX16_1", "PCIEX16_2", "M.2_1"])
+        self.assertEqual(slots[0]["bus"], "21:00")
+        self.assertEqual(slots[0]["usage"], "In Use")
+        self.assertIsNone(slots[2]["bus"])
+
+    def test_slot_lookup_matches_device_bus(self):
+        slots = ci.parse_dmi_slots(DMI)
+        self.assertEqual(ci.slot_for_device(slots, "21:00.3"), "PCIEX16_1")
+        self.assertIsNone(ci.slot_for_device(slots, "d3:00.0"))
+        self.assertIsNone(ci.slot_for_device(slots, None))
+        self.assertEqual(ci.parse_dmi_slots(""), [])
+
+
+# Real `ethtool -m` output (FS SFP-25GLR-31 in a ConnectX-7 on dumpling, 2026-10-02), trimmed.
+REAL_SFP = """\
+\tIdentifier                                : 0x03 (SFP)
+\tConnector                                 : 0x07 (LC)
+\tTransceiver type                          : Extended: 100G Base-LR4 or 25GBase-LR
+\tEncoding                                  : 0x06 (64B/66B)
+\tBR, Nominal                               : 25750MBd
+\tLength (SMF,km)                           : 10km
+\tLength (SMF)                              : 0m
+\tLength (50um)                             : 0m
+\tLength (62.5um)                           : 0m
+\tLength (Copper)                           : 0m
+\tLength (OM3)                              : 0m
+\tLaser wavelength                          : 1310nm
+\tVendor name                               : FS
+\tVendor PN                                 : SFP-25GLR-31
+\tVendor SN                                 : S2435306849
+"""
+
+
+class RealModuleTests(unittest.TestCase):
+    def test_real_single_mode_sfp(self):
+        self.assertEqual(ci.parse_ethtool_m(REAL_SFP), {
+            "brand": "FS", "model": "SFP-25GLR-31", "serial_number": "S2435306849",
+            "speed": 25, "wavelength": 1310, "max_distance": 10000, "fiber_type": "SMF"})
+
+    def test_multimode_and_dac_variants(self):
+        mm = ci.parse_ethtool_m("Length (OM3)  : 70m\nLength (SMF,km) : 0km\nBR, Nominal : 10312MBd\n")
+        self.assertEqual((mm["fiber_type"], mm["max_distance"], mm["speed"]), ("MMF", 70, 10))
+        dac = ci.parse_ethtool_m("Length (Copper) : 3m\nBR, Nominal : 25781MBd\n")
+        self.assertEqual((dac["fiber_type"], dac["max_distance"], dac["speed"]), ("DAC", 3, 25))
+        self.assertEqual(ci.parse_ethtool_m("")["fiber_type"], None)
 
 
 class VpdTests(unittest.TestCase):

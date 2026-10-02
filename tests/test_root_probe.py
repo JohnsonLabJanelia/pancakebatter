@@ -40,6 +40,9 @@ class ProbeTests(unittest.TestCase):
             out = probe.collect(sys_net=str(fake_sysfs(tmp)), ethtool="/usr/sbin/ethtool", run=fake_run)
         self.assertEqual(list(out), ["enp1"])
         self.assertEqual(calls, [["/usr/sbin/ethtool", "-m", "enp1"]])
+        calls.clear()
+        self.assertEqual(probe.collect_slots(dmidecode="/usr/sbin/dmidecode", run=fake_run), "Vendor name : X\n")
+        self.assertEqual(calls, [["/usr/sbin/dmidecode", "-t", "slot"]])
         self.assertEqual(out["enp1"]["ethtool_m"], "Vendor name : X\n")
         self.assertEqual(out["enp1"]["vpd_hex"], "82000078")
 
@@ -69,9 +72,16 @@ class ProbeTests(unittest.TestCase):
         for call in opens:
             self.assertEqual(ast.literal_eval(call.args[1]), "rb")
         self.assertEqual(re.findall(r'\[ethtool, "([^"]+)"', code), ["-m"])
+        self.assertEqual(re.findall(r'\[dmidecode, "([^"]+)", "([^"]+)"\]', code), [("-t", "slot")])
+        # exactly two subprocess invocations exist, and nothing but `run` launches processes
+        self.assertEqual(len(re.findall(r"\brun\(\[", code)), 2)
 
 
 class CaptureIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        ci.load_privileged.cache_clear()
+        self.addCleanup(ci.load_privileged.cache_clear)
+
     def test_no_helper_means_no_sudo_call(self):
         with patch.object(ci, "ROOT_PROBE", "/nonexistent/probe"), patch.object(ci, "run") as run:
             self.assertEqual(ci.load_privileged(), {})
@@ -81,9 +91,10 @@ class CaptureIntegrationTests(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as helper, \
              patch.object(ci, "ROOT_PROBE", helper.name), \
              patch.object(ci.os, "geteuid", return_value=1000), \
-             patch.object(ci, "run", return_value='{"enp1": {"ethtool_m": "x", "vpd_hex": null}}') as run:
+             patch.object(ci, "run", return_value='{"nics": {"enp1": {"ethtool_m": "x", "vpd_hex": null}}, "dmi_slots": "s"}') as run:
             got = ci.load_privileged()
-        self.assertEqual(got["enp1"]["ethtool_m"], "x")
+        self.assertEqual(got["nics"]["enp1"]["ethtool_m"], "x")
+        self.assertEqual(got["dmi_slots"], "s")
         self.assertEqual(run.call_args[0][0][:2], ["sudo", "-n"])
 
     def test_bad_helper_output_is_ignored(self):

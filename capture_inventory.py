@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import functools
 import glob
 import json
 import os
@@ -109,29 +110,32 @@ def parse_ethtool_i(text: str) -> dict[str, str]:
     return {k.strip(): v.strip() for k, v in (l.split(":", 1) for l in text.splitlines() if ":" in l)}
 
 
+STANDARD_RATES_GBPS = (1, 10, 25, 40, 50, 100, 200, 400)
+
+
+def _length_m(fields: dict[str, str], *keys: str) -> int:
+    """Largest positive length (metres) among the given `Length (...)` fields; km fields are scaled."""
+    best = 0
+    for key in keys:
+        m = re.match(r"(\d+)\s*(km|m)\b", fields.get(key, ""))
+        if m:
+            best = max(best, int(m.group(1)) * (1000 if m.group(2) == "km" else 1))
+    return best
+
+
 def parse_ethtool_m(text: str) -> dict[str, Any]:
     """Transceiver EEPROM (`ethtool -m`) -> schema's transceiver block."""
     f = {k.strip(): v.strip() for k, v in (l.split(":", 1) for l in text.splitlines() if ":" in l)}
     wl = re.match(r"([\d.]+)", f.get("Laser wavelength", ""))
     speed = None
-    if "BR, Nominal" in f:
-        m = re.match(r"(\d+)", f["BR, Nominal"])
-        if m:
-            speed = round(int(m.group(1)) / 1000)  # MBd -> ~Gb/s
-    dist = None
-    for key in ("Length (SMF)", "Length (OM3 50um)", "Length (Copper)"):
-        m = re.match(r"(\d+)\s*(km|m)", f.get(key, ""))
-        if m and int(m.group(1)) > 0:
-            dist = int(m.group(1)) * (1000 if m.group(2) == "km" else 1)
-            break
-    if dist is not None and "Length (SMF)" in f and f["Length (SMF)"].startswith(tuple("123456789")):
-        fiber = "SMF"
-    elif any(f.get(k, "").startswith(tuple("123456789")) for k in ("Length (OM2 50um)", "Length (OM3 50um)", "Length (OM4 50um)", "Length (62.5um)")):
-        fiber = "MMF"
-    elif f.get("Length (Copper)", "").startswith(tuple("123456789")):
-        fiber = "DAC"
-    else:
-        fiber = None
+    m = re.match(r"(\d+)\s*MBd", f.get("BR, Nominal", ""))
+    if m:  # signalling rate -> nearest standard Ethernet rate (25750 MBd -> 25 Gb/s)
+        speed = min(STANDARD_RATES_GBPS, key=lambda r: abs(r - int(m.group(1)) / 1000))
+    smf = _length_m(f, "Length (SMF,km)", "Length (SMF)")
+    mmf = _length_m(f, "Length (OM2 50um)", "Length (OM3 50um)", "Length (OM4 50um)", "Length (50um)",
+                    "Length (62.5um)", "Length (OM1)", "Length (OM2)", "Length (OM3)", "Length (OM4)")
+    copper = _length_m(f, "Length (Copper)")
+    fiber, dist = (("SMF", smf) if smf else ("MMF", mmf) if mmf else ("DAC", copper) if copper else (None, None))
     return {
         "brand": f.get("Vendor name") or None,
         "model": f.get("Vendor PN") or None,
@@ -164,6 +168,36 @@ def parse_vpd(data: bytes) -> dict[str, str]:
         else:  # small resource, nothing we need
             i += 1 + (tag & 0x07)
     return out
+
+
+def parse_dmi_slots(text: str) -> list[dict[str, str]]:
+    """`dmidecode -t slot` -> [{designation, type, usage, bus}], bus as 'bb:dd' (hex, lowercase)."""
+    slots = []
+    for block in re.split(r"\n\s*\n", text):
+        if "System Slot Information" not in block:
+            continue
+        f = {k.strip(): v.strip() for k, v in (l.split(":", 1) for l in block.splitlines() if ":" in l)}
+        m = re.match(r"[0-9a-f]{4}:([0-9a-f]{2}:[0-9a-f]{2})\.\d", f.get("Bus Address", ""), re.I)
+        slots.append({"designation": f.get("Designation"), "type": f.get("Type"),
+                      "usage": f.get("Current Usage"), "bus": m.group(1).lower() if m else None})
+    return slots
+
+
+def slot_for_device(slots: list[dict[str, str]], pcie_id: str | None) -> str | None:
+    """Slot designation for a device, matching it or any bridge above it (firmware varies)."""
+    if not pcie_id:
+        return None
+    by_bus = {s["bus"]: s["designation"] for s in slots if s.get("bus")}
+    chain = [pcie_id]
+    try:
+        real = os.path.realpath(f"/sys/bus/pci/devices/0000:{pcie_id}")
+        chain += [p[5:] for p in reversed(real.split("/")) if re.fullmatch(r"[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.\d", p)]
+    except OSError:
+        pass
+    for addr in chain:
+        if addr[:5].lower() in by_bus:
+            return by_bus[addr[:5].lower()]
+    return None
 
 
 def parse_lspci_mm(text: str) -> dict[str, str]:
@@ -267,7 +301,8 @@ def is_physical_nic(name: str) -> bool:
     return os.path.exists(f"/sys/class/net/{name}/device") and not os.path.exists(f"/sys/class/net/{name}/wireless")
 
 
-def load_privileged() -> dict[str, dict[str, Any]]:
+@functools.cache
+def load_privileged() -> dict[str, Any]:
     """Per-NIC transceiver EEPROM text / VPD hex from the installed read-only root probe.
 
     Not needed when already root. `sudo -n` never prompts: if the helper isn't installed
@@ -277,9 +312,15 @@ def load_privileged() -> dict[str, dict[str, Any]]:
         return {}
     out = run(["sudo", "-n", ROOT_PROBE], timeout=60)
     try:
-        return json.loads(out) if out else {}
+        data = json.loads(out) if out else {}
     except json.JSONDecodeError:
         return {}
+    return data if "nics" in data else {"nics": data, "dmi_slots": None}  # tolerate older helper output
+
+
+def load_slots(privileged: dict[str, Any]) -> list[dict[str, str]]:
+    text = run(["dmidecode", "-t", "slot"]) or privileged.get("dmi_slots")
+    return parse_dmi_slots(text) if text else []
 
 
 def probe_nics() -> list[dict[str, Any]]:
@@ -287,6 +328,7 @@ def probe_nics() -> list[dict[str, Any]]:
     addrs = {a["ifname"]: a for a in json.loads(run(["ip", "-j", "-4", "addr"]) or "[]")}
     default_ifaces = {r.get("dev") for r in json.loads(run(["ip", "-j", "route", "show", "default"]) or "[]")}
     privileged = load_privileged()
+    slots = load_slots(privileged)
     nics = []
     for link in sorted(links, key=lambda l: l["ifname"]):
         name = link["ifname"]
@@ -299,17 +341,20 @@ def probe_nics() -> list[dict[str, Any]]:
         pci = parse_lspci_mm(run(["lspci", "-s", pcie_id, "-mm", "-v"]) or "") if pcie_id else {}
 
         ipv4 = next((f"{a['local']}/{a['prefixlen']}" for a in addrs.get(name, {}).get("addr_info", [])), None)
-        speed = ethtool.get("speed") or (max(ethtool["supported_mbps"]) if ethtool["supported_mbps"] else None)
-        if not ethtool.get("speed"):
-            note(f"{name}: link down, link_settings.speed is the max advertised mode ({speed}); verify against the cable/transceiver")
-        module = run(["ethtool", "-m", name]) or (privileged.get(name) or {}).get("ethtool_m")
+        module = run(["ethtool", "-m", name]) or (privileged.get("nics", {}).get(name) or {}).get("ethtool_m")
         trx = parse_ethtool_m(module) if module else {k: None for k in
               ("brand", "model", "serial_number", "speed", "wavelength", "max_distance", "fiber_type")}
+        speed = ethtool.get("speed")
+        if not speed:  # link down: prefer the plugged module's rating over the port's max advertised mode
+            max_advertised = max(ethtool["supported_mbps"]) if ethtool["supported_mbps"] else None
+            speed = trx["speed"] * 1000 if trx["speed"] else max_advertised
+            source = "transceiver rating" if trx["speed"] else "max advertised mode"
+            note(f"{name}: link down, link_settings.speed is the {source} ({speed}); verify against the cable/transceiver")
         up = bool(ethtool.get("link"))
         try:
             vpd = parse_vpd(Path(f"/sys/class/net/{name}/device/vpd").read_bytes())
         except OSError:
-            hexdata = (privileged.get(name) or {}).get("vpd_hex")
+            hexdata = (privileged.get("nics", {}).get(name) or {}).get("vpd_hex")
             vpd = parse_vpd(bytes.fromhex(hexdata)) if hexdata else {}
         nics.append({name: {
             "altname": (link.get("altnames") or [None])[0],
@@ -321,6 +366,7 @@ def probe_nics() -> list[dict[str, Any]]:
             "model": pci.get("Device"),
             "part_number": vpd.get("PN"),
             "pcie_id": pcie_id,
+            "pcie_slot": slot_for_device(slots, pcie_id),
             "subsystem": pci.get("SDevice"),
             "serial_number": vpd.get("SN"),
             "driver": drv.get("driver"),
@@ -342,6 +388,11 @@ def probe_nics() -> list[dict[str, Any]]:
 def build_config() -> dict[str, Any]:
     gpus = probe_gpus()
     info = probe_system_info()
+    slots = load_slots(load_privileged())
+    if slots:
+        info["pcie_slots"] = slots
+    else:
+        note("PCIe slot table unavailable (dmidecode needs root); run install_root_probe.sh or sudo to record slots")
     caps = sorted({g["cuda_capability"] for g in gpus})
     if gpus:
         info["nvidia_driver_version"] = sorted({g["driver_version"] for g in gpus})[0]
