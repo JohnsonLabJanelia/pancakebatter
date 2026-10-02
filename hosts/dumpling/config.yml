@@ -281,13 +281,13 @@ nics:
       speed: 25000
       autoneg: true
     transceiver:
-      brand: null
-      model: null
-      serial_number: null
-      speed: null
-      wavelength: null
-      max_distance: null
-      fiber_type: null
+      brand: FS
+      model: SFP-25GLR-31
+      serial_number: S2435306851
+      speed: 25
+      wavelength: 1310
+      max_distance: 10000
+      fiber_type: SMF
     card: 1
 - mlnx1_p3_25g:
     altname: eth2
