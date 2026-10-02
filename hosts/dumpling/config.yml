@@ -264,7 +264,7 @@ nics:
     altname: eth1
     role: camera
     managed: true
-    expected_link: true
+    expected_link: false
     mac_address: 60:5e:65:5c:8b:ef
     brand: Mellanox Technologies
     model: MT2910 Family [ConnectX-7]
@@ -293,7 +293,7 @@ nics:
     altname: eth2
     role: camera
     managed: true
-    expected_link: true
+    expected_link: false
     mac_address: 60:5e:65:5c:8b:f0
     brand: Mellanox Technologies
     model: MT2910 Family [ConnectX-7]
@@ -322,7 +322,7 @@ nics:
     altname: eth3
     role: camera
     managed: true
-    expected_link: true
+    expected_link: false
     mac_address: 60:5e:65:5c:8b:f1
     brand: Mellanox Technologies
     model: MT2910 Family [ConnectX-7]
@@ -463,4 +463,9 @@ nics:
       max_distance: null
       fiber_type: null
     card: 2
-cameras: {}
+cameras:
+  E0-55-97-1E-B6-BB:
+    model: HB-2800SC
+    serial_number: 2012859
+    ip_address: 192.168.110.2
+    nic_port: mlnx1_p1_25g
