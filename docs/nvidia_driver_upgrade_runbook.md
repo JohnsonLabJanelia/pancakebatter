@@ -37,7 +37,7 @@ compatibility.
 | GPUDirect bridge | `nvidia_peermem` for the running kernel and OFED |
 | GPUs | one RTX A6000 and eight A16 devices |
 
-The target manifest is `configs/nvidia_driver_upgrade.pancake0.json`. It pins
+The target manifest is `hosts/pancake0/nvidia_driver_upgrade.json`. It pins
 the proprietary 610.57.04 package set, DKMS 3.2.1 candidate, NVIDIA framework
 packages, and reviewed dependencies. Unversioned `cuda`, "latest", and open
 kernel-module alternatives are outside this plan.
@@ -66,7 +66,7 @@ Run an offline host and recovery audit:
 
 ```bash
 python3 nvidia_driver_upgrade.py \
-  --manifest configs/nvidia_driver_upgrade.pancake0.json
+  --manifest hosts/pancake0/nvidia_driver_upgrade.json
 ```
 
 Without `--output-dir`, the tool prints a summary from a private temporary
@@ -76,7 +76,7 @@ readiness because the new private workspace has no NVIDIA metadata or key:
 
 ```bash
 python3 nvidia_driver_upgrade.py \
-  --manifest configs/nvidia_driver_upgrade.pancake0.json \
+  --manifest hosts/pancake0/nvidia_driver_upgrade.json \
   --output-dir /tmp/pancake0-driver-plan-review
 ```
 
@@ -84,7 +84,7 @@ Refresh authenticated NVIDIA metadata and simulate APT only by explicit opt-in:
 
 ```bash
 python3 nvidia_driver_upgrade.py \
-  --manifest configs/nvidia_driver_upgrade.pancake0.json \
+  --manifest hosts/pancake0/nvidia_driver_upgrade.json \
   --output-dir /tmp/pancake0-driver-plan-refresh \
   --refresh-metadata
 ```

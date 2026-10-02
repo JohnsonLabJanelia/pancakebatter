@@ -3,14 +3,17 @@
 `system_config` v1 is the machine inventory and camera network assignment
 contract used by the Pancake/Orange setup scripts.
 
-The active host config is named from the short hostname:
+The active host config lives in a per-host directory named from the short hostname:
 
 ```bash
-./$(hostname -s)_config.yml
+./hosts/$(hostname -s)/config.yml
 ```
 
-For `pancake0`, that is `pancake0_config.yml`. `system_config.yml` is the tracked
-example/snapshot. The machine config declares its schema with:
+For `pancake0`, that is `hosts/pancake0/config.yml`. Set `PANCAKEBATTER_HOST=<name>`
+to resolve another machine's directory (the scripts use `hostconfig.py` and
+`lib/host_config.sh`). `system_config.example.yml` is the tracked example to copy
+when adding a new machine by hand;
+`capture_inventory.py` drafts one from the live hardware instead. The machine config declares its schema with:
 
 ```yaml
 schema:

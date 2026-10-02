@@ -9,10 +9,12 @@ from unittest.mock import patch
 
 import nvidia_driver_upgrade as cli
 
+PANCAKE0_MANIFEST = Path(__file__).resolve().parent.parent / "hosts/pancake0/nvidia_driver_upgrade.json"
+
 
 class PlannerTests(unittest.TestCase):
     def setUp(self):
-        self.manifest = json.loads(cli.DEFAULT_MANIFEST.read_text())
+        self.manifest = json.loads(PANCAKE0_MANIFEST.read_text())
 
     def test_manifest_rejects_config_injection(self):
         for section, field, value in [("target", "package_version", "610\nPin-Priority: 1001"),
@@ -32,7 +34,7 @@ class PlannerTests(unittest.TestCase):
     def test_existing_output_refused_before_collectors(self):
         with tempfile.TemporaryDirectory() as root, patch.object(cli, "collect") as collect:
             with self.assertRaises(SystemExit):
-                cli.main(["--output-dir", root])
+                cli.main(["--manifest", str(PANCAKE0_MANIFEST), "--output-dir", root])
             collect.assert_not_called()
 
     def test_symlink_and_apt_config_unsafe_output_paths_are_rejected(self):
@@ -41,7 +43,7 @@ class PlannerTests(unittest.TestCase):
             link.symlink_to(root, target_is_directory=True)
             for path in (link / "new", Path(root) / 'unsafe"path'):
                 with self.subTest(path=str(path)), self.assertRaises(SystemExit):
-                    cli.main(["--output-dir", str(path)])
+                    cli.main(["--manifest", str(PANCAKE0_MANIFEST), "--output-dir", str(path)])
             collect.assert_not_called()
 
     def test_collector_failure_is_not_installation_readiness(self):
@@ -69,11 +71,11 @@ class PlannerTests(unittest.TestCase):
                   "warnings": [], "qualification": "Runtime qualification required."}
         with tempfile.TemporaryDirectory() as root, patch.object(cli, "collect", return_value=report):
             output = Path(root) / "new"
-            result = cli.main(["--output-dir", str(output)])
+            result = cli.main(["--manifest", str(PANCAKE0_MANIFEST), "--output-dir", str(output)])
             saved = json.loads((output / "report.json").read_text())
             self.assertEqual(result, 2)
             self.assertEqual(output.stat().st_mode & 0o777, 0o700)
-            self.assertEqual(saved["manifest_sha256"], hashlib.sha256(cli.DEFAULT_MANIFEST.read_bytes()).hexdigest())
+            self.assertEqual(saved["manifest_sha256"], hashlib.sha256(PANCAKE0_MANIFEST.read_bytes()).hexdigest())
             self.assertTrue((output / "SHA256SUMS").is_file())
 
     def test_recovery_checks_metadata_not_image_payload(self):

@@ -6,10 +6,10 @@ to another on the same host.
 The active machine config is:
 
 ```bash
-./$(hostname -s)_config.yml
+./hosts/$(hostname -s)/config.yml
 ```
 
-For `pancake0`, that is `pancake0_config.yml`.
+For `pancake0`, that is `hosts/pancake0/config.yml`.
 
 ## Inputs
 

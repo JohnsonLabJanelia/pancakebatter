@@ -24,11 +24,12 @@ GUI launcher, so an artifact knows whether the host matched its provisioning.
 import argparse
 import os
 import re
-import socket
 import sys
 from pathlib import Path
 
 import yaml
+
+import hostconfig
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CMDLINE_KEYS = ("isolcpus", "nohz_full", "rcu_nocbs", "tsc", "iommu")
@@ -163,7 +164,7 @@ def record_block(state):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", default=str(SCRIPT_DIR / f"{socket.gethostname().split('.')[0]}_config.yml"))
+    ap.add_argument("--config", default=str(hostconfig.default_config_path()))
     ap.add_argument("--record", action="store_true", help="print a kernel_tuning block from the live host")
     a = ap.parse_args()
     config = yaml.safe_load(open(a.config)) or {}

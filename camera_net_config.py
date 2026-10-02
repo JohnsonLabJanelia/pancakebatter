@@ -8,13 +8,13 @@ import ipaddress
 import os
 import re
 import shutil
-import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
 
+import hostconfig
 from check_network_settings import (
     EXPECTED_SCHEMA_NAME,
     EXPECTED_SCHEMA_VERSION,
@@ -34,7 +34,7 @@ class CameraNetConfigError(Exception):
 
 
 def default_config_path() -> Path:
-    return Path(f"{socket.gethostname().split('.')[0]}_config.yml")
+    return hostconfig.default_config_path()
 
 
 def resolve_config_path(config_path: str | None) -> Path:
@@ -745,7 +745,7 @@ def parse_args() -> argparse.Namespace:
     move.add_argument("--camera", required=True, help="Camera serial_number or MAC address.")
     move.add_argument("--nic", required=True, help="Target NIC name from system_config v1 nics.")
     move.add_argument("--ip", help="Target camera IP. Defaults to target host NIC IP + 1.")
-    move.add_argument("--config", help="Config path. Defaults to ./$(hostname -s)_config.yml.")
+    move.add_argument("--config", help="Config path. Defaults to hosts/$(hostname -s)/config.yml.")
     move.add_argument("--apply", action="store_true", help="Apply the camera programming and YAML update.")
     move.add_argument(
         "--no-program-camera",
@@ -789,7 +789,7 @@ def parse_args() -> argparse.Namespace:
 
     activate = subparsers.add_parser("activate-nic", help="Mark a configured NIC as managed/active in the host config.")
     activate.add_argument("--nic", required=True, help="NIC name from system_config v1 nics.")
-    activate.add_argument("--config", help="Config path. Defaults to ./$(hostname -s)_config.yml.")
+    activate.add_argument("--config", help="Config path. Defaults to hosts/$(hostname -s)/config.yml.")
     activate.add_argument("--role", default="camera", choices=["camera", "spare", "management", "uplink", "unknown"])
     expected_link = activate.add_mutually_exclusive_group()
     expected_link.add_argument(
@@ -814,7 +814,7 @@ def parse_args() -> argparse.Namespace:
         help="Mark a configured NIC as spare/unmanaged in the host config.",
     )
     deactivate.add_argument("--nic", required=True, help="NIC name from system_config v1 nics.")
-    deactivate.add_argument("--config", help="Config path. Defaults to ./$(hostname -s)_config.yml.")
+    deactivate.add_argument("--config", help="Config path. Defaults to hosts/$(hostname -s)/config.yml.")
     deactivate.add_argument("--role", default="spare", choices=["camera", "spare", "management", "uplink", "unknown"])
     deactivate.add_argument("--apply", action="store_true", help="Apply the config update.")
     deactivate.set_defaults(func=apply_deactivate_nic)

@@ -20,6 +20,7 @@
 #                          python3 on PATH, e.g. after "conda activate rig_control")
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$HERE/lib/host_config.sh"
 PDU_HOST="${PDU_HOST:-192.168.20.177}"
 RIG_CONTROL_PYTHON="${RIG_CONTROL_PYTHON:-python3}"
 # ORANGE_ROOT is a system-wide variable on this host (/opt/orange), so use a
@@ -42,8 +43,8 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -x "$READY_BIN" ]] || { echo "missing $READY_BIN (build target evt_camera_ready)" >&2; exit 2; }
 
-# Serials come from the PDU outlet descriptions in system_config.yml ("SN: 2010093").
-SERIALS="$("$RIG_CONTROL_PYTHON" - "$HERE/system_config.yml" "$PDU_HOST" <<'PY'
+# Serials come from the PDU outlet descriptions in hosts/<hostname>/config.yml ("SN: 2010093").
+SERIALS="$("$RIG_CONTROL_PYTHON" - "$HOST_CONFIG_FILE" "$PDU_HOST" <<'PY'
 import re, sys, yaml
 cfg = yaml.safe_load(open(sys.argv[1]))
 pdus = cfg.get("pdus") or cfg.get("pdu") or []
@@ -57,7 +58,7 @@ for pdu in pdus:
 print(",".join(sorted(serials)))
 PY
 )"
-[[ -n "$SERIALS" ]] || { echo "no camera serials found in system_config.yml for PDU $PDU_HOST" >&2; exit 2; }
+[[ -n "$SERIALS" ]] || { echo "no camera serials found in hosts/<hostname>/config.yml for PDU $PDU_HOST" >&2; exit 2; }
 
 if pgrep -f "targets/release/orange" >/dev/null; then
   echo "Orange is running; stop it before power-cycling the cameras." >&2

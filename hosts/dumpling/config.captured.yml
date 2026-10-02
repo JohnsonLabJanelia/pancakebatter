@@ -1,0 +1,406 @@
+# DRAFT captured by capture_inventory.py -- review before use.
+# Auto-filled: system_info, storage_devices, gpus, nics (hardware/link facts).
+# Still needs a human: nic role/managed/expected_link/ip_address, cameras, pdus,
+# kernel_tuning, and NIC part_number/serial_number (not exposed without vendor tools).
+# NICs keep their current kernel names; rename them via the udev/NIC scripts once roles are set.
+schema:
+  name: system_config
+  version: 1
+system_info:
+  hostname: dumpling
+  ubuntu_version: '24.04'
+  kernel_version: 7.0.0-34-generic
+  cpu_model: AMD Ryzen Threadripper PRO 9975WX 32-Cores
+  cpu_threads: 64
+  memory_gb: 251
+  board_vendor: ASUSTeK COMPUTER INC.
+  board_name: Pro WS WRX90E-SAGE SE
+  bios_version: '1317'
+  kernel_cmdline: BOOT_IMAGE=/boot/vmlinuz-7.0.0-34-generic root=UUID=92309005-e970-4518-80fa-d8e8051c808f ro quiet splash
+    amd-iommu=on iommu=pt pci=nommconf pci=nocrs initcall_blacklist=simpledrm_platform_driver_init vt.handoff=7
+  cuda_version: 13.0.3
+  network_renderer: NetworkManager
+  network_manager_version: 1.46.0
+  nvidia_driver_version: 580.178.04
+  cuda_capability:
+  - sm_120
+  - sm_86
+storage_devices:
+- name: nvme2n1
+  model: KINGSTON SFYR2S4T0
+  serial_number: 50026B7283C0854A
+  capacity: 4.1
+  device_path: /dev/nvme2n1
+  firmware_version: SGW00115
+  format: 512
+  transport: nvme
+  partitions:
+  - partition: nvme2n1p1
+    fs_type: vfat
+    mount_point: /boot/efi
+  - partition: nvme2n1p2
+    fs_type: ext4
+    mount_point: /
+- name: nvme1n1
+  model: KINGSTON SFYR2D8T1
+  serial_number: 50026B7283C593BC
+  capacity: 8.19
+  device_path: /dev/nvme1n1
+  firmware_version: SHW00105
+  format: 512
+  transport: nvme
+  partitions:
+  - partition: nvme1n1p1
+    fs_type: ext4
+    mount_point: /nvme0
+- name: nvme3n1
+  model: KINGSTON SFYR2D8T1
+  serial_number: 50026B7283C5937A
+  capacity: 8.19
+  device_path: /dev/nvme3n1
+  firmware_version: SHW00105
+  format: 512
+  transport: nvme
+  partitions:
+  - partition: nvme3n1p1
+    fs_type: ext4
+    mount_point: /nvme2
+- name: nvme0n1
+  model: KINGSTON SFYR2D8T1
+  serial_number: 50026B7283C59333
+  capacity: 8.19
+  device_path: /dev/nvme0n1
+  firmware_version: SHW00105
+  format: 512
+  transport: nvme
+  partitions:
+  - partition: nvme0n1p1
+    fs_type: ext4
+    mount_point: /nvme1
+gpus:
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-afc49ff7-67e0-31a2-f63d-13411665997f
+  pcie_id: '05:00.0'
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-fbc6745e-71b5-e81b-b9e8-fa4889eafc5c
+  pcie_id: '06:00.0'
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-50ea35da-c6ce-8da5-d261-b3e7f632e5c2
+  pcie_id: '07:00.0'
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-28703509-6675-a2dd-f865-88b663c42d16
+  pcie_id: '08:00.0'
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-0b40bd15-286b-ac2b-29d8-353bd1098235
+  pcie_id: c5:00.0
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-4ae80a9c-a91b-aac8-7151-3093995def66
+  pcie_id: c6:00.0
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-e85b206f-1a2e-1108-a369-423c7d10c2b4
+  pcie_id: c7:00.0
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA A16
+  driver_version: 580.178.04
+  uuid: GPU-31f9c62c-e56a-b0e0-ea46-ea8cb3eb1faf
+  pcie_id: c8:00.0
+  memory_mib: 15356
+  cuda_capability: sm_86
+- model: NVIDIA RTX PRO 4000 Blackwell
+  driver_version: 580.178.04
+  uuid: GPU-f97e4142-b094-20b2-4c48-34fef5836555
+  pcie_id: e1:00.0
+  memory_mib: 24467
+  cuda_capability: sm_120
+nics:
+- enp211s0f0np0:
+    altname: null
+    role: management
+    managed: false
+    expected_link: true
+    mac_address: b0:82:e2:37:37:5f
+    brand: Intel Corporation
+    model: Ethernet Controller X710 for 10GBASE-T
+    part_number: null
+    pcie_id: d3:00.0
+    subsystem: Ethernet Network Adapter X710-TL
+    serial_number: null
+    driver: i40e
+    firmware_version: 9.40 0x8000efef 1.3534.0
+    mtu: 1500
+    ip_address: 10.123.1.171/20
+    link_settings:
+      speed: 10000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp211s0f1np1:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: b0:82:e2:37:37:60
+    brand: Intel Corporation
+    model: Ethernet Controller X710 for 10GBASE-T
+    part_number: null
+    pcie_id: d3:00.1
+    subsystem: Ethernet Network Adapter X710-TL
+    serial_number: null
+    driver: i40e
+    firmware_version: 9.40 0x8000efef 1.3534.0
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 10000
+      autoneg: false
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp241s0f0np0:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 60:5e:65:5c:8b:ee
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: f1:00.0
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp241s0f1np1:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 60:5e:65:5c:8b:ef
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: f1:00.1
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp241s0f2np2:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 60:5e:65:5c:8b:f0
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: f1:00.2
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp241s0f3np3:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 60:5e:65:5c:8b:f1
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: f1:00.3
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp33s0f0np0:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 54:9b:24:5d:34:22
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: '21:00.0'
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp33s0f1np1:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 54:9b:24:5d:34:23
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: '21:00.1'
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp33s0f2np2:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 54:9b:24:5d:34:24
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: '21:00.2'
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+- enp33s0f3np3:
+    altname: null
+    role: unknown
+    managed: false
+    expected_link: false
+    mac_address: 54:9b:24:5d:34:25
+    brand: Mellanox Technologies
+    model: MT2910 Family [ConnectX-7]
+    part_number: null
+    pcie_id: '21:00.3'
+    subsystem: MT2910 Family [ConnectX-7]
+    serial_number: null
+    driver: mlx5_core
+    firmware_version: 28.44.1036 (MT_0000000849)
+    mtu: 1500
+    ip_address: 0.0.0.0/0
+    link_settings:
+      speed: 50000
+      autoneg: true
+    transceiver:
+      brand: null
+      model: null
+      serial_number: null
+      speed: null
+      wavelength: null
+      max_distance: null
+      fiber_type: null
+cameras: {}

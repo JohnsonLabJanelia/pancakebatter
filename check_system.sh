@@ -10,13 +10,14 @@ NC="\033[0m"  # No Color
 
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HOSTNAME_SHORT="$(hostname -s)"
+source "${SCRIPT_DIR}/lib/host_config.sh"
+HOSTNAME_SHORT="$HOST_NAME"
 ORANGE_ROOT="/opt/orange"
 FFMPEG_ROOT="${ORANGE_ROOT}/lib/ffmpeg-nvidia"
 OPENCV_ROOT="${ORANGE_ROOT}/lib/opencv"
 TENSORRT_ROOT="/usr/local/TensorRT-10.0.1.6"
 CUDA_ROOT="/usr/local/cuda"
-CONFIG_FILE="${SCRIPT_DIR}/${HOSTNAME_SHORT}_config.yml"
+CONFIG_FILE="$HOST_CONFIG_FILE"
 NETWORK_CHECKER="${SCRIPT_DIR}/check_network_settings.py"
 
 # Counters
@@ -98,7 +99,7 @@ usage() {
     echo ""
     echo "Example:"
     echo "  $0 --only network --verbose"
-    echo "  $0 --config pancake0_config.yml --only network"
+    echo "  $0 --config hosts/pancake0/config.yml --only network"
 }
 
 ORIGINAL_ARGS=("$@")
@@ -597,7 +598,7 @@ check_network_interfaces() {
         fi
     else
         echo -e "${RED}✗ Configuration file not found: $config_path${NC}"
-        echo -e "${YELLOW}  ⚠ Please provide --config or create ${HOSTNAME_SHORT}_config.yml in the repo root${NC}"
+        echo -e "${YELLOW}  ⚠ Please provide --config or create hosts/${HOSTNAME_SHORT}/config.yml${NC}"
         let errors++
     fi
 }

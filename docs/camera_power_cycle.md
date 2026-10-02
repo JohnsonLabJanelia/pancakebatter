@@ -18,7 +18,7 @@ camera outlets. It does two things:
    iris from the camera config folder, gated on `LensBusy` and verified through
    `IrisCurrent`/`FocusCurrent`. Exit code 0 only when all cameras pass.
 
-Serials come from the PDU outlet descriptions in `system_config.yml`
+Serials come from the PDU outlet descriptions in `hosts/<hostname>/config.yml`
 (`SN: 2010093` etc.), so a camera swap only needs the outlet table updated.
 Reports land in `logs/camera_power_cycle/camera_ready_<stamp>.json`.
 

@@ -13,10 +13,11 @@ import subprocess
 import tempfile
 from datetime import datetime, timezone
 
+from hostconfig import host_file
 from driver_upgrade.host import audit_host
 from driver_upgrade.apt_plan import build_apt_plan
 
-DEFAULT_MANIFEST = Path(__file__).resolve().parent / "configs/nvidia_driver_upgrade.pancake0.json"
+DEFAULT_MANIFEST = host_file("nvidia_driver_upgrade.json")
 SAFE_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"}
 
 

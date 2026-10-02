@@ -8,7 +8,7 @@ This local note summarizes the same boundary from the `pancakebatter` side and s
 
 | Concern | Canonical location | Stable IDs | Notes |
 |---|---|---|---|
-| Static machine and camera inventory | `pancakebatter/<host>_config.yml` | `host_id`, `camera_serial` | Owns hardware facts that change when the host is rewired or rebuilt. For `pancake0`, use `pancake0_config.yml`. |
+| Static machine and camera inventory | `pancakebatter/hosts/<host>/config.yml` | `host_id`, `camera_serial` | Owns hardware facts that change when the host is rewired or rebuilt. For `pancake0`, use `hosts/pancake0/config.yml`. |
 | Per-camera runtime capture presets | `~/orange_data/config/local/<preset>/<camera_serial>.json` and `~/orange_data/config/network/...` | `camera_serial` | Owns startup settings for orange. Not a source of truth for hardware inventory or calibration. |
 | Rig/canvas/arena calibration and geometry | `citrus/targets/rigs/<rig_id>/<canvas_name>/` | `rig_id`, `canvas_name`, `arena_id`, `camera_serial` | Owns canvas JSON, arena geometry, per-camera calibration, and calibration artifacts. |
 
@@ -22,7 +22,7 @@ This local note summarizes the same boundary from the `pancakebatter` side and s
 
 ## Cross-Repo Join Rules
 
-- The YAML map key under `pancakebatter/<host>_config.yml:cameras` is a local inventory key. It may stay as camera MAC address, but it is not the cross-repo join key.
+- The YAML map key under `pancakebatter/hosts/<host>/config.yml:cameras` is a local inventory key. It may stay as camera MAC address, but it is not the cross-repo join key.
 - The cross-repo join key for a camera is always `camera_serial`.
 - `orange` camera config filenames must use `<camera_serial>.json`.
 - `citrus` `camera_calibrations[].camera_id` must equal the same `camera_serial`.
@@ -36,7 +36,7 @@ This local note summarizes the same boundary from the `pancakebatter` side and s
 
 ## Current Scope By Repo
 
-`pancakebatter/<host>_config.yml` is the source of truth for facts like:
+`pancakebatter/hosts/<host>/config.yml` is the source of truth for facts like:
 
 - `system_info.hostname`
 - camera `serial_number`
@@ -104,7 +104,7 @@ Rules for this block:
 - Do not copy full camera hardware inventory into `orange` camera JSON.
 - Do not put citrus calibration blobs into the host config.
 - Do not maintain multiple hand-edited copies of a full host config across repos.
-- If `citrus` needs machine inventory, point it at `pancakebatter/<host>_config.yml` or generate a minimal read-only subset instead of copying the file.
+- If `citrus` needs machine inventory, point it at `pancakebatter/hosts/<host>/config.yml` or generate a minimal read-only subset instead of copying the file.
 
 ## Minimum Contract Summary
 

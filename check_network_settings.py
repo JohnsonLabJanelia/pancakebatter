@@ -14,6 +14,8 @@ from typing import Any
 
 import yaml
 
+import hostconfig
+
 
 EXPECTED_SCHEMA_NAME = "system_config"
 EXPECTED_SCHEMA_VERSION = 1
@@ -73,7 +75,7 @@ def run_command(args: list[str], timeout: int = 10) -> CommandResult:
 
 
 def default_config_path() -> str:
-    return f"{socket.gethostname().split('.')[0]}_config.yml"
+    return str(hostconfig.default_config_path())
 
 
 def resolve_config_path(config_path: str) -> str:
@@ -646,7 +648,7 @@ def check_cameras(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify Pancake camera NIC network configuration.")
     parser.add_argument("legacy_config", nargs="?", help="Config file path, kept for backward compatibility.")
-    parser.add_argument("--config", help="Config file path. Defaults to ./$(hostname -s)_config.yml.")
+    parser.add_argument("--config", help="Config file path. Defaults to hosts/$(hostname -s)/config.yml.")
     parser.add_argument("--verbose", action="store_true", help="Print extra diagnostic information.")
     parser.add_argument("--skip-camera-arping", action="store_true", help="Skip active camera reachability checks.")
     parser.add_argument("--arping-count", type=int, default=2, help="ARP packets per camera check.")

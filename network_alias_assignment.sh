@@ -13,8 +13,9 @@ NC="\033[0m"  # No Color
 
 # --- Configuration ---
 # Get hostname (use -s for short name, adjust if your naming needs FQDN)
-HOSTNAME=$(hostname -s)
-CONFIG_FILE="./${HOSTNAME}_config.yml"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/host_config.sh"
+HOSTNAME="$HOST_NAME"
+CONFIG_FILE="$HOST_CONFIG_FILE"
 UDEV_RULES_FILE="/etc/udev/rules.d/10-network-aliases.rules"
 # User who invoked sudo, for running yq safely
 INVOKING_USER="$SUDO_USER"

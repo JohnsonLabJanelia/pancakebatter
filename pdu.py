@@ -7,7 +7,7 @@ Features:
 - Control multiple outlets via comma-separated list (e.g., --outlet 1,3,5).
 - Verifies final state of outlets after on/off/reboot actions.
 - Reads SSH credentials from ~/.config/rig_control/.pdu_credentials.
-- Reads outlet metadata (names, descriptions) from system_config.yml.
+- Reads outlet metadata (names, descriptions) from hosts/<hostname>/config.yml.
 - Uses 'rich' for logging, status table, and styled output.
 
 Written by Ratan Othayoth, PhD, modified by Jeremy Delahanty for pancakes
@@ -34,13 +34,15 @@ from rich.table import Table
 from rich import print as rprint # Use alias to avoid conflict with built-in print
 from rich.text import Text
 
+import hostconfig
+
 # Logger Configuration
 log = logging.getLogger(__name__)
 
 # Constants
 HOME = Path.home()
 CREDENTIALS_FILE = HOME / ".config" / "rig_control" / ".pdu_credentials"
-SYSTEM_CFG_FILE = Path("system_config.yml") # Assumed in current directory
+SYSTEM_CFG_FILE = hostconfig.default_config_path()
 DEFAULT_SSH_TIMEOUT = 10  # seconds
 VERIFICATION_DELAY_S = 5 # seconds to wait before checking status after on/off
 VERIFICATION_DELAY_REBOOT_S = 10 # seconds for reboot (PDU internal delays vary)

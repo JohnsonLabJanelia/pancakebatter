@@ -8,11 +8,11 @@ the current NetworkManager workflow.
 The active machine config is named from the short hostname:
 
 ```bash
-./$(hostname -s)_config.yml
+./hosts/$(hostname -s)/config.yml
 ```
 
-For `pancake0`, that file is `pancake0_config.yml`. The network scripts derive this
-path internally, so run them from the repo root.
+For `pancake0`, that file is `hosts/pancake0/config.yml`. The network scripts derive this
+path internally from the hostname, so they work from any directory.
 
 The config uses `system_config` v1. The schema contract is documented in
 [`system_config_v1.md`](system_config_v1.md), with a JSON Schema at
@@ -77,7 +77,7 @@ Back up both the host networking files and the repo config:
 
 ```bash
 sudo ./network_backup.sh
-cp -a "$(hostname -s)_config.yml" "$(hostname -s)_config.yml.bak.$(date +%Y%m%d-%H%M%S)"
+cp -a "hosts/$(hostname -s)/config.yml" "hosts/$(hostname -s)/config.yml.bak.$(date +%Y%m%d-%H%M%S)"
 ```
 
 If you install a new NIC or move a NIC to another motherboard slot, update the PCIe
@@ -97,7 +97,7 @@ the underlying configuration model.
 For each moved camera:
 
 1. Move the physical fiber/cable to the target NIC port.
-2. Update that camera's `nic_port` in `$(hostname -s)_config.yml`.
+2. Update that camera's `nic_port` in `hosts/$(hostname -s)/config.yml`.
 3. Update that camera's `ip_address` so it is on the target NIC subnet.
 4. Program the camera itself to use that IP address.
 5. Apply and verify the host NetworkManager settings.
@@ -135,7 +135,7 @@ reboot unless the persistent camera IP configuration is written.
 
 ## Step 1: Generate Persistent NIC Names
 
-The udev naming script reads `$(hostname -s)_config.yml` and writes:
+The udev naming script reads `hosts/$(hostname -s)/config.yml` and writes:
 
 ```text
 /etc/udev/rules.d/10-network-aliases.rules
@@ -211,13 +211,13 @@ sudo ./check_system.sh --only network --verbose
 To run only the network checker directly:
 
 ```bash
-sudo python3 ./check_network_settings.py --config "$(hostname -s)_config.yml" --verbose
+sudo python3 ./check_network_settings.py --config "hosts/$(hostname -s)/config.yml" --verbose
 ```
 
 For host-side validation without touching the cameras with ARP probes:
 
 ```bash
-python3 ./check_network_settings.py --config "$(hostname -s)_config.yml" --skip-camera-arping --verbose
+python3 ./check_network_settings.py --config "hosts/$(hostname -s)/config.yml" --skip-camera-arping --verbose
 ```
 
 For a single camera, an ARP-level check is usually more useful than ping:
@@ -240,7 +240,7 @@ hostname:
 
 ```bash
 hostname -s
-ls -l "$(hostname -s)_config.yml"
+ls -l "hosts/$(hostname -s)/config.yml"
 ```
 
 If `yq` is missing or does not support `yq e`, install the expected version:
@@ -272,7 +272,7 @@ Older versions of this document described manually editing netplan files with th
 this repo is now NetworkManager:
 
 ```text
-$(hostname -s)_config.yml
+hosts/$(hostname -s)/config.yml
   -> network_alias_assignment.sh
   -> create_nm_connections.sh
   -> configure_interfaces.sh

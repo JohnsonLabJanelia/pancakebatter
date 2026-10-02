@@ -1,6 +1,6 @@
 # Kernel tuning for the Orange rig (pancake0)
 
-`pancake0_config.yml` has a `kernel_tuning` section and `check_kernel_tuning.py`
+`hosts/pancake0/config.yml` has a `kernel_tuning` section and `check_kernel_tuning.py`
 compares the live host against it (`--record` prints a fresh block). Run it
 before a soak or from the GUI launcher so an artifact records whether the host
 matched its provisioning. Settings and why they matter, from the 2026-09 soaks:
