@@ -250,3 +250,60 @@ The pattern that works, and that this rig already partly follows:
    a command. Loop latency and jitter are then *measured* in every recording,
    and the strobe edges tie that axis to the cameras' PTP time. Nothing about
    the alignment depends on how fast anything reacted.
+
+## The slowest element sets the loop; the bus rarely is it
+
+A closed loop cannot be faster than its slowest stage, so before choosing a
+DAQ interface, find that stage. The ladder above only matters when *both* ends
+of the loop are electrical: an analog threshold in, a TTL out. Most
+experiments have a sensor integration time or a display refresh in the loop,
+and those are 10 ms-class no matter what sits between them.
+
+**Signal that only exists after computation (an image).** The decision has
+to be made on the host, and the time budget is:
+
+    exposure + sensor readout + transfer + compute + output quantum
+
+For a microscope or camera at 10-100 Hz the exposure and readout alone are
+10-100 ms, so a few ms of USB latency on the output side is a small fraction.
+What makes an image-based loop good is not the bus but: a pipeline that
+never drops or queues frames (the Orange pattern: DMA into GPU memory, compute
+on the GPU, threads on isolated cores, bounded work per frame); an output
+that can act as soon as the decision exists (a DIO or analog-out update, not
+a display); and recording when each frame was *exposed* (camera/PTP timestamp
+or the sensor's exposure-out TTL into the DAQ) and when the output *changed*
+(a DIO toggled at the command, the actuator's own monitor signal), so the
+loop latency is measured per trial. Typical result: one to two frame periods,
+deterministic to a fraction of a frame. If that is too slow, the fix is a
+faster sensor path (sub-frame region readout, line scan) or a different
+signal that hardware can see (a photodiode or PMT analog output instead of
+the reconstructed image), not a faster bus.
+
+**DAQ signal in, display change out (update grating orientation when a
+channel does X).** The output is a display, and a display only changes at
+its refresh: 16.7 ms at 60 Hz, 4.2 ms at 240 Hz, plus one or two frames of
+pipeline inside the GPU and monitor. The USB DAQ's 2-5 ms input latency is
+smaller than one refresh quantum, so it is not the bottleneck. Implementation
+that works:
+
+1. Stream the DAQ with small transfers (about 1 ms of samples per block) into
+   a dedicated thread that evaluates the condition on every block.
+2. Hand the decision to the rendering loop, which applies it at the next
+   vsync (vsync-aware stimulus software; a high-refresh monitor shrinks the
+   quantum).
+3. Record the proof: the DAQ channel itself, a DIO the stimulus code toggles
+   when it decides, and a photodiode on the screen so the moment the grating
+   actually changed is on the same sample axis. Expect 10-30 ms from signal
+   to pixels, repeatable to about one frame.
+
+If the condition is a simple threshold, the DAQ's hardware trigger or counter
+can turn it into a digital edge with microsecond latency, but the display
+still only changes at the next refresh, so it buys reliability rather than
+speed.
+
+**When PCIe (or a microcontroller/FPGA) is actually required.** When the
+input is electrical and fast, the output is electrical and fast, and the
+rule must fire in well under a millisecond: spike-triggered stimulation,
+event-triggered galvo or AOM steering, hardware gating. Then every
+millisecond-scale element has to be designed out of the loop, and USB is one
+of them.
