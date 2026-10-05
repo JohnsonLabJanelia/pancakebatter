@@ -71,9 +71,21 @@ timedatectl                        # "System clock synchronized: yes" within a m
 **Do it between recordings, not during one.** The first synchronization is a
 *step*: the system clock jumps forward by the whole offset (8 min today) and,
 through `phc2sys -rr`, so do the camera PHCs, so a recording in progress would
-contain an 8 minute discontinuity in its timestamps. After that step timesyncd
-only slews, at most 500 ppm, which the PTP chain follows smoothly, and the
-kernel starts rewriting the RTC every 11 minutes so later boots start right.
+contain an 8 minute discontinuity in its timestamps.
+
+Why one command is enough for a clock that drifts continuously: timesyncd is
+not a one-shot "set the time at boot". It stays running, polls its server
+every 32 s to 34 min (backing off while things look stable), and corrects the
+clock in two ways. A large offset is fixed by a step; the normal small ones are
+fixed by *slewing*, telling the kernel to run the clock slightly fast or slow
+until the error is gone. While doing that it learns the crystal's rate error
+and feeds it to the kernel as a standing frequency correction (`adjtimex`), so
+after a few polls the clock is no longer drifting at all between polls; it is
+being told in advance to tick about 350 ppm faster. The slew is capped at
+500 ppm, which the PTP chain follows smoothly, and the kernel rewrites the RTC
+every 11 minutes while synchronized so later boots start right. The
+`time_sync` check reports the remaining offset; with NTP on it should sit in
+the millisecond range.
 
 `tsc=reliable` stays. It tells the kernel not to let the clocksource watchdog
 demote the TSC (which happened on 2026-09-11 and cost a week of inflated
