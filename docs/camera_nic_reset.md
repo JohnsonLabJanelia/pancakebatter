@@ -74,7 +74,8 @@ firmware stays in its protected post-thermal state until the card loses power.
 The tool recognises those kernel lines after a failed wait, says so, and skips
 the PCI route (which would re-probe the same dead firmware). The fix is a real
 power cycle: `sudo poweroff`, wait 30 s so PCIe standby power drains, power on.
-A soft reboot is not enough.
+A soft reboot is not enough. The full before/after sequence is
+[`power_cycle_runbook.md`](power_cycle_runbook.md).
 
 Could the card alone be power cycled? Not on pancake0. The two ways Linux can
 cut power to one slot are a PCIe hotplug slot power controller
