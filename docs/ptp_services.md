@@ -87,6 +87,9 @@ every 11 minutes while synchronized so later boots start right. The
 `time_sync` check reports the remaining offset; with NTP on it should sit in
 the millisecond range.
 
+Background on the crystal, ppm, and which clock code should read is in
+[`time_and_clocks.md`](time_and_clocks.md).
+
 `tsc=reliable` stays. It tells the kernel not to let the clocksource watchdog
 demote the TSC (which happened on 2026-09-11 and cost a week of inflated
 host-side timings, see `kernel_tuning.md`); it says nothing about the clock's
