@@ -109,6 +109,13 @@ class FakeSystem(rcn.System):
         self.log(f"+ {' '.join(cmd)}")
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
+    def mutate_watching(self, cmd, timeout, abort_if=None, interval=10):
+        self.mutations.append(cmd)
+        self.log(f"+ {' '.join(cmd)}")
+        if abort_if and abort_if():
+            return subprocess.CompletedProcess(cmd, 124, "", "aborted: the firmware is not booting")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
     def write(self, path, text):
         self.writes.append((str(path), text))
 
@@ -288,6 +295,22 @@ DEAD_FW_JOURNAL = JOURNAL + """\
 """
 
 
+class RealSystemTests(unittest.TestCase):
+    def test_timeouts_return_text_not_bytes(self):
+        res = rcn.System().run(["sh", "-c", "echo partial; sleep 5"], timeout=0.3)
+        self.assertEqual((res.returncode, res.stdout), (124, "partial\n"))
+        self.assertIn("timed out", res.stderr)
+
+    def test_mutate_watching_kills_the_command_when_asked(self):
+        sys_ = rcn.System(log=lambda *_: None)
+        res = sys_.mutate_watching(["sh", "-c", "echo go; sleep 30"], timeout=20, abort_if=lambda: True, interval=1)
+        self.assertEqual(res.returncode, 124)
+        self.assertIn("aborted", res.stderr)
+        self.assertEqual(res.stdout, "go\n")
+        res = sys_.mutate_watching(["sh", "-c", "echo done"], timeout=5, abort_if=lambda: True, interval=1)
+        self.assertEqual((res.returncode, res.stdout), (0, "done\n"))
+
+
 class DeadFirmwareTests(unittest.TestCase):
     def test_firmware_dead_lines_are_found_for_the_card_only(self):
         sys_ = FakeSystem(commands={("journalctl", "-k", "-o", "short-iso", "--no-pager", "--since"): (0, DEAD_FW_JOURNAL, "")})
@@ -305,5 +328,6 @@ class DeadFirmwareTests(unittest.TestCase):
         rc = rcn.do_reset(sys_, CONFIG, rcn.status(sys_, CONFIG), args, sys_.log)
         self.assertEqual(rc, 2)
         self.assertIn(["mlxfwreset", "-d", "61:00.0", "--level", "3", "reset", "-y"], sys_.mutations)
+        self.assertTrue(any("aborted: the firmware is not booting" in l for l in sys_.lines), sys_.lines[-6:])
         self.assertEqual([m for m in sys_.mutations if m[0] == "setpci"], [])          # PCI route skipped
         self.assertTrue(any("power the host off" in l for l in sys_.lines), sys_.lines[-5:])

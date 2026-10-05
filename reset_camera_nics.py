@@ -34,6 +34,7 @@ import json
 import os
 import re
 import shlex
+import signal
 import socket
 import subprocess
 import sys
@@ -69,6 +70,10 @@ BRIDGE_RE = re.compile(r"^0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-7]$")
 SBR_BIT = 0x40  # Bridge Control register, Secondary Bus Reset
 
 
+def _text(data) -> str:
+    return data.decode(errors="replace") if isinstance(data, bytes) else (data or "")
+
+
 class System:
     """Everything that touches the host, so tests can replace it and --dry-run can narrate it.
 
@@ -98,19 +103,49 @@ class System:
     def realpath(self, path) -> str:
         return os.path.realpath(path)
 
-    def run(self, cmd: list[str], timeout: int = 120) -> subprocess.CompletedProcess:
+    def run(self, cmd: list[str], timeout: float = 120) -> subprocess.CompletedProcess:
         try:
             return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         except FileNotFoundError as exc:
             return subprocess.CompletedProcess(cmd, 127, "", str(exc))
         except subprocess.TimeoutExpired as exc:
-            return subprocess.CompletedProcess(cmd, 124, exc.stdout or "", f"timed out after {timeout}s")
+            # TimeoutExpired carries the partial output as bytes even in text mode
+            return subprocess.CompletedProcess(cmd, 124, _text(exc.stdout), f"timed out after {timeout}s; {_text(exc.stderr)}".strip("; "))
 
-    def mutate(self, cmd: list[str], timeout: int = 120) -> subprocess.CompletedProcess:
+    def mutate(self, cmd: list[str], timeout: float = 120) -> subprocess.CompletedProcess:
         self.log(f"+ {shlex.join(cmd)}")
         if self.dry_run:
             return subprocess.CompletedProcess(cmd, 0, "", "")
         return self.run(cmd, timeout=timeout)
+
+    def mutate_watching(self, cmd: list[str], timeout: float, abort_if=None, interval: float = 10) -> subprocess.CompletedProcess:
+        """mutate(), but call abort_if() every `interval` seconds and kill the command once it returns true."""
+        self.log(f"+ {shlex.join(cmd)}")
+        if self.dry_run:
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        except FileNotFoundError as exc:
+            return subprocess.CompletedProcess(cmd, 127, "", str(exc))
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                out, err = proc.communicate(timeout=max(1.0, min(interval, deadline - time.monotonic())))
+                return subprocess.CompletedProcess(cmd, proc.returncode, out, err)
+            except subprocess.TimeoutExpired:
+                pass
+            reason = None
+            if abort_if and abort_if():
+                reason = "aborted: the firmware is not booting"
+            elif time.monotonic() >= deadline:
+                reason = f"timed out after {timeout}s"
+            if reason:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)   # the whole group: mlxfwreset spawns helpers that hold the pipes
+                except OSError:
+                    proc.kill()
+                out, err = proc.communicate()
+                return subprocess.CompletedProcess(cmd, 124, _text(out), f"{reason}; {_text(err)}".strip("; "))
 
     def write(self, path, text: str) -> None:
         self.log(f"+ echo {text} > {path}")
@@ -326,7 +361,9 @@ def parse_mlxfwreset_levels(output: str) -> dict[int, bool]:
     return levels
 
 
-def reset_card_mlxfwreset(sys_: System, card: str) -> tuple[bool, str]:
+def reset_card_mlxfwreset(sys_: System, card: str, functions: dict[str, str] | None = None,
+                          started: str | None = None) -> tuple[bool, str]:
+    """mlxfwreset level 3; while it runs, watch the kernel log and give up early if the firmware never boots."""
     dev = f"{card}.0"
     sys_.mutate(["mst", "start"])  # loads the mst modules; harmless if already running
     query = sys_.run(["mlxfwreset", "-d", dev, "query"], timeout=180)
@@ -335,8 +372,9 @@ def reset_card_mlxfwreset(sys_: System, card: str) -> tuple[bool, str]:
         return False, f"mlxfwreset query failed (rc {query.returncode}): {(query.stderr or query.stdout).strip()[-300:]}"
     if not levels.get(3):
         return False, f"mlxfwreset level 3 not supported on {dev} (levels: {levels})"
-    res = sys_.mutate(["mlxfwreset", "-d", dev, "--level", "3", "reset", "-y"], timeout=600)
-    tail = (res.stdout + res.stderr).strip()[-600:]
+    abort_if = (lambda: bool(firmware_dead(sys_, list(functions), started))) if functions and started else None
+    res = sys_.mutate_watching(["mlxfwreset", "-d", dev, "--level", "3", "reset", "-y"], timeout=600, abort_if=abort_if)
+    tail = (_text(res.stdout) + _text(res.stderr)).strip()[-600:]
     return res.returncode == 0, f"mlxfwreset level 3 on {dev} rc {res.returncode}: {tail}"
 
 
@@ -451,19 +489,18 @@ def do_reset(sys_: System, config: dict, report: dict, args, log) -> int:
         came_back = False
         for method in [m for m in ("mlxfwreset", "pci") if args.method in ("auto", m)]:
             if method == "mlxfwreset":
-                ok, msg = reset_card_mlxfwreset(sys_, card["card"])
+                ok, msg = reset_card_mlxfwreset(sys_, card["card"], functions, started)
             else:
                 ok, msg = reset_card_pci(sys_, card["card"], functions)
             log(f"    {msg}")
-            if not ok:
-                continue
-            came_back, states = wait_for_netdevs(sys_, functions, args.wait)
-            for st in states:
-                log(f"    {st['pcie_id']} -> {st['netdev'] or 'no netdev'} (expected {st['expected_netdev']})")
-            if came_back:
-                break
-            log(f"    netdevs did not all return within {args.wait}s" + (" (dry run)" if args.dry_run else ""))
-            dead = firmware_dead(sys_, list(functions), started)
+            if ok:
+                came_back, states = wait_for_netdevs(sys_, functions, args.wait)
+                for st in states:
+                    log(f"    {st['pcie_id']} -> {st['netdev'] or 'no netdev'} (expected {st['expected_netdev']})")
+                if came_back:
+                    break
+                log(f"    netdevs did not all return within {args.wait}s" + (" (dry run)" if args.dry_run else ""))
+            dead = [] if args.dry_run else firmware_dead(sys_, list(functions), started)
             if dead:
                 log(f"    {dead[-1]}")
                 log(f"    {POWER_CYCLE_ADVICE}")
