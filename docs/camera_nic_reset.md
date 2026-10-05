@@ -74,6 +74,17 @@ the PCI route (which would re-probe the same dead firmware). The fix is a real
 power cycle: `sudo poweroff`, wait 30 s so PCIe standby power drains, power on.
 A soft reboot is not enough.
 
+Could the card alone be power cycled? Not on pancake0. The two ways Linux can
+cut power to one slot are a PCIe hotplug slot power controller
+(`/sys/bus/pci/slots/<n>/power`) and ACPI power resources on the root port
+(D3cold). Checked 2026-10-05 on the Pro WS WRX80E-SAGE SE WIFI: the slots
+directory is empty and the root ports at 40:03.1 and 60:01.1 have ACPI nodes
+without `_PR0`/`_PR3` resources, so neither exists; the HHHL ConnectX-7 has no
+auxiliary power connector either. Every reset the host can issue is logical
+(FLR, secondary bus reset, link retrain) and the thermal latch survives them.
+Hence the monitor's job is to catch the `temp_warn` line in the ~90 s before
+the firmware latches, not to recover afterwards.
+
 Afterwards run `./reboot_cams.sh` if the cameras need a power cycle and lens
 check, and `./check_kernel_tuning.py` to confirm the mlx5 interrupt affinity
 survived the re-probe.
