@@ -58,6 +58,12 @@ HEALTH_PATTERNS = (
     "health recovery flow aborted",
     "synd 0x",
 )
+FW_DEAD_PATTERNS = (  # the driver re-probed after the reset but the firmware never came up: BAR reads are all-ones
+    "pre-initializing state, aborting",
+    "firmware version: 65535.65535.65535",
+)
+POWER_CYCLE_ADVICE = ("firmware did not boot after the reset (BAR reads return 0xffffffff): the card needs power "
+                      "removed. A soft reboot keeps PCIe standby power, so power the host off, wait 30 s, power on.")
 CARD_RE = re.compile(r"^[0-9a-f]{2}:[0-9a-f]{2}$")
 BRIDGE_RE = re.compile(r"^0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-7]$")
 SBR_BIT = 0x40  # Bridge Control register, Secondary Bus Reset
@@ -207,6 +213,15 @@ def kernel_health_lines(sys_: System, pcie_ids: list[str], since: str | None = N
                 out[p].append(line.strip())
                 break
     return out
+
+
+def firmware_dead(sys_: System, pcie_ids: list[str], since: str) -> list[str]:
+    """Kernel lines since `since` showing a function whose firmware never initialised after the reset."""
+    res = sys_.run(["journalctl", "-k", "-o", "short-iso", "--no-pager", "--since", since], timeout=60)
+    if res.returncode != 0:
+        return []
+    return [line.strip() for line in res.stdout.splitlines()
+            if any(f"mlx5_core 0000:{p}:" in line for p in pcie_ids) and any(pat in line for pat in FW_DEAD_PATTERNS)]
 
 
 def orange_pids(sys_: System) -> list[int]:
@@ -431,21 +446,32 @@ def do_reset(sys_: System, config: dict, report: dict, args, log) -> int:
         for pcie_id, lines in card["health_errors"].items():
             for line in lines:
                 log(f"    pre-reset {pcie_id}: {line}")
+        started = datetime.now().isoformat(timespec="seconds")
         ok, msg = False, "skipped"
-        if args.method in ("auto", "mlxfwreset"):
-            ok, msg = reset_card_mlxfwreset(sys_, card["card"])
+        came_back = False
+        for method in [m for m in ("mlxfwreset", "pci") if args.method in ("auto", m)]:
+            if method == "mlxfwreset":
+                ok, msg = reset_card_mlxfwreset(sys_, card["card"])
+            else:
+                ok, msg = reset_card_pci(sys_, card["card"], functions)
             log(f"    {msg}")
-        if not ok and args.method in ("auto", "pci"):
-            ok, msg = reset_card_pci(sys_, card["card"], functions)
-            log(f"    {msg}")
-        if not ok:
-            log(f"    reset of {card['card']} failed; a host reboot (mlxfwreset level 4) is the remaining option")
-            continue
-        came_back, states = wait_for_netdevs(sys_, functions, args.wait)
-        for st in states:
-            log(f"    {st['pcie_id']} -> {st['netdev'] or 'no netdev'} (expected {st['expected_netdev']})")
-        if not came_back:
+            if not ok:
+                continue
+            came_back, states = wait_for_netdevs(sys_, functions, args.wait)
+            for st in states:
+                log(f"    {st['pcie_id']} -> {st['netdev'] or 'no netdev'} (expected {st['expected_netdev']})")
+            if came_back:
+                break
             log(f"    netdevs did not all return within {args.wait}s" + (" (dry run)" if args.dry_run else ""))
+            dead = firmware_dead(sys_, list(functions), started)
+            if dead:
+                log(f"    {dead[-1]}")
+                log(f"    {POWER_CYCLE_ADVICE}")
+                ok = False
+                break   # the PCI route re-probes the same dead firmware; do not bother
+        if not ok or not came_back:
+            log(f"    card {card['card']} is still down" + ("" if ok else "; a host power cycle is the remaining option"))
+            continue
 
     managed = [n for n, nic in nics.items() if nic["managed"] and card_of(nic["pcie_id"]) in {c["card"] for c in targets}]
     if managed:

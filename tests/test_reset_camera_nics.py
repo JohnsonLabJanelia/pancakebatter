@@ -280,3 +280,30 @@ class ResetFlowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+DEAD_FW_JOURNAL = JOURNAL + """\
+2026-10-05T14:27:20-0400 h kernel: mlx5_core 0000:61:00.0: mlx5_function_enable:1479:(pid 1): Firmware over 120000 MS in pre-initializing state, aborting
+2026-10-05T14:27:20-0400 h kernel: mlx5_core 0000:61:00.0: firmware version: 65535.65535.65535
+"""
+
+
+class DeadFirmwareTests(unittest.TestCase):
+    def test_firmware_dead_lines_are_found_for_the_card_only(self):
+        sys_ = FakeSystem(commands={("journalctl", "-k", "-o", "short-iso", "--no-pager", "--since"): (0, DEAD_FW_JOURNAL, "")})
+        self.assertEqual(len(rcn.firmware_dead(sys_, ["61:00.0", "61:00.1"], "2026-10-05T14:25:00")), 2)
+        self.assertEqual(rcn.firmware_dead(sys_, ["49:00.2"], "2026-10-05T14:25:00"), [])
+
+    def test_reset_stops_after_the_first_method_when_the_firmware_never_boots(self):
+        present = {k: v for k, v in HEALTHY.items() if not k.startswith("61:00")}
+        sys_ = FakeSystem(netdevs=present, commands={
+            ("mlxfwreset", "-d", "61:00.0", "query"): (0, MLXFWRESET_QUERY, ""),
+            ("journalctl", "-k", "-o", "short-iso", "--no-pager", "--since"): (0, DEAD_FW_JOURNAL, ""),
+            ("setpci",): (0, "0012\n", ""),
+        })
+        args = type("Args", (), dict(card=None, method="auto", wait=10, restart_ptp=False, force=False, dry_run=False))()
+        rc = rcn.do_reset(sys_, CONFIG, rcn.status(sys_, CONFIG), args, sys_.log)
+        self.assertEqual(rc, 2)
+        self.assertIn(["mlxfwreset", "-d", "61:00.0", "--level", "3", "reset", "-y"], sys_.mutations)
+        self.assertEqual([m for m in sys_.mutations if m[0] == "setpci"], [])          # PCI route skipped
+        self.assertTrue(any("power the host off" in l for l in sys_.lines), sys_.lines[-5:])

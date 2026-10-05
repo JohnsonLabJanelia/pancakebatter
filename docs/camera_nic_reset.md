@@ -58,8 +58,21 @@ against the vanished interfaces. Nothing noticed for two days, which is what
    devices. The tool prints the exact kill/relaunch recipe built from their
    current command lines, or does it with `--restart-ptp` (logs under
    `logs/nic_reset/`).
-8. Prints the status again; exit 0 only if every card has its netdevs. If both
-   methods fail, the remaining option is a host reboot (mlxfwreset level 4).
+8. Prints the status again; exit 0 only if every card has its netdevs.
+
+## When the reset cannot help: firmware that never boots
+
+Measured on 2026-10-05 on card 49:00 after the thermal halt: `mlxfwreset
+--level 3` completed, the PCIe link retrained at x16, memory decoding and bus
+mastering were enabled, yet the driver's re-probe logged
+`Waiting for FW initialization ... (0xffffffff)` for 120 s, then
+`Firmware over 120000 MS in pre-initializing state, aborting` and
+`firmware version: 65535.65535.65535`. Every BAR read returned all-ones: the
+firmware stays in its protected post-thermal state until the card loses power.
+The tool recognises those kernel lines after a failed wait, says so, and skips
+the PCI route (which would re-probe the same dead firmware). The fix is a real
+power cycle: `sudo poweroff`, wait 30 s so PCIe standby power drains, power on.
+A soft reboot is not enough.
 
 Afterwards run `./reboot_cams.sh` if the cameras need a power cycle and lens
 check, and `./check_kernel_tuning.py` to confirm the mlx5 interrupt affinity
