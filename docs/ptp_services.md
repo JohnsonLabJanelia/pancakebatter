@@ -49,11 +49,40 @@ journalctl -u ptp4l -u phc2sys -f
 ## Clock direction and NTP
 
 `phc2sys -rr` makes the system clock the source for the PHCs because the host
-is the grandmaster. Nothing disciplines the system clock itself on pancake0:
-`timedatectl` shows `NTP=no` and no timesyncd or chrony is active. Camera
-frames are therefore consistent with each other and with the host, but host
-time drifts freely against the wall clock. If that ever matters, enabling
-`systemd-timesyncd` does not conflict with these units.
+is the grandmaster: whatever happens to the system clock, the camera clocks
+follow.
+
+As of 2026-10-05 nothing disciplines the system clock on pancake0:
+`timedatectl` shows `NTP=no`, no timesyncd or chrony is active, and the DHCP
+lease carries no NTP server. Measured against pool.ntp.org and
+time.google.com the clock was **478.7 s (8 min) behind**, and the hardware RTC
+is only written back by the kernel while NTP is synchronized, so every boot
+starts from an already-wrong time. The camera timeline is self-consistent but
+cannot be lined up with anything outside the rig. `rig_health_check.py`'s
+`time_sync` check reports this.
+
+The fix is one command:
+
+```bash
+sudo timedatectl set-ntp true      # enables systemd-timesyncd; UDP 123 outbound works, Ubuntu's default servers answer
+timedatectl                        # "System clock synchronized: yes" within a minute
+```
+
+**Do it between recordings, not during one.** The first synchronization is a
+*step*: the system clock jumps forward by the whole offset (8 min today) and,
+through `phc2sys -rr`, so do the camera PHCs, so a recording in progress would
+contain an 8 minute discontinuity in its timestamps. After that step timesyncd
+only slews, at most 500 ppm, which the PTP chain follows smoothly, and the
+kernel starts rewriting the RTC every 11 minutes so later boots start right.
+
+`tsc=reliable` stays. It tells the kernel not to let the clocksource watchdog
+demote the TSC (which happened on 2026-09-11 and cost a week of inflated
+host-side timings, see `kernel_tuning.md`); it says nothing about the clock's
+*rate*. NTP corrects the rate through `adjtimex`, exactly as on any other host.
+The drift seen here is roughly 350 ppm, inside the 500 ppm timesyncd can hold;
+if the `time_sync` check ever shows the offset creeping up with NTP enabled,
+the TSC calibration is worse than that and chrony (which can step
+periodically) would be the next step.
 
 ## Interaction with the NIC reset tool
 

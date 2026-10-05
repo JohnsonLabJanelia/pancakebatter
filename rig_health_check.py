@@ -16,6 +16,8 @@ Checks (reads of sysfs, /proc and the journal, plus one nvidia-smi query):
   gpu_temps     nvidia-smi temperature.gpu (--no-gpu skips it)
   disk_space    free space on / and the /mnt data partitions in the host config
   ptp           ptp4l and phc2sys alive when camera NICs are configured; phc2sys offset sane (--no-ptp skips it)
+  time_sync     an NTP service is enabled and synchronized (timedatectl); system clock offset from one SNTP
+                query (warn 1 s, crit 300 s; --no-ntp-query skips the packet)
   pcie_aer      new PCIe AER messages since the last run (warn)
   acquisition   whether Orange is recording (info only)
 
@@ -58,7 +60,9 @@ THRESHOLDS = {  # degrees C unless noted; override with --threshold name=value
     "gpu_warn": 85, "gpu_crit": 92,
     "disk_warn_pct": 10, "disk_crit_pct": 3, # free space
     "ptp_warn_ns": 100_000, "ptp_crit_ns": 10_000_000,
+    "time_warn_s": 1, "time_crit_s": 300,     # system clock vs NTP
 }
+NTP_SERVER = "pool.ntp.org"
 HWMON = Path("/sys/class/hwmon")
 MAIL_SUBJECT = "[rig-health] {host}: {summary}"
 
@@ -76,6 +80,24 @@ class Host(rcn.System):
 
     def statvfs(self, path):
         return os.statvfs(path)
+
+    def sntp_offset(self, server: str, timeout: float = 3.0) -> float:
+        """Seconds the system clock is behind `server` (negative = ahead); one 48-byte SNTP exchange."""
+        import socket as _socket
+        import struct
+        import time as _time
+        sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
+        sock.settimeout(timeout)
+        try:
+            t1 = _time.time()
+            sock.sendto(b"\x1b" + 47 * b"\0", (server, 123))
+            data, _ = sock.recvfrom(48)
+            t4 = _time.time()
+        finally:
+            sock.close()
+        fields = struct.unpack("!12I", data)
+        ntp = lambda i: fields[i] - 2208988800 + fields[i + 1] / 2**32
+        return ((ntp(8) - t1) + (ntp(10) - t4)) / 2
 
     def cpu_count(self) -> int:
         return os.cpu_count() or 1
@@ -288,6 +310,30 @@ def check_ptp(host: Host, config: dict, th: dict) -> list[Finding]:
     return collapse_ok(findings) or [Finding("ptp", "ok", "ptp4l and phc2sys running")]
 
 
+def check_time_sync(host: Host, th: dict, server: str | None) -> list[Finding]:
+    """Is anything disciplining the system clock, and how far is it from NTP time?"""
+    findings = []
+    res = host.run(["timedatectl", "show", "-p", "NTP", "-p", "NTPSynchronized"], timeout=10)
+    if res.returncode == 0:
+        props = dict(line.split("=", 1) for line in res.stdout.splitlines() if "=" in line)
+        if props.get("NTP") != "yes":
+            findings.append(Finding("time_sync", "warn", "no NTP service enabled (timedatectl set-ntp true); the clock drifts freely"))
+        elif props.get("NTPSynchronized") != "yes":
+            findings.append(Finding("time_sync", "warn", "NTP enabled but the clock is not synchronized yet"))
+    else:
+        findings.append(Finding("time_sync", "warn", f"timedatectl failed: {(res.stderr or res.stdout).strip()[:120]}"))
+    if server:
+        try:
+            offset = host.sntp_offset(server)
+        except OSError as exc:
+            findings.append(Finding("time_sync", "info", f"NTP query to {server} failed: {type(exc).__name__}"))
+        else:
+            direction = "behind" if offset > 0 else "ahead of"
+            findings.append(Finding("time_sync", level_for(abs(offset), th["time_warn_s"], th["time_crit_s"]),
+                                    f"system clock is {abs(offset):.3f} s {direction} {server}", round(offset, 3)))
+    return collapse_ok(findings) or [Finding("time_sync", "ok", "NTP synchronized")]
+
+
 def check_pcie_aer(host: Host, since: str) -> list[Finding]:
     res = host.run(["journalctl", "-k", "-o", "cat", "--no-pager", "--since", since], timeout=60)
     if res.returncode != 0:
@@ -398,7 +444,8 @@ def send_mail(host: Host, to: str, sender: str, subject: str, body: str) -> str:
 
 # --- main ------------------------------------------------------------------------------------
 
-def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, with_ptp: bool) -> list[Finding]:
+def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, with_ptp: bool,
+               ntp_server: str | None = NTP_SERVER) -> list[Finding]:
     findings = []
     findings += check_camera_nics(host, config)
     findings += check_mlx5_health(host, config, since)
@@ -406,6 +453,7 @@ def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, w
     findings += check_disk_space(host, config, th)
     if with_ptp:
         findings += check_ptp(host, config, th)
+    findings += check_time_sync(host, th, ntp_server)
     findings += check_pcie_aer(host, since)
     findings += check_acquisition(host)
     return findings
@@ -429,6 +477,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--no-gpu", action="store_true", help="skip nvidia-smi")
     parser.add_argument("--no-ptp", action="store_true", help="skip the ptp4l/phc2sys check")
+    parser.add_argument("--ntp-server", default=NTP_SERVER, help=f"server for the clock offset query (default {NTP_SERVER})")
+    parser.add_argument("--no-ntp-query", action="store_true", help="only ask timedatectl; send no NTP packet")
     parser.add_argument("--since", help="journal window for mlx5/AER checks (default: last run, else -15min)")
     parser.add_argument("--threshold", action="append", default=[], metavar="NAME=VALUE", help=f"override one of {', '.join(THRESHOLDS)}")
     parser.add_argument("--print-affinity", action="store_true", help="print the non-isolated CPU list for systemd CPUAffinity and exit")
@@ -458,7 +508,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if outcome.startswith("mailed") else 2
     previous = load_state(args.state_dir)
     since = args.since or previous.get("time") or "-15min"
-    findings = run_checks(host, config, th, since, with_gpu=not args.no_gpu, with_ptp=not args.no_ptp)
+    findings = run_checks(host, config, th, since, with_gpu=not args.no_gpu, with_ptp=not args.no_ptp,
+                          ntp_server=None if args.no_ntp_query else args.ntp_server)
     levels = levels_by_check(findings)
     result = {
         "host": socket.gethostname().split(".")[0],

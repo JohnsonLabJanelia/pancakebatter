@@ -179,6 +179,30 @@ class MailTests(unittest.TestCase):
             self.assertEqual(rhc.send_mail(host, "a@b", "c@d", "s", "b"), "no msmtp/sendmail available")
 
 
+class TimeSyncTests(unittest.TestCase):
+    def _host(self, ntp="yes", synced="yes", offset=0.002, fail=False):
+        class H(FakeHost):
+            def sntp_offset(self, server, timeout=3.0):
+                if fail:
+                    raise OSError("timed out")
+                return offset
+        return H(commands={("timedatectl",): (0, f"NTP={ntp}\nNTPSynchronized={synced}\n", "")})
+
+    def test_synchronized_and_close_is_ok(self):
+        self.assertEqual([(f.level, f.check) for f in rhc.check_time_sync(self._host(), rhc.THRESHOLDS, "pool")], [("ok", "time_sync")])
+
+    def test_no_ntp_service_and_eight_minutes_behind_is_crit(self):
+        findings = rhc.check_time_sync(self._host(ntp="no", synced="no", offset=478.7), rhc.THRESHOLDS, "pool")
+        self.assertEqual(sorted(f.level for f in findings), ["crit", "warn"])
+        self.assertTrue(any("478.700 s behind" in f.message for f in findings))
+        self.assertTrue(any("set-ntp true" in f.message for f in findings))
+
+    def test_query_failure_is_only_informational_and_query_can_be_skipped(self):
+        findings = rhc.check_time_sync(self._host(fail=True), rhc.THRESHOLDS, "pool")
+        self.assertEqual([f.level for f in findings], ["info"])
+        self.assertEqual([f.level for f in rhc.check_time_sync(self._host(ntp="yes", synced="no"), rhc.THRESHOLDS, None)], ["warn"])
+
+
 class StateTests(unittest.TestCase):
     def test_levels_by_check_keeps_the_worst_and_transitions_ignore_info(self):
         findings = [rhc.Finding("a", "ok", ""), rhc.Finding("a", "warn", ""), rhc.Finding("b", "info", ""), rhc.Finding("c", "crit", "")]
