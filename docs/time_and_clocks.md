@@ -364,3 +364,66 @@ hydrophone for pressure, an accelerometer on the tank wall for motion) rather
 than trusting the waveform you sent. Timing alignment and loudness/spectrum
 calibration are separate problems; the recording channel in 1-3 solves the
 first and gives you the data for the second.
+
+## Calibrating tank loudness with a hydrophone
+
+Timing tells you *when* the tone happened; this tells you *how loud it was
+where the fish is*, which cannot be inferred from the voltage you sent.
+
+**Units first, because underwater acoustics uses different ones.** Sound
+pressure level in water is quoted in dB re 1 uPa; in air it is dB re 20 uPa,
+and the two media have very different impedances, so an air SPL number cannot
+be compared with a water one at all. A "120 dB" tone in a tank is not loud
+the way 120 dB in a room is. Fish also sense *particle motion*, which in the
+near field of a small tank is not proportional to pressure; if the paradigm
+depends on it, measure acceleration too (an accelerometer on the tank wall or
+a small waterproof one at the fish position, in m/s^2 or dB re 1 um/s^2).
+
+**Equipment.** A hydrophone with a stated receive sensitivity, typically
+-180 to -210 dB re 1 V/uPa (that is, a few uV to tens of uV per Pa), so it
+needs a low-noise preamplifier with a known gain; a DAQ analog input with
+enough range and a sampling rate at least 2.5x the highest stimulus frequency
+(10 kS/s covers tones to 4 kHz); the stimulus path exactly as used in
+experiments (same DAQ output or sound card, amplifier, transducer, tank, water
+level). Trust the manufacturer's sensitivity curve, and if a reference source
+(pistonphone or a calibrated projector) is available, check one frequency
+against it.
+
+**Procedure.**
+
+1. Place the hydrophone where the fish will be, same depth, with the dish or
+   arena in place. Record 10 s of silence: this is the noise floor, and it is
+   usually dominated by pumps, filters, lights and the building. The stimulus
+   must sit well above it; fix the noise before calibrating if it does not.
+2. For each stimulus frequency (and every one you might use later), play a
+   steady tone of a few seconds at several output amplitudes spanning the
+   range you intend to use. Drive and record through the DAQ so the played
+   and recorded waveforms share one sample axis.
+3. From each recording take the RMS of the band-passed signal (or the FFT bin
+   at the tone frequency, with a window), convert volts to pressure with the
+   preamp gain and hydrophone sensitivity, and express it as dB re 1 uPa:
+   `SPL = 20*log10(p_rms / 1e-6 Pa)`.
+4. Plot SPL against output amplitude per frequency. It should be a straight
+   line in dB; where it bends, the amplifier or transducer is saturating. Also
+   look at the spectrum for harmonics: a small speaker driven hard delivers a
+   good part of its energy at 2f and 3f, which a fish hears as a different
+   stimulus.
+5. Repeat at a few positions across the arena. A small tank has strong
+   resonances, so the level at a given frequency can vary by 10-20 dB over a
+   few centimetres; either choose frequencies and positions where it is flat,
+   or accept and document the map.
+6. Store the result as a per-rig calibration table (frequency -> output
+   amplitude per target SPL, plus noise floor, plus date and water level) next
+   to the host config, and redo it whenever the transducer, amplifier, tank,
+   water level or arena changes. Keep the raw recordings.
+
+Keep the hydrophone (or at least the loopback channel) connected during
+experiments: the recorded copy of every tone is the evidence that the
+calibration still held, and it makes level a measured quantity per trial
+rather than an assumption.
+
+Reference points: published zebrafish auditory thresholds are in the low
+hundreds of dB re 1 uPa with best sensitivity around 500-1000 Hz, and
+startle thresholds are higher than detection thresholds; take the numbers for
+the paradigm from the literature, then confirm what *this* tank delivers with
+the procedure above rather than from the amplifier's volume knob.
