@@ -4,9 +4,13 @@
 # Mail recipient(s) for level changes (comma separated). Empty = journal only.
 RIG_HEALTH_EMAIL=
 
-# Sender address; default rig-health@<fqdn>. Mail goes out through msmtp (or sendmail) as the
-# service user, so that user's ~/.msmtprc or /etc/msmtprc must be set up.
+# Sender address; default rig-health@<fqdn>. Gmail rewrites it to the account's own address.
 RIG_HEALTH_FROM=
+
+# msmtp configuration to send with. Default: /etc/msmtprc when it exists (the system-wide
+# pancake0.status@gmail.com account; the service user must be in the msmtp-users group), else
+# msmtp's own default (~/.msmtprc). Verify with: ./rig_health_check.py --test-mail you@example.org
+RIG_HEALTH_MSMTP_CONFIG=
 
 # Extra arguments for rig_health_check.py, e.g. "--no-gpu" or "--threshold nic_warn=80".
 RIG_HEALTH_ARGS=

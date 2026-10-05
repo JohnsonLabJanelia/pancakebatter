@@ -103,9 +103,9 @@ class System:
     def realpath(self, path) -> str:
         return os.path.realpath(path)
 
-    def run(self, cmd: list[str], timeout: float = 120) -> subprocess.CompletedProcess:
+    def run(self, cmd: list[str], timeout: float = 120, input: str | None = None) -> subprocess.CompletedProcess:
         try:
-            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, input=input)
         except FileNotFoundError as exc:
             return subprocess.CompletedProcess(cmd, 127, "", str(exc))
         except subprocess.TimeoutExpired as exc:

@@ -1,5 +1,6 @@
 import os
 import unittest
+import unittest.mock
 from collections import namedtuple
 
 import rig_health_check as rhc
@@ -156,6 +157,26 @@ class DiskPtpAerTests(unittest.TestCase):
         self.assertIn("nvme 0000:2a:00.0", aer.message)
         health = rhc.check_mlx5_health(host, CONFIG, "-15min")[0]
         self.assertEqual((health.level, health.value), ("crit", 3))
+
+
+class MailTests(unittest.TestCase):
+    def test_uses_the_system_msmtp_config_and_builds_a_proper_message(self):
+        class H(FakeHost):
+            def exists(self, path):
+                return str(path) == "/etc/msmtprc" or super().exists(path)
+        host = H(commands={("msmtp",): (0, "", "")})
+        with unittest.mock.patch.dict(os.environ, {"RIG_HEALTH_MSMTP_CONFIG": ""}):
+            outcome = rhc.send_mail(host, "me@example.org", "rig-health@host", "[rig-health] host: x", "body")
+        self.assertEqual(outcome, "mailed me@example.org via msmtp -C /etc/msmtprc")
+        self.assertTrue(host.last_input.startswith("To: me@example.org\nFrom: rig-health@host\nSubject: [rig-health] host: x\n\nbody"))
+
+    def test_falls_back_to_sendmail_and_reports_failures(self):
+        host = FakeHost(commands={("msmtp",): (127, "", "not found"), ("sendmail",): (1, "", "relay refused")})
+        with unittest.mock.patch.dict(os.environ, {"RIG_HEALTH_MSMTP_CONFIG": ""}):
+            self.assertIn("sendmail failed rc 1", rhc.send_mail(host, "a@b", "c@d", "s", "b"))
+        host = FakeHost(commands={("msmtp",): (127, "", ""), ("sendmail",): (127, "", "")})
+        with unittest.mock.patch.dict(os.environ, {"RIG_HEALTH_MSMTP_CONFIG": ""}):
+            self.assertEqual(rhc.send_mail(host, "a@b", "c@d", "s", "b"), "no msmtp/sendmail available")
 
 
 class StateTests(unittest.TestCase):

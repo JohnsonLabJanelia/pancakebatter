@@ -92,7 +92,8 @@ class FakeSystem(rcn.System):
         return p
 
     # commands
-    def run(self, cmd, timeout=120):
+    def run(self, cmd, timeout=120, input=None):
+        self.last_input = input
         for key, result in self.commands.items():
             prefix = key if isinstance(key, tuple) else (key,)
             if tuple(cmd[:len(prefix)]) == prefix:

@@ -55,10 +55,23 @@ With `--state-dir` (the unit passes `/var/lib/rig-health`) it keeps
 `last.json`, appends one line per run to `history.jsonl` (trimmed at ~8 MB),
 and compares each check's level with the previous run. A level change
 (`ok -> warn`, `crit -> ok`, ...) is a transition; when `RIG_HEALTH_EMAIL` is set
-in `/etc/default/rig-health` a short mail with the full report goes out via
-`msmtp -t` (falling back to `sendmail -t`) as the service user, so that user's
-`~/.msmtprc` or `/etc/msmtprc` has to work. No repeat mails while a state
-persists.
+in `/etc/default/rig-health` a short mail with the full report goes out and no
+repeat mails follow while a state persists.
+
+Mail goes through `msmtp -C /etc/msmtprc -t` (override with
+`RIG_HEALTH_MSMTP_CONFIG`; `sendmail -t` is the fallback). On pancake0 that
+system config is a Gmail account, `pancake0.status@gmail.com`, with its app
+password in `/etc/msmtp/gmail-app-password`, readable by the `msmtp-users`
+group, so the service user has to be in that group (`jeremy` and the domain
+user `delahantyj` are). It has delivered to `delahantyj@janelia.hhmi.org`
+before. The system config is used on purpose: a per-user `~/.msmtprc` can be
+missing or point at a password file that is not there (jeremy's does, as of
+2026-10-05), and the unit's `ProtectHome=read-only` would block its log file.
+Send yourself one message to confirm the path end to end:
+
+```bash
+./rig_health_check.py --test-mail delahantyj@janelia.hhmi.org
+```
 
 ```bash
 systemctl list-timers rig-health.timer

@@ -39,7 +39,6 @@ import json
 import os
 import re
 import socket
-import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -372,15 +371,27 @@ def transitions(previous: dict[str, str], current: dict[str, str]) -> dict[str, 
     return changed
 
 
+SYSTEM_MSMTPRC = Path("/etc/msmtprc")
+
+
+def mail_command(host: Host) -> list[str]:
+    """msmtp with the system-wide account by default (RIG_HEALTH_MSMTP_CONFIG overrides; the per-user
+    ~/.msmtprc is deliberately not relied on: it may be missing, broken, or unreadable under the unit's
+    ProtectHome). Falls back to whatever sendmail is."""
+    config = os.environ.get("RIG_HEALTH_MSMTP_CONFIG", "").strip()
+    if not config and host.exists(SYSTEM_MSMTPRC):
+        config = str(SYSTEM_MSMTPRC)
+    return ["msmtp", "-C", config, "-t"] if config else ["msmtp", "-t"]
+
+
 def send_mail(host: Host, to: str, sender: str, subject: str, body: str) -> str:
-    for cmd in (["msmtp", "-t"], ["sendmail", "-t"]):
-        try:
-            proc = subprocess.run(cmd, input=f"To: {to}\nFrom: {sender}\nSubject: {subject}\n\n{body}\n",
-                                  capture_output=True, text=True, timeout=30)
-        except FileNotFoundError:
+    message = f"To: {to}\nFrom: {sender}\nSubject: {subject}\n\n{body}\n"
+    for cmd in (mail_command(host), ["sendmail", "-t"]):
+        proc = host.run(cmd, timeout=30, input=message)
+        if proc.returncode == 127:
             continue
         if proc.returncode == 0:
-            return f"mailed {to} via {cmd[0]}"
+            return f"mailed {to} via {' '.join(cmd[:3])}"
         return f"{cmd[0]} failed rc {proc.returncode}: {proc.stderr.strip()[:200]}"
     return "no msmtp/sendmail available"
 
@@ -421,6 +432,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--since", help="journal window for mlx5/AER checks (default: last run, else -15min)")
     parser.add_argument("--threshold", action="append", default=[], metavar="NAME=VALUE", help=f"override one of {', '.join(THRESHOLDS)}")
     parser.add_argument("--print-affinity", action="store_true", help="print the non-isolated CPU list for systemd CPUAffinity and exit")
+    parser.add_argument("--test-mail", metavar="ADDRESS", help="send one test message to ADDRESS the way alerts are sent, and exit")
     args = parser.parse_args(argv)
 
     config = yaml.safe_load(Path(args.config or hostconfig.default_config_path()).read_text()) or {}
@@ -437,6 +449,13 @@ def main(argv: list[str] | None = None) -> int:
         th[name] = float(value)
 
     host = Host()
+    if args.test_mail:
+        sender = os.environ.get("RIG_HEALTH_FROM", "").strip() or f"rig-health@{socket.gethostname()}"
+        outcome = send_mail(host, args.test_mail, sender, MAIL_SUBJECT.format(host=socket.gethostname().split(".")[0], summary="test message"),
+                            f"Test from rig_health_check.py on {socket.gethostname()} at {datetime.now().isoformat(timespec='seconds')}.\n"
+                            f"Mail command: {' '.join(mail_command(host))}")
+        print(outcome)
+        return 0 if outcome.startswith("mailed") else 2
     previous = load_state(args.state_dir)
     since = args.since or previous.get("time") or "-15min"
     findings = run_checks(host, config, th, since, with_gpu=not args.no_gpu, with_ptp=not args.no_ptp)
