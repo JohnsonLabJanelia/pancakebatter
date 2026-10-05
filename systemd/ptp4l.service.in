@@ -1,0 +1,21 @@
+# Rendered by install_ptp_units.sh from hosts/<host>/config.yml (camera ports with expected_link: true).
+[Unit]
+Description=PTP grandmaster for the camera ports (ptp4l, boundary_clock_jbod)
+Documentation=man:ptp4l file://@REPO@/docs/ptp_services.md
+Wants=network-online.target
+After=network-online.target NetworkManager.service
+# Camera NIC devices; ptp4l exits if one is missing and Restart= below retries until they are back
+# (a thermally halted card needs a host power cycle, see docs/camera_nic_reset.md).
+After=@DEVICE_UNITS@
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/ptp4l @INTERFACE_ARGS@ -f /etc/ptp4l.conf -m
+Restart=on-failure
+RestartSec=15
+# Keep off the isolated acquisition cores (same list the health timer uses).
+CPUAffinity=@CPUAFFINITY@
+
+[Install]
+WantedBy=multi-user.target

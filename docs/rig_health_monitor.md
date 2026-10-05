@@ -23,7 +23,7 @@ sudo ./install_rig_health_timer.sh --uninstall
 | `nvme_temps` | hwmon `nvme` Composite | the drive's own `max` (warn) and `crit` |
 | `gpu_temps` | `nvidia-smi --query-gpu=temperature.gpu` | warn 85 / crit 92; `--no-gpu` skips |
 | `disk_space` | `statvfs` on `/` and the `/mnt` partitions in the host config | warn <10 % free, crit <3 % |
-| `ptp` | `pgrep ptp4l`/`phc2sys`, `journalctl _COMM=phc2sys` | process missing: warn; worst `sys offset` in 5 min >100 µs warn, >10 ms crit; `--no-ptp` skips |
+| `ptp` | `pgrep ptp4l`/`phc2sys`, `journalctl _COMM=phc2sys` | process missing: warn; worst `sys offset` in 5 min >100 µs warn, >10 ms crit; `--no-ptp` skips. With the units from `install_ptp_units.sh` the daemons come back at boot, so this only fires when they are really down |
 | `pcie_aer` | `journalctl -k --since <last run>` | any `AER:` line: warn, with the device |
 | `acquisition` | `pgrep` for `targets/release/orange` (argv[0] checked) | info only |
 

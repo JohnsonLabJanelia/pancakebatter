@@ -80,7 +80,11 @@ class FakeSystem(rcn.System):
             return "up"
         if p.startswith("/proc/") and p.endswith("/cmdline"):
             return {"101": "ptp4l\0-i\0mlnx1_p1_25g\0-m", "102": "phc2sys\0-a\0-rr", "555": "/bin/bash\0-c\0pgrep targets/release/orange",
-                    "777": "/opt/orange/targets/release/orange\0--config\0x"}.get(p.split("/")[2], "")
+                    "777": "/opt/orange/targets/release/orange\0--config\0x",
+                    "201": "/usr/sbin/ptp4l\0-i\0mlnx1_p1_25g\0-f\0/etc/ptp4l.conf\0-m", "202": "/usr/sbin/phc2sys\0-a\0-rr"}.get(p.split("/")[2], "")
+        if p.startswith("/proc/") and p.endswith("/cgroup"):
+            return {"201": "0::/system.slice/ptp4l.service", "202": "0::/system.slice/phc2sys.service",
+                    "101": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/vte-spawn-abc.scope"}.get(p.split("/")[2], "0::/")
         return None
 
     def realpath(self, path):
@@ -183,6 +187,26 @@ class StatusTests(unittest.TestCase):
         procs = rcn.ptp_processes(sys_)
         self.assertEqual([(p["name"], p["pid"], p["argv"][0]) for p in procs], [("ptp4l", 101, "ptp4l"), ("phc2sys", 102, "phc2sys")])
         self.assertEqual(rcn.ptp_recipe(procs), ["sudo kill 101 102", "sudo -b ptp4l -i mlnx1_p1_25g -m", "sudo -b phc2sys -a -rr"])
+
+
+class PtpUnitTests(unittest.TestCase):
+    def _procs(self, ptp4l_pid, phc2sys_pid):
+        sys_ = FakeSystem(netdevs=HEALTHY, commands={("pgrep", "-x", "ptp4l"): (0, f"{ptp4l_pid}\n", ""), ("pgrep", "-x", "phc2sys"): (0, f"{phc2sys_pid}\n", "")})
+        return sys_, rcn.ptp_processes(sys_)
+
+    def test_systemd_owned_daemons_are_recognised_and_restarted_with_systemctl(self):
+        sys_, procs = self._procs(201, 202)
+        self.assertEqual([p["unit"] for p in procs], ["ptp4l.service", "phc2sys.service"])
+        self.assertEqual(rcn.ptp_recipe(procs), ["sudo systemctl restart ptp4l.service phc2sys.service"])
+        rcn.restart_ptp(sys_, procs, Path("/tmp"))
+        self.assertEqual(sys_.mutations, [["systemctl", "restart", "ptp4l.service", "phc2sys.service"]])
+        self.assertIn("[ptp4l.service]", rcn.format_status(rcn.status(sys_, CONFIG)))
+
+    def test_hand_started_daemons_still_get_kill_and_respawn(self):
+        sys_, procs = self._procs(101, 102)
+        self.assertEqual([p["unit"] for p in procs], [None, None])
+        rcn.restart_ptp(sys_, procs, Path("/tmp"))
+        self.assertEqual([m[0] for m in sys_.mutations], ["kill", "kill", "spawn", "spawn"])
 
 
 class MlxfwresetTests(unittest.TestCase):

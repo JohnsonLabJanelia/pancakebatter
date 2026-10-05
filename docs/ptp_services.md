@@ -1,0 +1,65 @@
+# PTP as systemd services
+
+The cameras take their clock from the host over PTP: `ptp4l` runs as
+grandmaster on the camera ports (`boundary_clock_jbod`, one clock per NIC
+card), and `phc2sys -a -rr` pushes the system clock into each NIC's hardware
+clock. Until 2026-10-05 both were started by hand after every boot:
+
+```bash
+sudo -b ptp4l -i mlnx1_p1_25g -i mlnx1_p2_25g -i mlnx2_p3_25g -i mlnx2_p4_25g -f /etc/ptp4l.conf -m
+sudo -b phc2sys -a -rr -z /var/run/ptp4l -m
+```
+
+`install_ptp_units.sh` turns those two lines into `ptp4l.service` and
+`phc2sys.service`, enabled at boot, with the same flags:
+
+```bash
+sudo ./install_ptp_units.sh                    # install + enable; starts now unless hand-started daemons exist
+sudo ./install_ptp_units.sh --replace-running  # also kill the hand-started ones (refused while Orange records)
+sudo ./install_ptp_units.sh --uninstall
+systemctl status ptp4l phc2sys --no-pager
+journalctl -u ptp4l -u phc2sys -f
+```
+
+## What the units encode
+
+- **Interfaces** come from `hosts/<hostname>/config.yml`: every NIC with
+  `role: camera` and `expected_link: true`. Re-run the installer after moving a
+  camera to another port (`camera_net_config.py move`).
+- **Ordering**: after `network-online.target`, NetworkManager and the four
+  `sys-subsystem-net-devices-<port>.device` units. ptp4l exits if a port does
+  not exist, and `Restart=on-failure` with `RestartSec=15` and no start-rate
+  limit keeps retrying until the NICs are back. A card whose firmware has
+  thermally latched never comes back without a host power cycle
+  ([`camera_nic_reset.md`](camera_nic_reset.md)); in that case the unit cycles
+  every 15 s and `rig_health_check.py` reports the card missing.
+- **phc2sys** `Requires=`, `After=` and `PartOf=ptp4l.service`: it starts after
+  ptp4l, and restarting ptp4l restarts it too, which matters because its `-a`
+  mode follows ptp4l over the `/var/run/ptp4l` socket.
+- **CPUAffinity** is the non-isolated core list from `kernel_tuning`, the same
+  one the health timer uses, so neither daemon lands on an acquisition core.
+  (`isolcpus` already keeps them off; the unit just says so explicitly.)
+- `-m` keeps the daemons logging to stdout, which under systemd means the
+  journal. phc2sys prints one line per PHC per second; journald's default rate
+  limit is far above that.
+- `/etc/ptp4l.conf` is tracked as `configs/ptp4l.conf`. The installer copies
+  it in when missing and only reports a difference when a different file is
+  already installed.
+
+## Clock direction and NTP
+
+`phc2sys -rr` makes the system clock the source for the PHCs because the host
+is the grandmaster. Nothing disciplines the system clock itself on pancake0:
+`timedatectl` shows `NTP=no` and no timesyncd or chrony is active. Camera
+frames are therefore consistent with each other and with the host, but host
+time drifts freely against the wall clock. If that ever matters, enabling
+`systemd-timesyncd` does not conflict with these units.
+
+## Interaction with the NIC reset tool
+
+`reset_camera_nics.py` recognises daemons that run under these units (by their
+cgroup) and, with `--restart-ptp`, restarts them through `systemctl restart
+ptp4l.service` instead of kill-and-respawn. The hand-started case still works
+the old way. Since the ports vanish when a card halts, a ptp4l that was already
+running keeps logging `ioctl SIOCGIFINDEX failed: No such device` rather than
+exiting, so the restart after a recovered card remains necessary either way.

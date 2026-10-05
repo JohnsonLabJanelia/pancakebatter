@@ -271,13 +271,17 @@ def orange_pids(sys_: System) -> list[int]:
 
 
 def ptp_processes(sys_: System) -> list[dict]:
+    """Running ptp4l/phc2sys with argv and, when systemd owns them, the unit name (from the cgroup)."""
     procs = []
     for name in PTP_PROCESSES:
         res = sys_.run(["pgrep", "-x", name])
         for pid in (res.stdout.split() if res.returncode == 0 else []):
             raw = sys_.read(f"/proc/{pid}/cmdline") or ""
             argv = [a for a in raw.split("\0") if a]
-            procs.append({"name": name, "pid": int(pid), "argv": argv})
+            cgroup = sys_.read(f"/proc/{pid}/cgroup") or ""
+            m = re.search(r"/([^/]+\.service)\s*$", cgroup, re.M)
+            unit = m.group(1) if m and m.group(1).startswith(("ptp4l", "phc2sys")) else None
+            procs.append({"name": name, "pid": int(pid), "argv": argv, "unit": unit})
     return procs
 
 
@@ -336,7 +340,8 @@ def format_status(report: dict) -> str:
     if report["orange_pids"]:
         lines.append(f"  Orange is running (pids {', '.join(map(str, report['orange_pids']))})")
     for proc in report["ptp"]:
-        lines.append(f"  {proc['name']} pid {proc['pid']}: {shlex.join(proc['argv'])}")
+        owner = f" [{proc['unit']}]" if proc.get("unit") else ""
+        lines.append(f"  {proc['name']} pid {proc['pid']}{owner}: {shlex.join(proc['argv'])}")
     return "\n".join(lines)
 
 
@@ -424,20 +429,34 @@ def reconnect_nm(sys_: System, names: list[str]) -> None:
             sys_.log(f"  nmcli connection up {name}: rc {res.returncode} {res.stderr.strip()[-200:]}")
 
 
+def ptp_units(procs: list[dict]) -> list[str]:
+    """systemd units behind the running daemons, ptp4l first (phc2sys is PartOf= it, but be explicit)."""
+    units = {p["unit"] for p in procs if p.get("unit")}
+    return sorted(units, key=lambda u: (not u.startswith("ptp4l"), u))
+
+
 def restart_ptp(sys_: System, procs: list[dict], log_dir: Path) -> None:
-    ordered = sorted(procs, key=lambda p: PTP_PROCESSES.index(p["name"]))
-    for proc in ordered:
+    units = ptp_units(procs)
+    if units:
+        sys_.mutate(["systemctl", "restart", *units], timeout=120)
+    manual = sorted((p for p in procs if not p.get("unit")), key=lambda p: PTP_PROCESSES.index(p["name"]))
+    if not manual:
+        return
+    for proc in manual:
         sys_.mutate(["kill", str(proc["pid"])])
     sys_.sleep(2)
-    for proc in ordered:
+    for proc in manual:
         sys_.spawn(proc["argv"], log_dir / f"{proc['name']}.log")
         sys_.sleep(1)
 
 
 def ptp_recipe(procs: list[dict]) -> list[str]:
-    ordered = sorted(procs, key=lambda p: PTP_PROCESSES.index(p["name"]))
-    lines = [f"sudo kill {' '.join(str(p['pid']) for p in ordered)}"] if ordered else []
-    lines += [f"sudo -b {shlex.join(p['argv'])}" for p in ordered]
+    units = ptp_units(procs)
+    lines = [f"sudo systemctl restart {' '.join(units)}"] if units else []
+    manual = sorted((p for p in procs if not p.get("unit")), key=lambda p: PTP_PROCESSES.index(p["name"]))
+    if manual:
+        lines.append(f"sudo kill {' '.join(str(p['pid']) for p in manual)}")
+        lines += [f"sudo -b {shlex.join(p['argv'])}" for p in manual]
     return lines
 
 

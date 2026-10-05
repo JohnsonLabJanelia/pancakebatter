@@ -55,9 +55,11 @@ against the vanished interfaces. Nothing noticed for two days, which is what
    (`autoconnect=yes`); any `managed: true` port still not connected gets
    `nmcli connection up <name>`.
 7. PTP: `ptp4l`/`phc2sys` keep running but their sockets were bound to the old
-   devices. The tool prints the exact kill/relaunch recipe built from their
-   current command lines, or does it with `--restart-ptp` (logs under
-   `logs/nic_reset/`).
+   devices. If they run under the systemd units from `install_ptp_units.sh`
+   ([`ptp_services.md`](ptp_services.md)) the tool prints or runs
+   `systemctl restart ptp4l.service`; for hand-started daemons it prints the
+   kill/relaunch recipe built from their command lines, or does it with
+   `--restart-ptp` (logs under `logs/nic_reset/`).
 8. Prints the status again; exit 0 only if every card has its netdevs.
 
 ## When the reset cannot help: firmware that never boots

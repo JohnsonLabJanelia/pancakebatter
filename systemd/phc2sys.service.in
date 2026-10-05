@@ -1,0 +1,20 @@
+# Rendered by install_ptp_units.sh.
+[Unit]
+Description=Sync the camera NIC hardware clocks to the system clock (phc2sys -a -rr)
+Documentation=man:phc2sys file://@REPO@/docs/ptp_services.md
+Requires=ptp4l.service
+After=ptp4l.service
+PartOf=ptp4l.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+# -a: follow ptp4l's port states over its UDS; -rr: the system clock is the time source and the PHCs
+# follow it (the host is the grandmaster for the cameras). -m: log to stdout -> journal.
+ExecStart=/usr/sbin/phc2sys -a -rr -z /var/run/ptp4l -m
+Restart=on-failure
+RestartSec=10
+CPUAffinity=@CPUAFFINITY@
+
+[Install]
+WantedBy=multi-user.target
