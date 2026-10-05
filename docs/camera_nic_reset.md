@@ -1,0 +1,85 @@
+# Camera NIC status and in-place firmware reset
+
+`reset_camera_nics.py` reports the state of every ConnectX card listed in
+`hosts/<hostname>/config.yml` (one card = the four PCI functions sharing a
+`pcie_id` bus, e.g. `61:00.0-3`) and, with `--reset`, brings a halted card back
+without rebooting the host.
+
+```bash
+./reset_camera_nics.py                      # status; exit 1 if any card is missing netdevs
+./reset_camera_nics.py --json               # the same for scripts (rig_health_check.py imports the module)
+sudo ./reset_camera_nics.py --reset --dry-run     # print the plan, change nothing
+sudo ./reset_camera_nics.py --reset               # reset every unhealthy card
+sudo ./reset_camera_nics.py --reset --card 61:00 --restart-ptp
+```
+
+## What happened on 2026-10-03 (why this exists)
+
+| Time (EDT) | Kernel log |
+|---|---|
+| 05:56:38 | `mlx5_core 0000:49:00.x: temp_warn: High temperature on sensors ...` (all four functions) |
+| 05:57:00 | same on `0000:61:00.x` |
+| 05:58:06 | `49:00.x: Health issue observed, High temperature, severity(2) CRITICAL`, `synd 0x10` |
+| 05:59:24 | `49:00.x` netdevs removed; NetworkManager: `mlnx2_p* removed` |
+| 06:00:24 | `61:00.x` CRITICAL, same syndrome |
+| 06:00:29 | `mlnx1_p*` removed |
+| 06:01:36 | `health recovery flow aborted, PCI reads still not working` on all eight |
+
+Two separate cards hit the firmware thermal cutoff within 30 s of each other,
+with no earlier mlx5 messages in the preceding 30 hours and the CPU, NVMe and
+GPUs cool afterwards: an airflow or room-cooling event, not a bad card. The
+cards stayed bound to `mlx5_core` with their PCI config space readable, but
+without netdevs, hwmon sensors reading 0 C, and `ptp4l`/`phc2sys` still running
+against the vanished interfaces. Nothing noticed for two days, which is what
+[`rig_health_monitor.md`](rig_health_monitor.md) is for.
+
+## What `--reset` does
+
+1. Refuses if Orange is running (`targets/release/orange`) unless `--force`,
+   and only touches cards that are missing netdevs unless you name them with
+   `--card`.
+2. Writes a transcript to `logs/nic_reset/nic_reset_<stamp>.log`, starting with
+   the mlx5 health lines from this boot for each function (the post-mortem
+   evidence, before it is cleared by the reset).
+3. `mst start`, then `mlxfwreset -d <card>.0 query`. If reset level 3 ("Driver
+   restart and PCI reset") is supported: `mlxfwreset -d <card>.0 --level 3 reset -y`.
+4. If the query fails or level 3 is unsupported (`--method auto`, the default),
+   falls back to the PCI route that level 3 performs internally: remove the four
+   functions through sysfs, pulse Secondary Bus Reset (bit 6 of `BRIDGE_CONTROL`)
+   on the upstream bridge with `setpci`, rescan the bridge. `--method mlxfwreset`
+   or `--method pci` picks one explicitly.
+5. Waits up to `--wait` seconds (default 90) for the netdevs to reappear under
+   their configured names (the udev rules in
+   `/etc/udev/rules.d/70-network-aliases.rules` rename by MAC).
+6. NetworkManager re-activates the static profiles on its own
+   (`autoconnect=yes`); any `managed: true` port still not connected gets
+   `nmcli connection up <name>`.
+7. PTP: `ptp4l`/`phc2sys` keep running but their sockets were bound to the old
+   devices. The tool prints the exact kill/relaunch recipe built from their
+   current command lines, or does it with `--restart-ptp` (logs under
+   `logs/nic_reset/`).
+8. Prints the status again; exit 0 only if every card has its netdevs. If both
+   methods fail, the remaining option is a host reboot (mlxfwreset level 4).
+
+Afterwards run `./reboot_cams.sh` if the cameras need a power cycle and lens
+check, and `./check_kernel_tuning.py` to confirm the mlx5 interrupt affinity
+survived the re-probe.
+
+## Running without a sudo password
+
+The tool itself needs root only for `--reset`. The repo already uses a
+root-owned copy plus a `sudoers.d` rule for the read-only inventory probe
+(`install_root_probe.sh`); the same pattern fits here: install a root-owned
+copy of `reset_camera_nics.py`, `hostconfig.py` and a snapshot of the host
+config under `/usr/local/libexec/pancakebatter/`, and allow exactly that
+command for the rig user. Keep the rule pointed at the root-owned copy, never
+at the checkout, so editing the repo does not change what runs as root.
+
+## Checking the cards once they are back
+
+```bash
+./reset_camera_nics.py                       # netdevs, carrier, health messages
+sudo mget_temp -d 61:00.0                    # ASIC temperature (firmware cutoff ~105 C)
+sensors | grep -A2 mlx5                      # the same through hwmon, no root needed
+./rig_health_check.py                        # everything in one go
+```

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the rig health check every @INTERVAL@
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=@INTERVAL@
+AccuracySec=30s
+RandomizedDelaySec=20s
+
+[Install]
+WantedBy=timers.target

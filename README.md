@@ -17,3 +17,5 @@ Per-machine files (`config.yml` inventory, driver-upgrade manifest) live in `hos
 New cameras are discovered, given their port's camera IP, and recorded in the host config by `camera_adopt.py` (see [`docs/camera_adopt.md`](docs/camera_adopt.md)).
 
 Apt package manifests used by the installer scripts live in [`packages/apt`](packages/apt/README.md). Conda environment files live in [`environments/`](environments/): `rig_control.yaml` for the rig control scripts and the optional `juicebox.yaml` for data analysis and plotting.
+
+Operations: [`docs/camera_nic_reset.md`](docs/camera_nic_reset.md) (status and in-place firmware reset of the ConnectX camera NICs after the 2026-10-03 thermal shutdown) and [`docs/rig_health_monitor.md`](docs/rig_health_monitor.md) (`rig_health_check.py` on a systemd timer that stays off the isolated cores).

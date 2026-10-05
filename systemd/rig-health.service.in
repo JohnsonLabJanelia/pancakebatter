@@ -1,0 +1,30 @@
+# Rendered by install_rig_health_timer.sh (@REPO@, @USER@, @CPUAFFINITY@ are filled in).
+[Unit]
+Description=Rig health check (read-only, pancakebatter rig_health_check.py)
+Documentation=file://@REPO@/docs/rig_health_monitor.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@USER@
+SupplementaryGroups=systemd-journal
+WorkingDirectory=@REPO@
+EnvironmentFile=-/etc/default/rig-health
+ExecStart=/usr/bin/python3 @REPO@/rig_health_check.py --state-dir /var/lib/rig-health $RIG_HEALTH_ARGS
+StateDirectory=rig-health
+# Exit 1 = warnings, 2 = critical findings; neither is a unit failure.
+SuccessExitStatus=1 2
+TimeoutStartSec=120
+
+# Stay out of the acquisition pipeline's way.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+CPUAffinity=@CPUAFFINITY@
+
+# Read-only everywhere except the state directory.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/rig-health
+ProtectHome=read-only
+PrivateTmp=yes
+NoNewPrivileges=yes

@@ -1,0 +1,12 @@
+# Environment for rig-health.service; install_rig_health_timer.sh copies this to /etc/default/rig-health
+# the first time (it never overwrites an existing file).
+
+# Mail recipient(s) for level changes (comma separated). Empty = journal only.
+RIG_HEALTH_EMAIL=
+
+# Sender address; default rig-health@<fqdn>. Mail goes out through msmtp (or sendmail) as the
+# service user, so that user's ~/.msmtprc or /etc/msmtprc must be set up.
+RIG_HEALTH_FROM=
+
+# Extra arguments for rig_health_check.py, e.g. "--no-gpu" or "--threshold nic_warn=80".
+RIG_HEALTH_ARGS=
