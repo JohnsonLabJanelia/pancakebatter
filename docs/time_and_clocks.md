@@ -100,3 +100,88 @@ offset at the 2026-09-19 22:22 boot to ~8 min on 2026-10-05, at roughly
 30 s/day. There is no exact record of the offset at any given recording;
 `rig_health_check.py`'s `time_sync` check now logs it every five minutes
 (`/var/lib/rig-health/history.jsonl`), so from here on it is known.
+
+## A better reference: GPS-disciplined clocks
+
+Each GPS satellite carries atomic clocks and broadcasts the time; a receiver
+finds its position by comparing arrival times from four or more satellites,
+which only works if it also solves for the exact time, so every position fix
+is a time fix to tens of nanoseconds. A GPS-disciplined oscillator (GPSDO)
+keeps a good local crystal ticking smoothly and nudges its frequency so the
+ticks line up with satellite time: crystal smoothness short term, atomic
+accuracy long term, in a small box with a 1 pulse-per-second output and
+usually PTP/NTP out of the back. The NTP pool is largely fed by these.
+
+For this rig a GPSDO acting as PTP grandmaster on the camera network would
+make the host a PTP *client* (phc2sys direction flipped) and take the host
+crystal out of the chain entirely. Only worth it if recordings must line up
+with instruments outside the room at better than NTP's few milliseconds.
+
+## Long recordings: drift is measured, never prevented
+
+Drift is a rate, so it is harmless over a minute and seconds over a day. The
+approaches, weakest to strongest; serious installations use the last three
+together:
+
+| Approach | What it gives | Limits |
+|---|---|---|
+| One clock for everything (shared 10 MHz / sample clock, PXI backplane) | no relative drift at all | hard across vendors or distance |
+| Continuous discipline (NTP over the network, PTP on the LAN) | every clock slewed toward one reference while running | rate changes slightly as it is corrected; must never step mid-run |
+| Record a common marker in every stream, fit afterwards | mapping between timelines recovered from the data itself; a day of once-per-second edges fits the relative rate to <1 ppm and shows wander in the residuals | needs a spare channel; needs the fit done |
+| Hardware timestamps at the edge (the capturing device stamps from a disciplined clock) | the timestamp is made where the event happens, not where the data lands | needs devices that can do it (the camera NICs do, via PTP) |
+
+The reason for the redundancy: the failure that matters in a long run is not
+steady drift but a clock that steps, glitches or loses its reference partway
+through, and only an independent signal recorded *in the data* lets you find
+and repair that later.
+
+## Worked case: a USB DAQ next to PTP-timed cameras and stimulus software
+
+Setup: cameras and stimulus software are aligned through PTP timestamps that
+follow the host system clock; a USB DAQ streams samples into the same host.
+
+What the DAQ really gives you: samples taken at intervals set by *its own*
+crystal (typically 20-50 ppm), delivered over USB in buffers that arrive
+milliseconds late with jitter. The host can timestamp a buffer's arrival, not
+a sample. So the DAQ timeline is `sample_index / nominal_rate` plus an
+unknown start offset, drifting against the host at the DAQ crystal's ppm
+(1-4 s per day). Host-side timestamps on buffers are only good to the
+millisecond and only tell you about USB, not about the samples.
+
+**The common pulse does not need a generator, and it does not demote the
+server.** The cameras already emit a strobe on their GPO line once per
+exposure (Orange configures it: `strobe_output_connection`, `gpo_index`).
+Those cameras are PTP clients of the host, so every strobe edge *is* an event
+on the server's timeline, and every frame already carries that edge's PTP
+timestamp in its metadata. Wire the strobe into a DAQ digital or analog
+channel and the DAQ record contains copies of the server's timeline, one per
+frame. The pulse is a measurement channel, not a clock; the host stays the
+source of truth and the DAQ becomes a device that records evidence of it.
+An external TTL generator would only add a third free-running clock to fit.
+
+Procedure (per recording):
+
+1. Record the strobe on a DAQ channel sampled at ≥10x the frame rate, or
+   use the DAQ's edge-counter / change-detection input if it has one.
+2. Detect rising edges → sample indices `s_k`. Take frame timestamps `t_k`
+   (PTP, from the camera metadata) in order; the counts match within a run,
+   and a dropped frame shows up as a gap in `t_k` spacing with no matching gap
+   in `s_k`, or vice versa.
+3. Fit `t = a + b * s`. `b` is the DAQ's true sample period as seen by the
+   PTP timeline; `(b * nominal_rate - 1)` is the DAQ crystal's ppm error,
+   which should be constant across runs. Residuals are jitter plus any USB
+   buffer glitch (a step in the residuals = samples lost; check the driver's
+   sample counter).
+4. Convert any DAQ sample to PTP time with the fit. Store `a`, `b`, residual
+   RMS and max with the recording.
+5. Stimulus events timestamped by software with `CLOCK_REALTIME` are already
+   on the same timeline (phc2sys -rr), so they compare directly with the fitted
+   DAQ time. But a software timestamp is when the stimulus was *commanded*;
+   display and audio pipelines add tens of milliseconds. Record the stimulus
+   itself into the DAQ too (photodiode on the screen, a copy of the audio
+   line, or a DIO toggled by the stimulus code) and read onset off the DAQ.
+
+The alternative direction, a DAQ counter output into the cameras' trigger
+input, works the same way (the cameras timestamp the DAQ's pulses) but makes
+the cameras externally triggered, which changes how Orange runs them. The
+strobe-into-DAQ direction leaves the camera pipeline untouched.
