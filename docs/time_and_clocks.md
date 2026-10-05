@@ -185,3 +185,68 @@ The alternative direction, a DAQ counter output into the cameras' trigger
 input, works the same way (the cameras timestamp the DAQ's pulses) but makes
 the cameras externally triggered, which changes how Orange runs them. The
 strobe-into-DAQ direction leaves the camera pipeline untouched.
+
+## Latency is not timestamp accuracy
+
+Two different questions hide in "how precise is my DAQ":
+
+- **When did this sample happen?** Answered after the fact. A sample's position
+  in the stream is exact (set by the DAQ crystal) no matter how late the USB
+  block carrying it arrives, and the strobe fit anchors that position to PTP
+  time. Microsecond-class *timestamps* from a USB device are routine. Latency
+  and jitter do not degrade them at all.
+- **How soon can the program react to it?** Bounded by the delivery latency,
+  and worse, by its jitter: OS scheduling, the USB host controller's polling,
+  driver buffering. Over USB on a general-purpose OS that is a few ms with
+  small transfers and a tuned host; it is not sub-millisecond and not
+  deterministic. USB audio interfaces, which use the reserved-bandwidth
+  isochronous mode and are built for this, reach 1-3 ms round trip, which is
+  about the floor for the bus.
+
+Design consequence: never let the timestamp depend on the reaction path.
+Record on the DAQ axis, align with the strobe fit, and treat host timestamps
+as diagnostics. Then choose the reaction path by how fast the loop must be.
+
+## How fast can a closed loop get?
+
+Typical loop latencies (input event to output change), with the usual jitter,
+for the ways a reaction can be built. Figures are order-of-magnitude and
+assume a competent implementation.
+
+| Path | Latency | Jitter | Notes |
+|---|---|---|---|
+| Camera frame -> software -> stimulus display | 20-50 ms | ~one frame | Bounded by exposure + readout + transfer + inference + the display's own refresh pipeline (16 ms at 60 Hz). Camera-based loops are 10 ms-class at best regardless of software; at 100 fps the frame period alone is 10 ms. |
+| USB DAQ -> user program on a normal Linux host -> USB DIO out | 2-10 ms | 1-5 ms | Small transfer sizes and a quiet machine get toward 1-2 ms. Fine when the next stage is a display or an animal's reaction time (tens of ms). |
+| PCIe DAQ, DMA into host memory, user-space polling on an isolated core (the Orange/Rivermax pattern) | 10-100 us | tens of us | What this rig already does for frames: the NIC DMAs into GPU memory, threads spin on `isolcpus` cores. A `PREEMPT_RT` kernel bounds the worst case at a few tens of us; stock kernels have rare ms-scale outliers. |
+| Microcontroller with its own ADC (Teensy 4.x class, 600 MHz, bare metal) | 1-10 us | <1 us | Deterministic because there is no OS. Reads a pin or ADC, compares, drives an output. The right home for a reflex; the host configures it and records what it did. |
+| FPGA / commercial real-time processors (DSP or FPGA based electrophysiology systems) | <10 us, often <1 us | ns | Spike detection, filtering and the output decision all in logic. This is how "detect spike, fire laser" products specify loop times in the tens of us. |
+| Analog comparator / hardware trigger line | ns-us | ns | A threshold crossing drives a TTL directly. No computation, but unbeatable when the rule is simple. |
+
+Physical limits that set what "fast enough" means for "spike detected, fire
+laser within 500 us":
+
+- A spike waveform lasts ~1 ms. Detecting it on the rising phase with a
+  threshold gives a decision 100-300 us after onset; waiting for the full
+  shape to classify the unit costs the whole millisecond. So the 500 us budget
+  is mostly spent before any electronics act, and only a hardware path
+  (comparator, microcontroller, FPGA) leaves room for the rest.
+- Laser diodes and LEDs with a proper driver switch in microseconds; mechanical
+  shutters and some AOM drivers take milliseconds. Check the actuator before
+  blaming the computer.
+- Biology is slow by comparison: synaptic delays ~1 ms, axonal conduction
+  tens of mm per ms, behavioral reaction 100+ ms. A loop that is well inside
+  the relevant biological timescale is fast enough; faster buys nothing.
+
+The pattern that works, and that this rig already partly follows:
+
+1. **Reflexes in hardware.** Anything that must happen in <1 ms lives on a
+   microcontroller, FPGA or comparator next to the signal, with the host
+   setting parameters, not making the decision.
+2. **Judgment on the host.** Decisions that can tolerate milliseconds (change
+   the stimulus, start a trial, adapt a threshold) go through the DAQ/USB or
+   camera path on the host, which has the full picture and the storage.
+3. **Everything on one recorded axis.** The DAQ records the input, the
+   hardware reflex's output, and a DIO line the host toggles whenever it issues
+   a command. Loop latency and jitter are then *measured* in every recording,
+   and the strobe edges tie that axis to the cameras' PTP time. Nothing about
+   the alignment depends on how fast anything reacted.
