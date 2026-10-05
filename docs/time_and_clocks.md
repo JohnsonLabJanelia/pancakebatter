@@ -307,3 +307,60 @@ rule must fire in well under a millisecond: spike-triggered stimulation,
 event-triggered galvo or AOM steering, hardware gating. Then every
 millisecond-scale element has to be designed out of the loop, and USB is one
 of them.
+
+## Audio stimuli: aligning tones delivered to the animals
+
+The software timestamp of `play()` is the least reliable number in the whole
+chain. A desktop audio stack (PulseAudio, PipeWire in its default
+configuration) buffers 20-100 ms and the delay varies per call; a tuned
+low-latency path (ALSA `hw:` device directly, or JACK/PipeWire with a small
+quantum) gets to 1-10 ms but still jitters; a USB audio interface adds a
+fixed, device-specific few ms on top. None of that is knowable from the host.
+So, as with everything else: do not infer onset from software, record it.
+
+Three ways, best first:
+
+1. **Make the DAQ the sound source.** Most USB DAQs have analog outputs with
+   hardware-timed buffers at 10-100 kS/s, enough for tones up to several kHz.
+   Preload the waveform and start it on the DAQ's own clock; the output's
+   first sample is then on the same sample axis as the inputs, so onset is
+   known to the sample with zero software uncertainty, and the strobe fit
+   ties it to the cameras' PTP time. The DAQ's output can only drive a small
+   load, so put a small audio amplifier between it and the speaker; the
+   amplifier's delay is microseconds. Loop a copy of the amplifier output
+   back into an analog input anyway (resistor divider), as the record of what
+   was actually delivered.
+2. **Sound card plus a sync track.** If the stimulus needs a real sound card
+   (many channels, high sample rate, existing stimulus software), use its
+   stereo nature: left channel carries the tone to the speaker, right channel
+   carries a short click or a step at the same instant into a DAQ analog
+   input. The two channels of one sound card are sample-locked by its own
+   clock, so the recorded click marks the tone's onset exactly, unaffected by
+   the software path, the room, or the water. Also record a copy of the
+   speaker drive signal.
+3. **Record the sound itself.** A microphone (or in water, a hydrophone or an
+   accelerometer on the tank) into a DAQ channel captures the stimulus as the
+   animal received it, including the transducer's rise time and the tank's
+   acoustics. Good as the ground truth of delivery; noisier as a timing marker
+   than 1 or 2, so use it alongside them, not instead.
+
+Physical delays to keep in view: sound travels 0.34 m per ms in air and
+1.48 m per ms in water, so tank-scale distances are sub-millisecond; small
+speakers and transducers take a few ms to reach full amplitude, so define
+onset as the start of the ramp (use a 5 ms cosine ramp to avoid broadband
+clicks) and let the recorded copy show the rest. Conditioning paradigms work
+on tens to hundreds of ms between cue and outcome, so millisecond alignment
+is ample; it matters more when measuring the animal's response latency to the
+tone.
+
+Fish specifics. Zebrafish hear roughly 100 Hz-4 kHz with best sensitivity
+around 500-1000 Hz, and larvae respond strongly to acoustic/vibrational
+startle. A speaker in air couples poorly into water (impedance mismatch; most
+of the energy reflects at the surface), so expect an underwater transducer or
+a vibration exciter bolted to the tank to work far better than a speaker above
+it. Fish sense particle motion as much as pressure, and a small tank has its
+own resonances that reshape any tone, so measure what the tank delivers (a
+hydrophone for pressure, an accelerometer on the tank wall for motion) rather
+than trusting the waveform you sent. Timing alignment and loudness/spectrum
+calibration are separate problems; the recording channel in 1-3 solves the
+first and gives you the data for the second.
