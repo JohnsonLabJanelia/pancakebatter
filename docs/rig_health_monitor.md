@@ -46,8 +46,9 @@ per check with the highest value.
 - The script renices itself to 19 and pins itself to the complement of
   `kernel_tuning.isolated_cores` from `hosts/<hostname>/config.yml`
   (`./rig_health_check.py --print-affinity` shows the list; on pancake0 that
-  is everything except cores 1,2,6,8,10,12,38,40,42,44 where Orange's
-  acquisition and YOLO threads live).
+  is everything except CPUs 1,2,6,8,10,12,33,34,38,40,42,44, where Orange's
+  YOLO threads and Citrus's render and arena update threads run, each with an
+  idle hyperthread sibling).
 - The unit adds `Nice=19`, `IOSchedulingClass=idle`, `CPUSchedulingPolicy=idle`
   and `CPUAffinity=` with the same list, plus `ProtectSystem=strict`: it can
   write only to `/var/lib/rig-health`.
