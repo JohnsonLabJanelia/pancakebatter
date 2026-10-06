@@ -20,6 +20,27 @@
 #                          rig_control conda env if found, else python3 on PATH)
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Coloured messages on a terminal only; pipes and log files stay plain. NO_COLOR is honoured and
+# REBOOT_CAMS_COLOR=always|never overrides the detection.
+_color() {  # _color <fd>: should output on that file descriptor be coloured?
+  case "${REBOOT_CAMS_COLOR:-auto}" in always) return 0 ;; never) return 1 ;; esac
+  [[ -t "$1" && -z "${NO_COLOR:-}" ]]
+}
+step() {  # progress
+  if _color 1; then printf '\033[1;36m[reboot_cams]\033[0m %s\n' "$*"; else printf '[reboot_cams] %s\n' "$*"; fi
+}
+good() {  # success
+  if _color 1; then printf '\033[1;32m[reboot_cams]\033[0m \033[32m%s\033[0m\n' "$*"; else printf '[reboot_cams] %s\n' "$*"; fi
+}
+note() {  # problem detail, to stderr
+  if _color 2; then printf '\033[1;31m[reboot_cams]\033[0m \033[31m%s\033[0m\n' "$*" >&2; else printf '[reboot_cams] %s\n' "$*" >&2; fi
+}
+die() {   # die <exit code> <message>
+  local code="$1"; shift
+  note "$*"
+  exit "$code"
+}
 source "$HERE/lib/host_config.sh"
 PDU_HOST="${PDU_HOST:-192.168.20.177}"
 # Python for pdu.py (needs pexpect, pyyaml, rich): $RIG_CONTROL_PYTHON if set, else the rig_control
@@ -33,10 +54,9 @@ if [[ -z "${RIG_CONTROL_PYTHON:-}" ]]; then
   RIG_CONTROL_PYTHON="${RIG_CONTROL_PYTHON:-python3}"
 fi
 if ! "$RIG_CONTROL_PYTHON" -c 'import pexpect, yaml, rich' 2>/dev/null; then
-  echo "$RIG_CONTROL_PYTHON cannot import pexpect/yaml/rich (needed by pdu.py). Create the env with" >&2
-  echo "  conda env create -f environments/rig_control.yaml" >&2
-  echo "or point RIG_CONTROL_PYTHON at a python that has them. Nothing was power-cycled." >&2
-  exit 2
+  note "$RIG_CONTROL_PYTHON cannot import pexpect/yaml/rich (needed by pdu.py). Create the env with"
+  note "  conda env create -f environments/rig_control.yaml"
+  die 2 "or point RIG_CONTROL_PYTHON at a python that has them. Nothing was power-cycled."
 fi
 # ORANGE_ROOT is a system-wide variable on this host (/opt/orange), so use a
 # dedicated one for the readiness tool.
@@ -52,11 +72,11 @@ while [[ $# -gt 0 ]]; do
     --outlet) OUTLET="$2"; shift ;;
     --wait-seconds) WAIT_SECONDS="$2"; shift ;;
     -h|--help) sed -n 2,20p "$0"; exit 0 ;;
-    *) echo "unknown argument: $1" >&2; exit 2 ;;
+    *) die 2 "unknown argument: $1 (see --help)" ;;
   esac
   shift
 done
-[[ -x "$READY_BIN" ]] || { echo "missing $READY_BIN (build target evt_camera_ready)" >&2; exit 2; }
+[[ -x "$READY_BIN" ]] || die 2 "missing $READY_BIN (build target evt_camera_ready)"
 
 # Serials come from the PDU outlet descriptions in hosts/<hostname>/config.yml ("SN: 2010093").
 SERIALS="$("$RIG_CONTROL_PYTHON" - "$HOST_CONFIG_FILE" "$PDU_HOST" <<'PY'
@@ -73,26 +93,25 @@ for pdu in pdus:
 print(",".join(sorted(serials)))
 PY
 )"
-[[ -n "$SERIALS" ]] || { echo "no camera serials found in hosts/<hostname>/config.yml for PDU $PDU_HOST" >&2; exit 2; }
+[[ -n "$SERIALS" ]] || die 2 "no camera serials found in hosts/<hostname>/config.yml for PDU $PDU_HOST"
 
-if pgrep -f "targets/release/orange" >/dev/null; then
-  echo "Orange is running; stop it before power-cycling the cameras." >&2
-  exit 3
+# -x matches the process name exactly; -f on the path also matched any shell that merely mentioned it
+if pgrep -x orange >/dev/null; then
+  die 3 "Orange is running; stop it before power-cycling the cameras."
 fi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="$HERE/logs/camera_power_cycle"; mkdir -p "$LOG_DIR"
 REPORT="$LOG_DIR/camera_ready_${STAMP}.json"
 
-echo "[reboot_cams] PDU $PDU_HOST outlet=$OUTLET reboot ($STAMP)"
+step "PDU $PDU_HOST outlet=$OUTLET reboot ($STAMP)"
 (cd "$HERE" && "$RIG_CONTROL_PYTHON" ./pdu.py --host "$PDU_HOST" --action reboot --outlet "$OUTLET" --verify)
 
-echo "[reboot_cams] waiting for cameras $SERIALS (up to ${WAIT_SECONDS}s), then checking lens mounts"
+step "waiting for cameras $SERIALS (up to ${WAIT_SECONDS}s), then checking lens mounts"
 ARGS=(--serials "$SERIALS" --wait-seconds "$WAIT_SECONDS" --config-dir "$ORANGE_CAMERA_CONFIG" --json "$REPORT")
 (( APPLY )) && ARGS+=(--apply-lens)
 if "$READY_BIN" "${ARGS[@]}"; then
-  echo "[reboot_cams] cameras ready; report $REPORT"
+  good "cameras ready; report $REPORT"
 else
-  echo "[reboot_cams] CAMERA/LENS CHECK FAILED; report $REPORT" >&2
-  exit 1
+  die 1 "CAMERA/LENS CHECK FAILED; report $REPORT"
 fi

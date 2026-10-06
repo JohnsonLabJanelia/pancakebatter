@@ -22,6 +22,10 @@ Serials come from the PDU outlet descriptions in `hosts/<hostname>/config.yml`
 (`SN: 2010093` etc.), so a camera swap only needs the outlet table updated.
 Reports land in `logs/camera_power_cycle/camera_ready_<stamp>.json`.
 
+On a terminal the script's own `[reboot_cams]` lines are coloured (cyan progress, green success,
+red failure); piped or logged output stays plain, `NO_COLOR` is honoured, and
+`REBOOT_CAMS_COLOR=always|never` overrides the detection.
+
 Why the verification matters (measured 2026-09-23 on pancake0): the EF mount
 silently drops a Focus or Iris write that arrives while it is still moving,
 and the commanded register still reads back the new value. Only
