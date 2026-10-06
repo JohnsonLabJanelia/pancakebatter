@@ -291,6 +291,8 @@
           "enum": [
             "acquisition",
             "yolo",
+            "stimulus_render",
+            "arena_update",
             "smt_sibling",
             "housekeeping",
             "other",
@@ -314,6 +316,10 @@
         },
         "note": {
           "type": "string"
+        },
+        "thread": {
+          "type": "string",
+          "description": "Thread or entry point that runs here, e.g. StimulusDisplayManager::Run."
         }
       }
     }

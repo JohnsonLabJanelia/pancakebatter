@@ -7,7 +7,7 @@ matched its provisioning. Settings and why they matter, from the 2026-09 soaks:
 
 | Setting | Where it lives | Why |
 | --- | --- | --- |
-| `isolcpus`, `nohz_full`, `rcu_nocbs` = 1,2,6,8,10,12,38,40,42,44 | kernel command line (GRUB) | Orange's acquisition and YOLO threads run there without scheduler or timer noise. |
+| `isolcpus`, `nohz_full`, `rcu_nocbs` = 1,2,6,8,10,12,38,40,42,44 | kernel command line (GRUB) | Orange's YOLO threads (6, 8, 10, 12 and their hyperthread siblings) and Citrus's stimulus render and arena update threads (1, 2) run there without scheduler or timer noise. The per-CPU record is `kernel_tuning.core_roles`, below. |
 | `tsc=reliable` | kernel command line | The TSC was marked unstable on 2026-09-11 and the host fell back to acpi_pm, inflating every host-side timing for a week. |
 | `iommu=pt` | kernel command line | Pass-through IOMMU for the GPUDirect/NIC DMA path (applied 2026-09-19, no measurable effect but safe). |
 | `vm.dirty_background_bytes=64 MB`, `vm.dirty_bytes=512 MB` | `/etc/sysctl.d/90-orange-writeback.conf` | Recorders write ~600 MB/s of MP4 into the page cache; the default ratio thresholds let the kernel flush ~3 GB bursts every 31 s over the host bridge that A16 card A shares with the NVMe drives, stalling the pipeline (2026-09-21). |
@@ -47,7 +47,8 @@ CPUs is for. On pancake0:
 |---|---|---|
 | 6, 8, 10, 12 | YOLO inference thread for camera 2010093, 2010094, 2010095, 2010096 | `yolo_affinity_effective_cpus` in the `Cam*_yolo_perf.csv` of the 2026-09-24 and 2026-10-01 runs (set through `ORANGE_YOLO_AFFINITY_CAM_<serial>`) |
 | 38, 40, 42, 44 | hyperthread siblings of 6, 8, 10, 12, kept idle so each YOLO thread has a whole physical core | `/sys/devices/system/cpu/cpuN/topology/thread_siblings_list` |
-| 1, 2 | **unassigned** | no recorded run and nothing in the Orange source pins a thread here |
+| 1 | Citrus stimulus render thread (`StimulusDisplayManager::Run`: GL context, CUDA composition, PBO upload, swap); a short-lived `PrepareStart` thread inherits the CPU at experiment start | citrus @ 48c9158: `src/core/threading_config.h` (`render_core = 1`), `citrus_runtime.threading.render_core` in `citrus/system_config.yml`, env `CITRUS_RENDER_CORE`; pinned at `src/main.cpp` after thread creation |
+| 2 | Citrus arena update loop (`ArenaUpdateManager::UpdateLoop`) | same files: `arena_update_core = 2`, env `CITRUS_ARENA_UPDATE_CORE`; pinned in `src/core/ArenaUpdateManager.cpp` |
 
 Entry format (keys are CPU numbers as strings; validated by
 `schemas/system_config.v1.schema.json`):
@@ -60,8 +61,9 @@ kernel_tuning:
     "1":  {role: unassigned, note: "..."}
 ```
 
-Roles: `acquisition`, `yolo`, `smt_sibling` (needs `sibling_of`),
-`housekeeping`, `other`, `unassigned`. `check_kernel_tuning.py` enforces:
+Roles: `acquisition`, `yolo`, `stimulus_render`, `arena_update`, `smt_sibling`
+(needs `sibling_of`), `housekeeping`, `other`, `unassigned`; optional `consumer`,
+`camera`, `thread`, `note`. `check_kernel_tuning.py` enforces:
 
 - every isolated CPU has an entry and every entry is an isolated CPU (FAIL
   otherwise), so the map cannot drift from the kernel command line;
@@ -76,24 +78,37 @@ isolated CPU `unassigned`, to be filled in by hand.
 
 ### Known gap: CPUs 1 and 2 are only half isolated
 
-CPUs 1 and 2 are isolated but their hyperthread siblings 33 and 34 are not, an
-oversight from when the isolation was first set up. Ordinary processes can be
-scheduled on 33/34 and then share a physical core, its caches and its
-execution resources with whatever is meant to run undisturbed on 1/2. Today
-nothing is pinned to 1 or 2, so there is no victim, but the two CPUs are also
-doing nothing. Two ways to close it, both a GRUB edit plus reboot, to be done
-between recordings:
+CPUs 1 and 2 carry Citrus's render and arena update threads, but their
+hyperthread siblings 33 and 34 are not isolated, an oversight from when the
+isolation was first set up. Ordinary processes can be scheduled on 33/34 and
+then share a physical core, its caches and its execution resources with the
+stimulus render loop or the arena update loop. Citrus knows: its
+`src/docs/CPU_AFFINITY_AND_ISOLATION.md` says the two roles have "logical-CPU
+isolation ... not complete physical-core isolation", and it neither assumes nor
+checks that the siblings are quiet. Orange's YOLO cores do have whole pairs
+(6/38, 8/40, 10/42, 12/44).
 
-- **Use them properly:** add 33,34 to `isolcpus`, `nohz_full` and `rcu_nocbs`,
-  assign roles (for example acquisition/polling threads), and update
-  `isolated_cores`, the `cmdline` values and `core_roles` in the host config.
-- **Give them back:** remove 1,2 from the three options and from the config.
+The fix is to give Citrus the same treatment, between recordings:
 
-After either, re-run `sudo ./install_ptp_units.sh` and
-`sudo ./install_rig_health_timer.sh` (both embed the non-isolated CPU list) and
-`./check_kernel_tuning.py`.
+1. In `/etc/default/grub`, add 33,34 to `isolcpus`, `nohz_full` and
+   `rcu_nocbs` (new list `1,2,6,8,10,12,33,34,38,40,42,44`), then
+   `sudo update-grub` and reboot.
+2. In `hosts/pancake0/config.yml`, update the three `cmdline` values and
+   `isolated_cores`, and add `core_roles` entries `"33": {role: smt_sibling,
+   sibling_of: 1}` and `"34": {role: smt_sibling, sibling_of: 2}`.
+3. Re-run `sudo ./install_ptp_units.sh` and `sudo ./install_rig_health_timer.sh`
+   (both embed the non-isolated CPU list), then `./check_kernel_tuning.py`,
+   which should pass with no warnings.
+4. On the Citrus side nothing changes in code; its
+   `src/docs/CPU_AFFINITY_AND_ISOLATION.md` and
+   `docs/orange_citrus_live_timing_status.md` quote the old list.
+
+Not on isolated CPUs by design: Citrus's arena worker pool (CPU 24 upward, 4
+workers) and its Shaman IPC readers (CPU 20 upward).
 
 Orange's launch scripts still carry their own `ORANGE_YOLO_AFFINITY_CAM_*`
 values (and some test scripts use other cores, including non-isolated ones).
-The host config is now the record of intent; having the launchers read the
-pinning from `core_roles` would make it the single source.
+Citrus reads its two cores from `citrus_runtime.threading` in its own
+`system_config.yml`. The host config is now the record of intent for both;
+having the launchers read the pinning from `core_roles` would make it the
+single source.

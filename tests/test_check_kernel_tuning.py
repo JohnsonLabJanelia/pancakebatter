@@ -80,6 +80,16 @@ class CoreRoleTests(unittest.TestCase):
         self.assertTrue(any("cpu 38 says sibling_of 8" in m for m in fails))
         self.assertTrue(any("cpu 2 has unknown role 'gaming'" in m for m in fails))
 
+    def test_citrus_roles_are_accepted_and_show_their_thread(self):
+        roles = dict(ROLES, **{"1": {"role": "stimulus_render", "consumer": "citrus", "thread": "StimulusDisplayManager::Run"},
+                               "2": {"role": "arena_update", "consumer": "citrus"}})
+        f = ckt.core_role_findings(ISO, roles, SIBLINGS)
+        self.assertEqual(levels(f, "fail"), [])
+        self.assertIn("cpu 1: stimulus_render for citrus (StimulusDisplayManager::Run)", levels(f, "ok"))
+        self.assertIn("cpu 2: arena_update for citrus", levels(f, "ok"))
+        self.assertFalse(any("unassigned" in m for m in levels(f, "warn")))
+        self.assertEqual(len(levels(f, "warn")), 2)     # only the two half-isolated cores remain
+
     def test_missing_map_is_one_warning(self):
         self.assertEqual(ckt.core_role_findings(ISO, None, SIBLINGS),
                          [("warn", "no kernel_tuning.core_roles recorded: nothing says what each isolated CPU is for")])

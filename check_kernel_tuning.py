@@ -156,7 +156,7 @@ def irq_verdict(port, live_cpus, recorded_cpus, isolated):
     return "ok", f"{port} mlx5 irqs avoid the isolated cores ({len(live_cpus)} cpus allowed{note})"
 
 
-CORE_ROLES = ("acquisition", "yolo", "smt_sibling", "housekeeping", "other", "unassigned")
+CORE_ROLES = ("acquisition", "yolo", "stimulus_render", "arena_update", "smt_sibling", "housekeeping", "other", "unassigned")
 
 
 def thread_siblings(cpu):
@@ -202,7 +202,8 @@ def core_role_findings(isolated, core_roles, siblings):
             else:
                 out.append(("ok", f"cpu {cpu}: idle sibling of cpu {owner} ({roles[owner]['role']})"))
         else:
-            who = " ".join(str(x) for x in (entry.get("consumer"), entry.get("camera") and f"camera {entry['camera']}") if x)
+            who = " ".join(str(x) for x in (entry.get("consumer"), entry.get("camera") and f"camera {entry['camera']}",
+                                             entry.get("thread") and f"({entry['thread']})") if x)
             out.append(("ok", f"cpu {cpu}: {role}{' for ' + who if who else ''}"))
     # A physical core is only quiet if every one of its hyperthreads is isolated.
     for cpu in sorted(isolated):
@@ -245,7 +246,7 @@ def record_block(state):
             lines.append(f'    {k}: "{state["cmdline"][k]}"')
     lines += [
         f'  isolated_cores: "{isolated}"',
-        "  core_roles:  # fill in: acquisition | yolo | smt_sibling (with sibling_of) | housekeeping | other | unassigned",
+        "  core_roles:  # fill in: acquisition | yolo | stimulus_render | arena_update | smt_sibling (with sibling_of) | housekeeping | other | unassigned",
         *[f'    "{cpu}":\n      role: unassigned' for cpu in sorted(parse_cpulist(isolated))],
         f'  sysctl_file: "{state["sysctl_file"]}"  # copy of configs/sysctl/90-orange-writeback.conf',
         "  sysctl:",
