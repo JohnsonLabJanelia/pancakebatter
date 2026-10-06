@@ -3,6 +3,7 @@
 
   ./rig_health_check.py                  print findings; exit 0 ok, 1 warnings, 2 critical
   ./rig_health_check.py --json           one JSON document instead
+  ./rig_health_check.py --color always   force colour (default: only on a terminal; rich if installed, else ANSI)
   ./rig_health_check.py --state-dir DIR  remember the last result there; level changes are what get mailed
   ./rig_health_check.py --print-affinity the non-isolated CPU list (install_rig_health_timer.sh uses it)
 
@@ -205,6 +206,9 @@ def check_camera_nics(host: Host, config: dict) -> list[Finding]:
 
 def check_mlx5_health(host: Host, config: dict, since: str) -> list[Finding]:
     nics = rcn.mellanox_nics(config)
+    ok, raw = rcn.kernel_journal(host, since)
+    if not ok:
+        return [Finding("mlx5_health", "warn", f"could not read the kernel log: {' '.join(raw)[:120]}")]
     lines = rcn.kernel_health_lines(host, [n["pcie_id"] for n in nics.values()], since=since)
     hits = [l for ls in lines.values() for l in ls]
     if not hits:
@@ -299,14 +303,21 @@ def check_ptp(host: Host, config: dict, th: dict) -> list[Finding]:
     running = {p["name"] for p in procs}
     findings = [Finding("ptp", "warn", f"{name} is not running") for name in rcn.PTP_PROCESSES if name not in running]
     if "phc2sys" in running:
-        res = host.run(["journalctl", "_COMM=phc2sys", "-o", "cat", "--no-pager", "-n", "12", "--since", "-5min"], timeout=30)
-        offsets = [int(m) for m in re.findall(r"sys offset\s+(-?\d+)", res.stdout)] if res.returncode == 0 else []
-        if offsets:
-            worst = max(offsets, key=abs)
-            findings.append(Finding("ptp", level_for(abs(worst), th["ptp_warn_ns"], th["ptp_crit_ns"]),
-                                    f"phc2sys worst offset in last 5 min: {worst} ns", worst))
-        else:
+        res = host.run(["journalctl", "_COMM=phc2sys", "-o", "cat", "--no-pager", "-n", "400", "--since", "-5min"], timeout=30)
+        # "<port> sys offset <ns> s<state> freq ..."; servo state s2 = locked, s0/s1 = unlocked or stepping.
+        samples = re.findall(r"(\S+) sys offset\s+(-?\d+) s(\d)", res.stdout) if res.returncode == 0 else []
+        latest_state = {port: state for port, _, state in samples}
+        unlocked = sorted(port for port, state in latest_state.items() if state != "2")
+        locked = [int(off) for _, off, state in samples if state == "2"]
+        if not samples:
             findings.append(Finding("ptp", "warn", "phc2sys running but no offset lines in the last 5 min"))
+        elif unlocked:
+            findings.append(Finding("ptp", "crit", f"phc2sys not locked on {', '.join(unlocked)} (servo state != s2)"))
+        if locked:
+            # judged on locked samples only: the step at start-up (s0/s1) is not a fault once the servo has locked
+            worst = max(locked, key=abs)
+            findings.append(Finding("ptp", level_for(abs(worst), th["ptp_warn_ns"], th["ptp_crit_ns"]),
+                                    f"phc2sys worst locked offset in last 5 min: {worst} ns", worst))
     return collapse_ok(findings) or [Finding("ptp", "ok", "ptp4l and phc2sys running")]
 
 
@@ -335,10 +346,10 @@ def check_time_sync(host: Host, th: dict, server: str | None) -> list[Finding]:
 
 
 def check_pcie_aer(host: Host, since: str) -> list[Finding]:
-    res = host.run(["journalctl", "-k", "-o", "cat", "--no-pager", "--since", since], timeout=60)
-    if res.returncode != 0:
-        return [Finding("pcie_aer", "warn", f"journalctl failed: {res.stderr.strip()[:120]}")]
-    hits = [l for l in res.stdout.splitlines() if "AER:" in l]
+    ok, lines = rcn.kernel_journal(host, since)
+    if not ok:
+        return [Finding("pcie_aer", "warn", f"could not read the kernel log: {' '.join(lines)[:120]}")]
+    hits = [l for l in lines if "AER:" in l]
     if not hits:
         return [Finding("pcie_aer", "ok", f"no AER messages since {since}")]
     devices = sorted({m.group(1) for l in hits for m in [re.search(r"(\S+ 0000:[0-9a-f:.]+):", l)] if m})
@@ -470,11 +481,73 @@ def format_findings(result: dict) -> str:
     return "\n".join(lines)
 
 
+LEVEL_STYLE = {"ok": "green", "info": "cyan", "warn": "yellow", "crit": "bold red"}   # rich styles
+LEVEL_ANSI = {"ok": "\033[32m", "info": "\033[36m", "warn": "\033[33m", "crit": "\033[1;31m"}
+ANSI_BOLD, ANSI_DIM, ANSI_RESET = "\033[1m", "\033[2m", "\033[0m"
+
+
+def want_color(mode: str, stream) -> bool:
+    """auto = colour only on a terminal (never in the journal, a pipe or a mail body) and not under NO_COLOR."""
+    if mode in ("always", "never"):
+        return mode == "always"
+    return bool(getattr(stream, "isatty", lambda: False)()) and not os.environ.get("NO_COLOR")
+
+
+def load_rich():
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        from rich.text import Text
+    except ImportError:
+        return None
+    return Console, Table, Text
+
+
+def render(result: dict, color: bool, stream=None, rich_mods="auto") -> str:
+    """Print the findings; returns which renderer was used ('plain', 'rich' or 'ansi')."""
+    stream = stream or sys.stdout
+    if not color:
+        print(format_findings(result), file=stream)
+        return "plain"
+    mods = load_rich() if rich_mods == "auto" else rich_mods
+    head = f"rig health on {result['host']} at {result['time']}: "
+    worst = result["worst"]
+    changes = sorted(result.get("transitions", {}).items())
+    if mods:
+        Console, Table, Text = mods
+        console = Console(file=stream, force_terminal=True, highlight=False)
+        console.print(Text.assemble(head, (worst.upper(), LEVEL_STYLE[worst])))
+        table = Table(box=None, show_header=False, pad_edge=False, padding=(0, 1))
+        table.add_column(no_wrap=True)
+        table.add_column(no_wrap=True, style="bold")
+        table.add_column(overflow="fold")
+        for f in result["findings"]:
+            # Text(), not markup strings: "[ok]" would otherwise be parsed as a style tag
+            table.add_row(Text(f" [{f['level']:<4}]", style=LEVEL_STYLE[f["level"]]), f["check"], Text(f["message"]))
+        console.print(table)
+        for check, (old, new) in changes:
+            console.print(Text.assemble("  change: ", (check, "bold"), f" {old} -> ", (new, LEVEL_STYLE.get(new, ""))))
+        if result.get("mail"):
+            console.print(Text(f"  {result['mail']}", style="dim"))
+        return "rich"
+    lines = [f"{head}{LEVEL_ANSI[worst]}{worst.upper()}{ANSI_RESET}"]
+    for f in result["findings"]:
+        lines.append(f"  {LEVEL_ANSI[f['level']]}[{f['level']:<4}]{ANSI_RESET} {ANSI_BOLD}{f['check']:<12}{ANSI_RESET} {f['message']}")
+    for check, (old, new) in changes:
+        lines.append(f"  change: {ANSI_BOLD}{check}{ANSI_RESET} {old} -> {LEVEL_ANSI.get(new, '')}{new}{ANSI_RESET}")
+    if result.get("mail"):
+        lines.append(f"  {ANSI_DIM}{result['mail']}{ANSI_RESET}")
+    print("\n".join(lines), file=stream)
+    return "ansi"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     parser.add_argument("--config", type=Path, help="host config (default hosts/<hostname>/config.yml)")
     parser.add_argument("--state-dir", type=Path, help="directory for last.json / history.jsonl (enables change detection)")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--color", choices=("auto", "always", "never"), default="auto",
+                        help="coloured output: auto = only on a terminal (uses rich when installed, plain ANSI otherwise)")
     parser.add_argument("--no-gpu", action="store_true", help="skip nvidia-smi")
     parser.add_argument("--no-ptp", action="store_true", help="skip the ptp4l/phc2sys check")
     parser.add_argument("--ntp-server", default=NTP_SERVER, help=f"server for the clock offset query (default {NTP_SERVER})")
@@ -528,7 +601,10 @@ def main(argv: list[str] | None = None) -> int:
         result["mail"] = send_mail(host, recipient, sender, subject, format_findings(result))
 
     save_state(args.state_dir, result)
-    print(json.dumps(result, indent=2) if args.json else format_findings(result))
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        render(result, want_color(args.color, sys.stdout))
     return LEVEL_RANK[result["worst"]]
 
 

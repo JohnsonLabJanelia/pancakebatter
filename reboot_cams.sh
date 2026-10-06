@@ -16,13 +16,28 @@
 #   ORANGE_CAMERA_CONFIG   camera config folder with <serial>.json
 #                          (default ~/orange_data/config/local/100_cam4_ptp_fourcam)
 #   PDU_HOST               default 192.168.20.177
-#   RIG_CONTROL_PYTHON     python with pexpect/pyyaml/rich for pdu.py (default:
-#                          python3 on PATH, e.g. after "conda activate rig_control")
+#   RIG_CONTROL_PYTHON     python with pexpect/pyyaml/rich for pdu.py (default: the
+#                          rig_control conda env if found, else python3 on PATH)
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/lib/host_config.sh"
 PDU_HOST="${PDU_HOST:-192.168.20.177}"
-RIG_CONTROL_PYTHON="${RIG_CONTROL_PYTHON:-python3}"
+# Python for pdu.py (needs pexpect, pyyaml, rich): $RIG_CONTROL_PYTHON if set, else the rig_control
+# conda env wherever conda lives, else python3 on PATH. Checked before anything is power-cycled.
+if [[ -z "${RIG_CONTROL_PYTHON:-}" ]]; then
+  for base in "${CONDA_EXE:+$(dirname "$(dirname "$CONDA_EXE")")}" "$HOME/miniforge3" "$HOME/mambaforge" "$HOME/miniconda3" /opt/conda; do
+    if [[ -n "$base" && -x "$base/envs/rig_control/bin/python" ]]; then
+      RIG_CONTROL_PYTHON="$base/envs/rig_control/bin/python"; break
+    fi
+  done
+  RIG_CONTROL_PYTHON="${RIG_CONTROL_PYTHON:-python3}"
+fi
+if ! "$RIG_CONTROL_PYTHON" -c 'import pexpect, yaml, rich' 2>/dev/null; then
+  echo "$RIG_CONTROL_PYTHON cannot import pexpect/yaml/rich (needed by pdu.py). Create the env with" >&2
+  echo "  conda env create -f environments/rig_control.yaml" >&2
+  echo "or point RIG_CONTROL_PYTHON at a python that has them. Nothing was power-cycled." >&2
+  exit 2
+fi
 # ORANGE_ROOT is a system-wide variable on this host (/opt/orange), so use a
 # dedicated one for the readiness tool.
 ORANGE_CAMERA_READY_ROOT="${ORANGE_CAMERA_READY_ROOT:-/home/jeremy/orange-integration-20260921}"

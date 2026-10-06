@@ -23,12 +23,21 @@ sudo ./install_rig_health_timer.sh --uninstall
 | `nvme_temps` | hwmon `nvme` Composite | the drive's own `max` (warn) and `crit` |
 | `gpu_temps` | `nvidia-smi --query-gpu=temperature.gpu` | warn 85 / crit 92; `--no-gpu` skips |
 | `disk_space` | `statvfs` on `/` and the `/mnt` partitions in the host config | warn <10 % free, crit <3 % |
-| `ptp` | `pgrep ptp4l`/`phc2sys`, `journalctl _COMM=phc2sys` | process missing: warn; worst `sys offset` in 5 min >100 µs warn, >10 ms crit; `--no-ptp` skips. With the units from `install_ptp_units.sh` the daemons come back at boot, so this only fires when they are really down |
+| `ptp` | `pgrep ptp4l`/`phc2sys`, `journalctl _COMM=phc2sys` | process missing: warn; any port whose latest phc2sys sample is not servo state `s2` (locked): crit; worst *locked* `sys offset` in 5 min >100 µs warn, >10 ms crit (the step at start-up is `s0`/`s1` and is not counted once locked); `--no-ptp` skips. With the units from `install_ptp_units.sh` the daemons come back at boot, so this only fires when they are really down |
 | `time_sync` | `timedatectl show`, one SNTP packet to `--ntp-server` (default pool.ntp.org) | no NTP service or not synchronized: warn; clock off by >1 s warn, >300 s crit; `--no-ntp-query` skips the packet |
 | `pcie_aer` | `journalctl -k --since <last run>` | any `AER:` line: warn, with the device |
 | `acquisition` | `pgrep` for `targets/release/orange` (argv[0] checked) | info only |
 
 Thresholds are overridable per run: `--threshold nic_warn=80 --threshold disk_warn_pct=15`.
+
+On a terminal the findings are coloured by level (green ok, cyan info, yellow
+warn, bold red crit). The script uses `rich` when the interpreter has it and
+plain ANSI codes when it does not, so colour never depends on an install;
+`rich` adds aligned, wrapped columns. It is in `packages/apt/sysadmin.txt` as
+`python3-rich` for the system python, or `pip install rich` in a conda env.
+`--color always|never` overrides the terminal detection and `NO_COLOR` is
+honoured. Under the timer (journal), in a pipe and in alert mails the output
+is always plain text.
 Only non-ok findings are listed individually; ok readings collapse to one line
 per check with the highest value.
 

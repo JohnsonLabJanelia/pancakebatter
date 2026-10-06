@@ -140,15 +140,34 @@ class DiskPtpAerTests(unittest.TestCase):
         findings = rhc.check_disk_space(host, config, rhc.THRESHOLDS)
         self.assertEqual([(f.check, f.level) for f in findings], [("disk_space", "ok")])
 
-    def test_ptp_offsets(self):
-        offsets = "mlnx1_p1_25g sys offset -201442512784858 s0 freq -2319 delay 661\nmlnx1_p2_25g sys offset 12 s2 freq +4 delay 600\n"
+    def _ptp(self, journal):
         host = FakeHost(netdevs=HEALTHY, commands={
             ("pgrep", "-x", "ptp4l"): (0, "101\n", ""), ("pgrep", "-x", "phc2sys"): (0, "102\n", ""),
-            ("journalctl", "_COMM=phc2sys"): (0, offsets, "")})
-        findings = rhc.check_ptp(host, CONFIG, rhc.THRESHOLDS)
+            ("journalctl", "_COMM=phc2sys"): (0, journal, "")})
+        return rhc.check_ptp(host, CONFIG, rhc.THRESHOLDS)
+
+    def test_ptp_offsets(self):
+        # a port stuck unlocked with a garbage offset (the 2026-10-03 state) is critical
+        stuck = "mlnx1_p1_25g sys offset -201442512784858 s0 freq -2319 delay 661\nmlnx1_p2_25g sys offset 12 s2 freq +4 delay 600\n"
+        findings = self._ptp(stuck)
         self.assertEqual([f.level for f in findings], ["crit"])
+        self.assertIn("not locked on mlnx1_p1_25g", findings[0].message)
+        # the step at start-up is not a fault once every port has locked
+        startup = ("mlnx1_p1_25g sys offset -525329394204 s0 freq -19864 delay 661\n"
+                   "mlnx1_p1_25g sys offset -525329394100 s1 freq -19864 delay 661\n"
+                   "mlnx1_p1_25g sys offset 109 s2 freq -19864 delay 661\n"
+                   "phc2sys[2361.455]: mlnx2_p3_25g sys offset 114 s2 freq -8079 delay 681\n")
+        findings = self._ptp(startup)
+        self.assertEqual([(f.level, f.value) for f in findings], [("ok", 114)])
+        # a locked port that wanders past the threshold still warns
+        self.assertEqual([f.level for f in self._ptp("mlnx1_p1_25g sys offset 250000 s2 freq 1 delay 600\n")], ["warn"])
         host = FakeHost(netdevs=HEALTHY, commands={("pgrep", "-x", "ptp4l"): (1, "", ""), ("pgrep", "-x", "phc2sys"): (1, "", "")})
         self.assertEqual(sorted(f.message for f in rhc.check_ptp(host, CONFIG, rhc.THRESHOLDS)), ["phc2sys is not running", "ptp4l is not running"])
+
+    def test_unreadable_kernel_log_is_a_warning_not_a_silent_ok(self):
+        host = FakeHost(netdevs=HEALTHY, commands={("journalctl", "-k"): (1, "", "Failed to parse timestamp: x")})
+        self.assertEqual([f.level for f in rhc.check_mlx5_health(host, CONFIG, "x")], ["warn"])
+        self.assertEqual([f.level for f in rhc.check_pcie_aer(host, "x")], ["warn"])
 
     def test_aer_and_mlx5_health_use_the_journal_window(self):
         host = FakeHost(netdevs=HEALTHY)
@@ -201,6 +220,57 @@ class TimeSyncTests(unittest.TestCase):
         findings = rhc.check_time_sync(self._host(fail=True), rhc.THRESHOLDS, "pool")
         self.assertEqual([f.level for f in findings], ["info"])
         self.assertEqual([f.level for f in rhc.check_time_sync(self._host(ntp="yes", synced="no"), rhc.THRESHOLDS, None)], ["warn"])
+
+
+RESULT = {"host": "pancake0", "time": "2026-10-06T17:18:04", "worst": "crit", "mail": "mailed me@x via msmtp",
+          "findings": [{"check": "camera_nics", "level": "ok", "message": "8 netdevs present", "value": None},
+                       {"check": "time_sync", "level": "crit", "message": "system clock is 488.266 s behind pool", "value": 488.266},
+                       {"check": "ptp", "level": "warn", "message": "ptp4l is not running [x]", "value": None}],
+          "transitions": {"time_sync": ["ok", "crit"]}}
+
+
+class RenderTests(unittest.TestCase):
+    def _render(self, color, rich_mods="auto"):
+        import io
+        buf = io.StringIO()
+        used = rhc.render(RESULT, color, stream=buf, rich_mods=rich_mods)
+        return used, buf.getvalue()
+
+    def test_plain_output_has_no_escape_codes_and_matches_format_findings(self):
+        used, out = self._render(False)
+        self.assertEqual(used, "plain")
+        self.assertNotIn("\033", out)
+        self.assertEqual(out.rstrip("\n"), rhc.format_findings(RESULT))
+
+    def test_ansi_fallback_colours_levels_when_rich_is_missing(self):
+        used, out = self._render(True, rich_mods=None)
+        self.assertEqual(used, "ansi")
+        self.assertIn("\033[1;31m[crit]", out)
+        self.assertIn("\033[33m[warn]", out)
+        self.assertIn("\033[32m[ok  ]", out)
+        self.assertIn("488.266 s behind", out)
+
+    @unittest.skipUnless(rhc.load_rich(), "rich not installed for this interpreter")
+    def test_rich_renderer_keeps_every_message_and_literal_brackets(self):
+        used, out = self._render(True)
+        self.assertEqual(used, "rich")
+        self.assertIn("\033[", out)
+        for text in ("8 netdevs present", "488.266 s behind", "not running [x]", "time_sync", "CRIT"):
+            self.assertIn(text, out)
+
+    def test_auto_colour_only_on_a_terminal_and_respects_no_color(self):
+        class Tty:
+            def isatty(self): return True
+        class Pipe:
+            def isatty(self): return False
+        with unittest.mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("NO_COLOR", None)
+            self.assertTrue(rhc.want_color("auto", Tty()))
+            self.assertFalse(rhc.want_color("auto", Pipe()))
+            os.environ["NO_COLOR"] = "1"
+            self.assertFalse(rhc.want_color("auto", Tty()))
+            self.assertTrue(rhc.want_color("always", Pipe()))
+            self.assertFalse(rhc.want_color("never", Tty()))
 
 
 class StateTests(unittest.TestCase):

@@ -336,6 +336,37 @@ class RealSystemTests(unittest.TestCase):
         self.assertEqual((res.returncode, res.stdout), (0, "done\n"))
 
 
+class JournalTimeTests(unittest.TestCase):
+    def test_iso_timestamps_are_rewritten_for_journalctl_and_relative_ones_pass_through(self):
+        self.assertEqual(rcn.journal_time("2026-10-06T17:12:55"), "2026-10-06 17:12:55")
+        self.assertEqual(rcn.journal_time("2026-10-06T17:12:55.123456-04:00"), "2026-10-06 17:12:55")
+        self.assertEqual(rcn.journal_time("2026-10-06 17:12:55"), "2026-10-06 17:12:55")
+        self.assertEqual(rcn.journal_time("-15min"), "-15min")
+
+    def test_since_reaches_journalctl_in_the_accepted_format(self):
+        seen = []
+
+        def record(cmd):
+            seen.append(cmd)
+            return (0, JOURNAL, "")
+        sys_ = FakeSystem(commands={("journalctl",): record})
+        rcn.kernel_health_lines(sys_, ["61:00.0"], since="2026-10-06T17:12:55")
+        rcn.firmware_dead(sys_, ["61:00.0"], "2026-10-06T17:12:55")
+        self.assertEqual([c[c.index("--since") + 1] for c in seen], ["2026-10-06 17:12:55"] * 2)
+
+    def test_kernel_journal_reports_failure_instead_of_looking_empty(self):
+        sys_ = FakeSystem(commands={("journalctl",): (1, "", "Failed to parse timestamp: x")})
+        ok, lines = rcn.kernel_journal(sys_, "bogus")
+        self.assertFalse(ok)
+        self.assertIn("Failed to parse timestamp", lines[0])
+
+    @unittest.skipUnless(__import__("shutil").which("journalctl"), "journalctl not available")
+    def test_real_journalctl_accepts_the_formatted_time(self):
+        when = rcn.journal_time(__import__("datetime").datetime.now().isoformat(timespec="seconds"))
+        res = subprocess.run(["journalctl", "--since", when, "-n", "0", "--no-pager"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, res.stderr)
+
+
 class DeadFirmwareTests(unittest.TestCase):
     def test_firmware_dead_lines_are_found_for_the_card_only(self):
         sys_ = FakeSystem(commands={("journalctl", "-k", "-o", "short-iso", "--no-pager", "--since"): (0, DEAD_FW_JOURNAL, "")})

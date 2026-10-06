@@ -232,15 +232,29 @@ def function_state(sys_: System, pcie_id: str, expected_netdev: str) -> dict:
     }
 
 
+def journal_time(value: str) -> str:
+    """journalctl --since wants 'YYYY-MM-DD HH:MM:SS'; systemd 249 rejects the ISO 'T' form
+    (and any UTC offset) that datetime.isoformat() produces. Relative forms like '-15min' pass through."""
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})", value)
+    return f"{m.group(1)} {m.group(2)}" if m else value
+
+
+def kernel_journal(sys_: System, since: str | None = None) -> tuple[bool, list[str]]:
+    """(ok, lines) of the kernel log for this boot, or since a time. ok is False when journalctl failed,
+    so callers can tell 'no messages' from 'could not look'."""
+    cmd = ["journalctl", "-k", "-o", "short-iso", "--no-pager"]
+    cmd += ["--since", journal_time(since)] if since else ["-b"]
+    res = sys_.run(cmd, timeout=60)
+    return res.returncode == 0, (res.stdout.splitlines() if res.returncode == 0 else [(res.stderr or "").strip()])
+
+
 def kernel_health_lines(sys_: System, pcie_ids: list[str], since: str | None = None) -> dict[str, list[str]]:
     """mlx5 health/temperature kernel messages per PCI function (this boot, or --since)."""
-    cmd = ["journalctl", "-k", "-o", "short-iso", "--no-pager"]
-    cmd += ["--since", since] if since else ["-b"]
-    res = sys_.run(cmd, timeout=60)
+    ok, lines = kernel_journal(sys_, since)
     out: dict[str, list[str]] = {p: [] for p in pcie_ids}
-    if res.returncode != 0:
+    if not ok:
         return out
-    for line in res.stdout.splitlines():
+    for line in lines:
         if "mlx5_core" not in line or not any(pat in line for pat in HEALTH_PATTERNS):
             continue
         for p in pcie_ids:
@@ -252,10 +266,10 @@ def kernel_health_lines(sys_: System, pcie_ids: list[str], since: str | None = N
 
 def firmware_dead(sys_: System, pcie_ids: list[str], since: str) -> list[str]:
     """Kernel lines since `since` showing a function whose firmware never initialised after the reset."""
-    res = sys_.run(["journalctl", "-k", "-o", "short-iso", "--no-pager", "--since", since], timeout=60)
-    if res.returncode != 0:
+    ok, lines = kernel_journal(sys_, since)
+    if not ok:
         return []
-    return [line.strip() for line in res.stdout.splitlines()
+    return [line.strip() for line in lines
             if any(f"mlx5_core 0000:{p}:" in line for p in pcie_ids) and any(pat in line for pat in FW_DEAD_PATTERNS)]
 
 

@@ -16,3 +16,5 @@ mokutil
 jq
 ripgrep
 parallel
+# Coloured terminal output for rig_health_check.py under the system python (optional; falls back to ANSI)
+python3-rich

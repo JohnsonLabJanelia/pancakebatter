@@ -26,13 +26,19 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Third-party Imports
-import pexpect
-import yaml
-from rich.console import Console
-from rich.logging import RichHandler
-from rich.table import Table
-from rich import print as rprint # Use alias to avoid conflict with built-in print
-from rich.text import Text
+try:
+    import pexpect
+    import yaml
+    from rich.console import Console
+    from rich.logging import RichHandler
+    from rich.table import Table
+    from rich import print as rprint # Use alias to avoid conflict with built-in print
+    from rich.text import Text
+except ImportError as exc:
+    sys.exit(f"pdu.py needs pexpect, pyyaml and rich ({exc}). Run it inside the rig_control env:\n"
+             f"  conda env create -f environments/rig_control.yaml   # once\n"
+             f"  conda activate rig_control\n"
+             f"(this interpreter is {sys.executable})")
 
 import hostconfig
 
