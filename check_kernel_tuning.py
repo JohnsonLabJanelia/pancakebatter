@@ -5,7 +5,11 @@ The provisioning record pancake0_config.yml gains a `kernel_tuning` section:
 kernel command-line isolation (isolcpus/nohz_full/rcu_nocbs), tsc and iommu
 options, the sysctl values from configs/sysctl/90-orange-writeback.conf,
 transparent-hugepage modes, the MTU of every camera port, and the CPU set
-each camera port's mlx5 completion interrupts are allowed on. On pancake0
+each camera port's mlx5 completion interrupts are allowed on. The check on
+that set is the invariant, not the exact list: no completion interrupt may be
+allowed on an isolated core (the driver spreads the vectors slightly
+differently on every probe, so the recorded list is only compared for
+information). On pancake0
 that set is every core EXCEPT the isolated ones: the camera frames arrive
 through Rivermax/GPUDirect polling, not interrupts, and the acquisition
 threads poll on the isolated cores; what still reaches those cores is
@@ -114,6 +118,40 @@ def port_irq_cpus(port):
     return sorted(cpus)
 
 
+def parse_cpulist(text):
+    """'1,2,6-8' -> {1, 2, 6, 7, 8}."""
+    cpus = set()
+    for part in str(text or "").replace(" ", "").split(","):
+        if not part:
+            continue
+        lo, _, hi = part.partition("-")
+        cpus.update(range(int(lo), int(hi or lo) + 1))
+    return cpus
+
+
+def irq_verdict(port, live_cpus, recorded_cpus, isolated):
+    """(level, message) for one camera port's mlx5 completion-interrupt CPU set.
+
+    The invariant is that none of those interrupts may land on an isolated core. The exact set is not
+    one: the driver and irqbalance spread the vectors a little differently on every probe (after the
+    2026-10-06 cold boot three ports differed from the recorded lists by one or two cores while still
+    avoiding every isolated core), so a difference from the recorded list is reported, not failed.
+    """
+    if live_cpus is None:
+        return "warn", f"{port} mlx5 irq affinity unreadable"
+    if not live_cpus:
+        return "warn", f"{port} has no mlx5_comp interrupts in /proc/interrupts"
+    on_isolated = sorted(set(live_cpus) & set(isolated))
+    if on_isolated:
+        return "fail", f"{port} mlx5 irqs allowed on isolated cores {on_isolated}"
+    note = ""
+    recorded = set(recorded_cpus or [])
+    if recorded and recorded != set(live_cpus):
+        added, removed = sorted(set(live_cpus) - recorded), sorted(recorded - set(live_cpus))
+        note = f"; differs from the recorded set (+{added} -{removed}), which is normal after a re-probe"
+    return "ok", f"{port} mlx5 irqs avoid the isolated cores ({len(live_cpus)} cpus allowed{note})"
+
+
 def live_state(config):
     conf = SCRIPT_DIR / "configs" / "sysctl" / "90-orange-writeback.conf"
     state = {
@@ -203,19 +241,16 @@ def main():
     for k, v in (expected.get("transparent_hugepage") or {}).items():
         live = state["transparent_hugepage"].get(k)
         (ok if str(live) == str(v) else fail)(f"transparent_hugepage {k}={live} (expected {v})")
+    isolated = parse_cpulist(expected.get("isolated_cores") or (expected.get("cmdline") or {}).get("isolcpus")
+                             or state["cmdline"].get("isolcpus"))
     for port, exp in (expected.get("camera_ports") or {}).items():
         live = state["camera_ports"].get(port)
         if not live:
             fail(f"camera port {port} not present")
             continue
         (ok if live["mtu"] == exp.get("mtu") else fail)(f"{port} mtu={live['mtu']} (expected {exp.get('mtu')})")
-        exp_cpus = sorted(exp.get("mlx5_irq_cpus") or [])
-        if live["irq_cpus"] is None:
-            warn(f"{port} mlx5 irq affinity unreadable")
-        elif live["irq_cpus"] != exp_cpus:
-            fail(f"{port} mlx5 irq cpus {live['irq_cpus']} (expected {exp_cpus})")
-        else:
-            ok(f"{port} mlx5 irq cpus match ({len(exp_cpus)} cpus)")
+        level, msg = irq_verdict(port, live["irq_cpus"], exp.get("mlx5_irq_cpus"), isolated)
+        {"ok": ok, "warn": warn, "fail": fail}[level](msg)
     print(f"\nkernel tuning: {'PASS' if errors == 0 else 'FAIL'} ({errors} errors, {warnings} warnings)")
     return 1 if errors else 0
 

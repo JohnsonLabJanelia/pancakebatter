@@ -14,7 +14,7 @@ matched its provisioning. Settings and why they matter, from the 2026-09 soaks:
 | `vm.compaction_proactiveness=0` | same file | The proactive compaction daemon migrated 42.6 M pages since boot; each migration flushes TLBs on the cores running Orange, i.e. the isolated cores (15 of 18 interrupt-burst seconds in a 2026-09-23 gate). THP is `madvise` and nothing requests huge pages, so compaction had no consumer. |
 | transparent hugepage `enabled=madvise`, `defrag=madvise` | `/sys/kernel/mm/transparent_hugepage` (distribution default) | Keeps direct compaction out of allocations. |
 | camera ports MTU 9000 | NetworkManager (`configure_interfaces.sh`) | Jumbo frames: a 20 MB camera frame is ~2,300 packets instead of ~14,000. |
-| camera ports' mlx5 completion IRQ CPU set | driver / irqbalance, recorded per port | On this host the set is every core except the isolated ones. Camera frames do not arrive by interrupt: Rivermax/GPUDirect polls and DMAs straight into GPU memory, so the isolated cores see only Orange's polling threads plus kernel IPIs. |
+| camera ports' mlx5 completion IRQ CPU set | driver / irqbalance, recorded per port | `check_kernel_tuning.py` enforces the invariant, not the list: no completion interrupt may be allowed on an isolated core. The exact set shifts by a core or two on every driver probe (seen after the 2026-10-06 cold boot), so a difference from the recorded list is printed as a note on a PASS line. On this host the set is every core except the isolated ones. Camera frames do not arrive by interrupt: Rivermax/GPUDirect polls and DMAs straight into GPU memory, so the isolated cores see only Orange's polling threads plus kernel IPIs. |
 
 Rules that follow (all measured, see the Orange journal, 2026-09-22/23):
 
