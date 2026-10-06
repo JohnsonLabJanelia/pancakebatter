@@ -5,7 +5,11 @@ The provisioning record pancake0_config.yml gains a `kernel_tuning` section:
 kernel command-line isolation (isolcpus/nohz_full/rcu_nocbs), tsc and iommu
 options, the sysctl values from configs/sysctl/90-orange-writeback.conf,
 transparent-hugepage modes, the MTU of every camera port, and the CPU set
-each camera port's mlx5 completion interrupts are allowed on. The check on
+each camera port's mlx5 completion interrupts are allowed on, and
+`core_roles`: what each isolated CPU is for (every isolated CPU must have an
+entry, every entry must be isolated, an smt_sibling must really be the
+hyperthread of the CPU it names, and a physical core with one hyperthread left
+un-isolated is flagged). The check on
 that set is the invariant, not the exact list: no completion interrupt may be
 allowed on an isolated core (the driver spreads the vectors slightly
 differently on every probe, so the recorded list is only compared for
@@ -152,6 +156,63 @@ def irq_verdict(port, live_cpus, recorded_cpus, isolated):
     return "ok", f"{port} mlx5 irqs avoid the isolated cores ({len(live_cpus)} cpus allowed{note})"
 
 
+CORE_ROLES = ("acquisition", "yolo", "smt_sibling", "housekeeping", "other", "unassigned")
+
+
+def thread_siblings(cpu):
+    """Other hyperthreads of the same physical core, from sysfs."""
+    text = read(f"/sys/devices/system/cpu/cpu{cpu}/topology/thread_siblings_list")
+    return sorted(parse_cpulist(text) - {cpu}) if text else []
+
+
+def core_role_findings(isolated, core_roles, siblings):
+    """[(level, message)] for kernel_tuning.core_roles against the isolated set and the CPU topology.
+
+    isolated: set of isolated CPUs. core_roles: the config map (string CPU -> entry) or None.
+    siblings: {cpu: [other hyperthreads of its physical core]}.
+    """
+    out = []
+    if not core_roles:
+        return [("warn", "no kernel_tuning.core_roles recorded: nothing says what each isolated CPU is for")]
+    roles = {}
+    for key, entry in core_roles.items():
+        try:
+            cpu = int(key)
+        except (TypeError, ValueError):
+            out.append(("fail", f"core_roles key {key!r} is not a CPU number"))
+            continue
+        roles[cpu] = entry or {}
+    for cpu in sorted(isolated - set(roles)):
+        out.append(("fail", f"cpu {cpu} is isolated but has no core_roles entry"))
+    for cpu in sorted(set(roles) - isolated):
+        out.append(("fail", f"core_roles lists cpu {cpu} ({roles[cpu].get('role')}), which is not isolated"))
+    for cpu in sorted(set(roles) & isolated):
+        entry = roles[cpu]
+        role = entry.get("role")
+        if role not in CORE_ROLES:
+            out.append(("fail", f"cpu {cpu} has unknown role {role!r} (one of {', '.join(CORE_ROLES)})"))
+        elif role == "unassigned":
+            out.append(("warn", f"cpu {cpu} is isolated but unassigned: {entry.get('note') or 'no consumer recorded'}"))
+        elif role == "smt_sibling":
+            owner = entry.get("sibling_of")
+            if owner not in siblings.get(cpu, []):
+                out.append(("fail", f"cpu {cpu} says sibling_of {owner}, but its hyperthread siblings are {siblings.get(cpu, [])}"))
+            elif roles.get(owner, {}).get("role") in (None, "smt_sibling", "unassigned"):
+                out.append(("fail", f"cpu {cpu} is the sibling of cpu {owner}, which has no working role recorded"))
+            else:
+                out.append(("ok", f"cpu {cpu}: idle sibling of cpu {owner} ({roles[owner]['role']})"))
+        else:
+            who = " ".join(str(x) for x in (entry.get("consumer"), entry.get("camera") and f"camera {entry['camera']}") if x)
+            out.append(("ok", f"cpu {cpu}: {role}{' for ' + who if who else ''}"))
+    # A physical core is only quiet if every one of its hyperthreads is isolated.
+    for cpu in sorted(isolated):
+        open_siblings = [s for s in siblings.get(cpu, []) if s not in isolated]
+        if open_siblings:
+            out.append(("warn", f"cpu {cpu} is isolated but its hyperthread sibling(s) {open_siblings} are not: general work "
+                                f"scheduled there shares the physical core (add them to isolcpus/nohz_full/rcu_nocbs)"))
+    return out
+
+
 def live_state(config):
     conf = SCRIPT_DIR / "configs" / "sysctl" / "90-orange-writeback.conf"
     state = {
@@ -184,6 +245,8 @@ def record_block(state):
             lines.append(f'    {k}: "{state["cmdline"][k]}"')
     lines += [
         f'  isolated_cores: "{isolated}"',
+        "  core_roles:  # fill in: acquisition | yolo | smt_sibling (with sibling_of) | housekeeping | other | unassigned",
+        *[f'    "{cpu}":\n      role: unassigned' for cpu in sorted(parse_cpulist(isolated))],
         f'  sysctl_file: "{state["sysctl_file"]}"  # copy of configs/sysctl/90-orange-writeback.conf',
         "  sysctl:",
     ]
@@ -243,6 +306,8 @@ def main():
         (ok if str(live) == str(v) else fail)(f"transparent_hugepage {k}={live} (expected {v})")
     isolated = parse_cpulist(expected.get("isolated_cores") or (expected.get("cmdline") or {}).get("isolcpus")
                              or state["cmdline"].get("isolcpus"))
+    for level, msg in core_role_findings(isolated, expected.get("core_roles"), {c: thread_siblings(c) for c in isolated}):
+        {"ok": ok, "warn": warn, "fail": fail}[level](msg)
     for port, exp in (expected.get("camera_ports") or {}).items():
         live = state["camera_ports"].get(port)
         if not live:

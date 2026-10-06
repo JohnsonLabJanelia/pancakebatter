@@ -643,6 +643,48 @@ kernel_tuning:
     tsc: "reliable"
     iommu: "pt"
   isolated_cores: "1,2,6,8,10,12,38,40,42,44"
+  # What each isolated CPU is for. Keys are CPU numbers as strings. check_kernel_tuning.py requires every
+  # isolated CPU to appear here and every entry to be isolated. YOLO pinning is what Orange recorded as
+  # yolo_affinity_effective_cpus in the runs of 2026-09-24 and 2026-10-01 (ORANGE_YOLO_AFFINITY_CAM_<serial>).
+  core_roles:
+    "1":
+      role: unassigned
+      note: "Isolated in GRUB but no thread is pinned here in any recorded run. Its SMT sibling 33 is NOT isolated (oversight, noted 2026-10-06)."
+    "2":
+      role: unassigned
+      note: "Isolated in GRUB but no thread is pinned here in any recorded run. Its SMT sibling 34 is NOT isolated (oversight, noted 2026-10-06)."
+    "6":
+      role: yolo
+      consumer: orange
+      camera: "2010093"
+    "8":
+      role: yolo
+      consumer: orange
+      camera: "2010094"
+    "10":
+      role: yolo
+      consumer: orange
+      camera: "2010095"
+    "12":
+      role: yolo
+      consumer: orange
+      camera: "2010096"
+    "38":
+      role: smt_sibling
+      sibling_of: 6
+      note: "Kept idle so the YOLO thread has the whole physical core."
+    "40":
+      role: smt_sibling
+      sibling_of: 8
+      note: "Kept idle so the YOLO thread has the whole physical core."
+    "42":
+      role: smt_sibling
+      sibling_of: 10
+      note: "Kept idle so the YOLO thread has the whole physical core."
+    "44":
+      role: smt_sibling
+      sibling_of: 12
+      note: "Kept idle so the YOLO thread has the whole physical core."
   sysctl_file: "/etc/sysctl.d/90-orange-writeback.conf"  # copy of configs/sysctl/90-orange-writeback.conf
   sysctl:
     vm.dirty_background_bytes: 67108864

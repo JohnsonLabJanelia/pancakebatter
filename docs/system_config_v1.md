@@ -220,3 +220,13 @@ Onboard/management NICs keep their kernel names (`altname: null`), and the namin
 ./gui_config_editor.py                                                  # review, add cameras
 ./network_alias_assignment.sh --dry-run                                 # preview the .link files
 ```
+
+## `kernel_tuning` (optional)
+
+Kernel-side tuning the acquisition pipeline depends on: required command-line
+options, sysctl values, transparent-hugepage modes, per-camera-port MTU and
+interrupt CPU sets, the isolated CPU list, and `core_roles`, a map from each
+isolated CPU (string key) to its purpose (`role`, optional `consumer`,
+`camera`, `sibling_of`, `note`). The schema validates the section's shape;
+`check_kernel_tuning.py` compares it with the live host. See
+[`kernel_tuning.md`](kernel_tuning.md).

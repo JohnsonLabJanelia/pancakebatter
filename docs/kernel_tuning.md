@@ -35,3 +35,65 @@ Install the sysctl file with:
 ```bash
 sudo cp configs/sysctl/90-orange-writeback.conf /etc/sysctl.d/ && sudo sysctl --system
 ```
+
+## What each isolated CPU is for (`kernel_tuning.core_roles`)
+
+The isolated set is recorded in `hosts/<hostname>/config.yml` twice over: the
+list (`isolated_cores`, plus the `isolcpus`/`nohz_full`/`rcu_nocbs` command-line
+values) and, since 2026-10-06, a `core_roles` map that says what each of those
+CPUs is for. On pancake0:
+
+| CPU | Role | Evidence |
+|---|---|---|
+| 6, 8, 10, 12 | YOLO inference thread for camera 2010093, 2010094, 2010095, 2010096 | `yolo_affinity_effective_cpus` in the `Cam*_yolo_perf.csv` of the 2026-09-24 and 2026-10-01 runs (set through `ORANGE_YOLO_AFFINITY_CAM_<serial>`) |
+| 38, 40, 42, 44 | hyperthread siblings of 6, 8, 10, 12, kept idle so each YOLO thread has a whole physical core | `/sys/devices/system/cpu/cpuN/topology/thread_siblings_list` |
+| 1, 2 | **unassigned** | no recorded run and nothing in the Orange source pins a thread here |
+
+Entry format (keys are CPU numbers as strings; validated by
+`schemas/system_config.v1.schema.json`):
+
+```yaml
+kernel_tuning:
+  core_roles:
+    "6":  {role: yolo, consumer: orange, camera: "2010093"}
+    "38": {role: smt_sibling, sibling_of: 6, note: "..."}
+    "1":  {role: unassigned, note: "..."}
+```
+
+Roles: `acquisition`, `yolo`, `smt_sibling` (needs `sibling_of`),
+`housekeeping`, `other`, `unassigned`. `check_kernel_tuning.py` enforces:
+
+- every isolated CPU has an entry and every entry is an isolated CPU (FAIL
+  otherwise), so the map cannot drift from the kernel command line;
+- an `smt_sibling` really is a hyperthread of the CPU it names, and that CPU
+  has a working role (FAIL otherwise);
+- `unassigned` CPUs are reported (WARN): isolation with no consumer costs two
+  cores of general capacity for nothing;
+- a physical core with only one hyperthread isolated is reported (WARN).
+
+`check_kernel_tuning.py --record` emits a `core_roles` skeleton with every
+isolated CPU `unassigned`, to be filled in by hand.
+
+### Known gap: CPUs 1 and 2 are only half isolated
+
+CPUs 1 and 2 are isolated but their hyperthread siblings 33 and 34 are not, an
+oversight from when the isolation was first set up. Ordinary processes can be
+scheduled on 33/34 and then share a physical core, its caches and its
+execution resources with whatever is meant to run undisturbed on 1/2. Today
+nothing is pinned to 1 or 2, so there is no victim, but the two CPUs are also
+doing nothing. Two ways to close it, both a GRUB edit plus reboot, to be done
+between recordings:
+
+- **Use them properly:** add 33,34 to `isolcpus`, `nohz_full` and `rcu_nocbs`,
+  assign roles (for example acquisition/polling threads), and update
+  `isolated_cores`, the `cmdline` values and `core_roles` in the host config.
+- **Give them back:** remove 1,2 from the three options and from the config.
+
+After either, re-run `sudo ./install_ptp_units.sh` and
+`sudo ./install_rig_health_timer.sh` (both embed the non-isolated CPU list) and
+`./check_kernel_tuning.py`.
+
+Orange's launch scripts still carry their own `ORANGE_YOLO_AFFINITY_CAM_*`
+values (and some test scripts use other cores, including non-isolated ones).
+The host config is now the record of intent; having the launchers read the
+pinning from `core_roles` would make it the single source.

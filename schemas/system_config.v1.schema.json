@@ -4,12 +4,20 @@
   "title": "system_config v1",
   "description": "Machine inventory and network/camera assignment schema for Pancake/Orange hosts.",
   "type": "object",
-  "required": ["schema", "system_info", "nics", "cameras"],
+  "required": [
+    "schema",
+    "system_info",
+    "nics",
+    "cameras"
+  ],
   "additionalProperties": true,
   "properties": {
     "schema": {
       "type": "object",
-      "required": ["name", "version"],
+      "required": [
+        "name",
+        "version"
+      ],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -22,7 +30,10 @@
     },
     "system_info": {
       "type": "object",
-      "required": ["hostname", "network_renderer"],
+      "required": [
+        "hostname",
+        "network_renderer"
+      ],
       "additionalProperties": true,
       "properties": {
         "hostname": {
@@ -54,6 +65,75 @@
       "additionalProperties": {
         "$ref": "#/$defs/camera"
       }
+    },
+    "kernel_tuning": {
+      "type": "object",
+      "description": "Kernel-side tuning the acquisition pipeline depends on; recorded and verified by check_kernel_tuning.py (docs/kernel_tuning.md).",
+      "additionalProperties": true,
+      "properties": {
+        "cmdline": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "description": "Kernel command-line options that must be present (isolcpus, nohz_full, rcu_nocbs, tsc, iommu)."
+        },
+        "isolated_cores": {
+          "$ref": "#/$defs/cpuList"
+        },
+        "core_roles": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[0-9]+$": {
+              "$ref": "#/$defs/coreRole"
+            }
+          },
+          "description": "Purpose of each isolated CPU, keyed by CPU number (as a string)."
+        },
+        "sysctl_file": {
+          "type": "string"
+        },
+        "sysctl": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "transparent_hugepage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "camera_ports": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "mtu": {
+                "type": "integer"
+              },
+              "mlx5_irq_cpus": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -67,7 +147,13 @@
     },
     "nicRole": {
       "type": "string",
-      "enum": ["camera", "spare", "management", "uplink", "unknown"]
+      "enum": [
+        "camera",
+        "spare",
+        "management",
+        "uplink",
+        "unknown"
+      ]
     },
     "nic": {
       "type": "object",
@@ -84,7 +170,10 @@
       "additionalProperties": true,
       "properties": {
         "altname": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "role": {
           "$ref": "#/$defs/nicRole"
@@ -99,19 +188,35 @@
           "$ref": "#/$defs/macAddress"
         },
         "brand": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "model": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "part_number": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "pcie_id": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "serial_number": {
-          "type": ["string", "integer", "null"]
+          "type": [
+            "string",
+            "integer",
+            "null"
+          ]
         },
         "mtu": {
           "type": "integer",
@@ -122,7 +227,10 @@
         },
         "link_settings": {
           "type": "object",
-          "required": ["speed", "autoneg"],
+          "required": [
+            "speed",
+            "autoneg"
+          ],
           "additionalProperties": true,
           "properties": {
             "speed": {
@@ -138,14 +246,24 @@
     },
     "camera": {
       "type": "object",
-      "required": ["serial_number", "ip_address", "nic_port"],
+      "required": [
+        "serial_number",
+        "ip_address",
+        "nic_port"
+      ],
       "additionalProperties": true,
       "properties": {
         "model": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "serial_number": {
-          "type": ["string", "integer"]
+          "type": [
+            "string",
+            "integer"
+          ]
         },
         "ip_address": {
           "type": "string",
@@ -154,6 +272,48 @@
         "nic_port": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "cpuList": {
+      "type": "string",
+      "pattern": "^[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*$",
+      "description": "Kernel cpulist, e.g. \"1,2,6-8\"."
+    },
+    "coreRole": {
+      "type": "object",
+      "required": [
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "enum": [
+            "acquisition",
+            "yolo",
+            "smt_sibling",
+            "housekeeping",
+            "other",
+            "unassigned"
+          ],
+          "description": "What runs on this isolated CPU. smt_sibling = the other hyperthread of a core whose role is recorded on its sibling, kept idle. unassigned = isolated with no consumer (reported as a warning)."
+        },
+        "consumer": {
+          "type": "string",
+          "description": "Program that pins to this CPU, e.g. orange."
+        },
+        "camera": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Camera serial this CPU serves, when per camera."
+        },
+        "sibling_of": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "For smt_sibling: the CPU whose physical core this is."
+        },
+        "note": {
+          "type": "string"
         }
       }
     }
