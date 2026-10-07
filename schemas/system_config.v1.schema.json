@@ -134,6 +134,76 @@
           }
         }
       }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Machine-level paths other programs need. Values may embed a username until the shared-machine migration moves data to shared storage; recording them here is still the one place to change.",
+      "properties": {
+        "data_root": {
+          "type": "string",
+          "description": "Root of recorded data and runtime camera presets (orange_data)."
+        },
+        "orange_run_dir": {
+          "type": "string",
+          "description": "Orange's runtime state directory (latest_recording.json etc.)."
+        },
+        "shared_config_root": {
+          "type": "string",
+          "description": "Where machine-level configuration lives (default /etc/pancakebatter)."
+        }
+      }
+    },
+    "pdus": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "ip_address": {
+            "type": "string"
+          },
+          "outlets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "camera_serial": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$",
+                  "description": "Camera on this outlet (preferred over parsing 'SN:' out of description)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "storage_devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "gpus": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
     }
   },
   "$defs": {

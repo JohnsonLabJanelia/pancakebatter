@@ -12,6 +12,14 @@ This local note summarizes the same boundary from the `pancakebatter` side and s
 | Per-camera runtime capture presets | `~/orange_data/config/local/<preset>/<camera_serial>.json` and `~/orange_data/config/network/...` | `camera_serial` | Owns startup settings for orange. Not a source of truth for hardware inventory or calibration. |
 | Rig/canvas/arena calibration and geometry | `citrus/targets/rigs/<rig_id>/<canvas_name>/` | `rig_id`, `canvas_name`, `arena_id`, `camera_serial` | Owns canvas JSON, arena geometry, per-camera calibration, and calibration artifacts. |
 
+## Where consumers read the host config
+
+Programs other than pancakebatter read the *installed* copy, resolved as
+`$PANCAKEBATTER_HOST_CONFIG` > `/etc/pancakebatter/host.yml` > error, never a
+checkout path under a home directory. `install_host_config.sh` publishes it;
+`rig_health_check.py` warns when it is stale. The promised keys and the
+consumer declaration are in [`host_config_interface.md`](host_config_interface.md).
+
 ## Stable IDs
 
 - `host_id`: use `system_info.hostname` from the host config.

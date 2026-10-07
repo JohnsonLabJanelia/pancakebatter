@@ -55,7 +55,7 @@ Suggested baseline model:
 - [ ] Decide whether long-running processes need service accounts.
 - [ ] Decide the canonical shared root for repos.
 - [ ] Decide the canonical shared root for data and calibrations.
-- [ ] Decide whether `system_config.yml` remains in a shared repo checkout or moves to a machine config path.
+- [x] Decide whether `system_config.yml` remains in a shared repo checkout or moves to a machine config path. (2026-10-06: both. The checkout `hosts/<host>/config.yml` is edited; `install_host_config.sh` publishes a root-owned copy to `/etc/pancakebatter/host.yml`, which is what other programs read: `docs/host_config_interface.md`.)
 - [ ] Decide whether Orange runtime config should remain under a per-user home or move to a shared machine path.
 
 ## Phase 2: Inventory Current Single-User Assumptions
@@ -91,7 +91,7 @@ Suggested baseline model:
 - [x] Remove personal Conda prefixes from committed environment files where possible. (`environments/rig_control.yaml`, `environments/juicebox.yaml`)
 - [x] Replace personal shebangs with portable ones when appropriate. (`pdu.py`)
 - [ ] Introduce environment variables or config keys for shared roots where the code currently assumes a home path.
-- [ ] Make Citrus consume one authoritative machine inventory path instead of relying on a duplicate local copy.
+- [ ] Make Citrus consume one authoritative machine inventory path instead of relying on a duplicate local copy. (pancakebatter side done 2026-10-06: resolver `PANCAKEBATTER_HOST_CONFIG` > `/etc/pancakebatter/host.yml`, stable-key list, `schemas/consumers/`; Citrus cutover pending.)
 - [ ] Review all repo docs for commands that assume user `jeremy`.
 
 ## Phase 6: Permissions And Operational Policy
@@ -107,7 +107,7 @@ Suggested baseline model:
 - [ ] Verify a second user can log in and operate the rig without reading from `/home/jeremy`.
 - [ ] Verify a second user can read and write the intended shared data/config directories.
 - [ ] Verify Orange and Citrus still resolve their required config, output, and calibration paths.
-- [ ] Verify machine checks still find `system_config.yml` at the intended canonical path.
+- [ ] Verify machine checks still find `system_config.yml` at the intended canonical path. (`rig_health_check.py` now has a `host_config` check for the installed copy; `citrus/scripts/system_checkup.py` still defaults to a path that does not exist.)
 - [ ] Verify no critical workflows depend on Jeremy's shell init, Conda base setup, or private files.
 - [ ] Verify the machine can be administered even if the `jeremy` account is absent or disabled.
 
@@ -115,8 +115,8 @@ Suggested baseline model:
 
 - [ ] Should shared repos live under `/srv/rig`, `/opt/rig`, or on the data volume?
 - [ ] Should `orange_data` become a machine-shared directory, or remain per-user with explicit export points?
-- [ ] Should `system_config.yml` live in Pancakebatter only, or should it move to a machine config location and be mirrored into repo workflows?
-- [ ] Which paths should become environment variables versus values in config files?
+- [x] Should `system_config.yml` live in Pancakebatter only, or should it move to a machine config location and be mirrored into repo workflows? (Decided 2026-10-06: edited in pancakebatter, installed to `/etc/pancakebatter/host.yml`, drift-checked.)
+- [ ] Which paths should become environment variables versus values in config files? (Partly decided 2026-10-06: machine-level paths go in the host config `paths` section; interpreter/conda locations stay out of it and are discovered or passed as env vars, e.g. `RIG_CONTROL_PYTHON`.)
 - [ ] Which workflows should become systemd services instead of user-launched shells?
 
 ## Done Criteria

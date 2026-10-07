@@ -1,0 +1,55 @@
+{
+  "schema": {
+    "name": "system_config",
+    "version": 1
+  },
+  "description": "Key paths other programs may rely on. '*' matches every element of a list or every value of a map; nics are one-key maps, so their fields are 'nics.*.*.<field>'. Anything not listed may change without notice. Additive changes stay in version 1; renaming or removing a listed key bumps schema.version. Keys in optional_keys are promised in meaning and type when present, but a host may not have them (e.g. a camera recorded before its lens was). Keys not in optional_keys exist on every host that has the section.",
+  "keys": [
+    "schema.name",
+    "schema.version",
+    "system_info.hostname",
+    "cameras.*.serial_number",
+    "cameras.*.ip_address",
+    "cameras.*.nic_port",
+    "cameras.*.interface",
+    "cameras.*.model",
+    "cameras.*.lens",
+    "cameras.*.sensor",
+    "nics.*.*.role",
+    "nics.*.*.mac_address",
+    "nics.*.*.pcie_id",
+    "nics.*.*.ip_address",
+    "nics.*.*.mtu",
+    "nics.*.*.expected_link",
+    "pdus.*.ip_address",
+    "pdus.*.outlets.*.description",
+    "pdus.*.outlets.*.camera_serial",
+    "kernel_tuning.isolated_cores",
+    "kernel_tuning.core_roles.*.role",
+    "kernel_tuning.core_roles.*.consumer",
+    "kernel_tuning.core_roles.*.camera",
+    "kernel_tuning.core_roles.*.sibling_of",
+    "kernel_tuning.core_roles.*.thread",
+    "paths.data_root",
+    "paths.orange_run_dir",
+    "paths.shared_config_root"
+  ],
+  "optional_sections": [
+    "pdus",
+    "kernel_tuning",
+    "paths"
+  ],
+  "optional_keys": [
+    "cameras.*.interface",
+    "cameras.*.lens",
+    "cameras.*.sensor",
+    "cameras.*.model",
+    "pdus.*.outlets.*.camera_serial",
+    "kernel_tuning.core_roles.*.consumer",
+    "kernel_tuning.core_roles.*.camera",
+    "kernel_tuning.core_roles.*.sibling_of",
+    "kernel_tuning.core_roles.*.thread",
+    "paths.orange_run_dir",
+    "paths.shared_config_root"
+  ]
+}

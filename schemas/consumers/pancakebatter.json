@@ -1,0 +1,25 @@
+{
+  "consumer": "pancakebatter",
+  "repo": "pancakebatter",
+  "schema_version": 1,
+  "keys": [
+    "system_info.hostname",
+    "cameras.*.serial_number",
+    "cameras.*.ip_address",
+    "cameras.*.nic_port",
+    "nics.*.*.role",
+    "nics.*.*.mac_address",
+    "nics.*.*.pcie_id",
+    "nics.*.*.ip_address",
+    "nics.*.*.mtu",
+    "nics.*.*.expected_link",
+    "pdus.*.ip_address",
+    "pdus.*.outlets.*.description",
+    "kernel_tuning.isolated_cores",
+    "kernel_tuning.core_roles.*.role",
+    "kernel_tuning.core_roles.*.consumer",
+    "kernel_tuning.core_roles.*.camera",
+    "kernel_tuning.core_roles.*.sibling_of"
+  ],
+  "notes": "reboot_cams.sh (pdus), install_ptp_units.sh and rig_health_check.py (nics, kernel_tuning), reset_camera_nics.py (nics), check_kernel_tuning.py (kernel_tuning)."
+}

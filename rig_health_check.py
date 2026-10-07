@@ -21,6 +21,7 @@ Checks (reads of sysfs, /proc and the journal, plus one nvidia-smi query):
                 query (warn 1 s, crit 300 s; --no-ntp-query skips the packet)
   pcie_aer      new PCIe AER messages since the last run (warn)
   acquisition   whether Orange is recording (info only)
+  host_config   the installed copy other programs read (/etc/pancakebatter/host.yml) matches the checkout (warn if stale)
 
 Staying out of the acquisition pipeline's way: the script renices itself to 19, pins itself to the
 cores NOT in kernel_tuning.isolated_cores, writes nothing outside --state-dir, never touches the NIC
@@ -356,6 +357,19 @@ def check_pcie_aer(host: Host, since: str) -> list[Finding]:
     return [Finding("pcie_aer", "warn", f"{len(hits)} PCIe AER messages since {since} on {', '.join(devices) or 'unknown'}", len(hits))]
 
 
+def check_host_config(host: Host, checkout: Path) -> list[Finding]:
+    """Is the installed copy other programs read (/etc/pancakebatter/host.yml) the same as the checkout file?"""
+    installed = hostconfig.INSTALLED_CONFIG
+    if not host.exists(installed):
+        return [Finding("host_config", "info", f"{installed} not installed (sudo ./install_host_config.sh); consumers cannot resolve a host config")]
+    a, b = host.read(installed), host.read(checkout)
+    if a is None or b is None:
+        return [Finding("host_config", "warn", f"could not read {installed if a is None else checkout}")]
+    if a.strip() != b.strip():
+        return [Finding("host_config", "warn", f"{installed} differs from {checkout}: re-run sudo ./install_host_config.sh")]
+    return [Finding("host_config", "ok", f"{installed} matches the checkout")]
+
+
 def check_acquisition(host: Host) -> list[Finding]:
     pids = rcn.orange_pids(host)
     return [Finding("acquisition", "info", f"Orange running (pids {pids})" if pids else "Orange not running", pids)]
@@ -406,7 +420,8 @@ def save_state(state_dir: Path | None, result: dict) -> None:
 
 
 def worst_level(findings: list[Finding]) -> str:
-    return max((f.level for f in findings), key=lambda l: LEVEL_RANK[l], default="ok")
+    """ok / warn / crit; info never raises the level (and never prints as the overall status)."""
+    return max((f.level for f in findings if f.level != "info"), key=lambda l: LEVEL_RANK[l], default="ok")
 
 
 def levels_by_check(findings: list[Finding]) -> dict[str, str]:
@@ -456,8 +471,10 @@ def send_mail(host: Host, to: str, sender: str, subject: str, body: str) -> str:
 # --- main ------------------------------------------------------------------------------------
 
 def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, with_ptp: bool,
-               ntp_server: str | None = NTP_SERVER) -> list[Finding]:
+               ntp_server: str | None = NTP_SERVER, config_path: Path | None = None) -> list[Finding]:
     findings = []
+    if config_path is not None:
+        findings += check_host_config(host, config_path)
     findings += check_camera_nics(host, config)
     findings += check_mlx5_health(host, config, since)
     findings += check_temperatures(host, config, th, with_gpu)
@@ -558,7 +575,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--test-mail", metavar="ADDRESS", help="send one test message to ADDRESS the way alerts are sent, and exit")
     args = parser.parse_args(argv)
 
-    config = yaml.safe_load(Path(args.config or hostconfig.default_config_path()).read_text()) or {}
+    config_path = Path(args.config or hostconfig.default_config_path())
+    config = yaml.safe_load(config_path.read_text()) or {}
     if args.print_affinity:
         print(format_cpulist(allowed_cpus(config, os.cpu_count() or 1)))
         return 0
@@ -582,7 +600,7 @@ def main(argv: list[str] | None = None) -> int:
     previous = load_state(args.state_dir)
     since = args.since or previous.get("time") or "-15min"
     findings = run_checks(host, config, th, since, with_gpu=not args.no_gpu, with_ptp=not args.no_ptp,
-                          ntp_server=None if args.no_ntp_query else args.ntp_server)
+                          ntp_server=None if args.no_ntp_query else args.ntp_server, config_path=config_path)
     levels = levels_by_check(findings)
     result = {
         "host": socket.gethostname().split(".")[0],

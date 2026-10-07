@@ -10,7 +10,14 @@ hosts/<hostname>/
 ```
 
 Scripts resolve these through `hostconfig.py` (Python) and `lib/host_config.sh` (bash).
-Set `PANCAKEBATTER_HOST=<name>` to work on another machine's files.
+Set `PANCAKEBATTER_HOST=<name>` to work on another machine's files, or
+`PANCAKEBATTER_HOST_CONFIG=<file>` to point every tool at one explicit file.
+
+Other programs do not read the checkout. `sudo ./install_host_config.sh` publishes
+`hosts/<host>/config.yml` to `/etc/pancakebatter/host.yml`; consumers resolve
+`$PANCAKEBATTER_HOST_CONFIG` > that path (`python3 hostconfig.py` prints it). Re-run the
+installer after editing; `rig_health_check.py` warns while the installed copy is stale.
+See `docs/host_config_interface.md` for the keys that are promised.
 
 ## Adding a machine
 

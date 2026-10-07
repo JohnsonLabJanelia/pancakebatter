@@ -273,6 +273,31 @@ class RenderTests(unittest.TestCase):
             self.assertFalse(rhc.want_color("never", Tty()))
 
 
+class HostConfigCheckTests(unittest.TestCase):
+    def _host(self, installed_text, checkout_text="a: 1\n"):
+        class H(FakeHost):
+            def exists(self, path):
+                return str(path) == str(rhc.hostconfig.INSTALLED_CONFIG) and installed_text is not None or super().exists(path)
+
+            def read(self, path):
+                if str(path) == str(rhc.hostconfig.INSTALLED_CONFIG):
+                    return installed_text
+                if str(path) == "/checkout/config.yml":
+                    return checkout_text
+                return super().read(path)
+        return H()
+
+    def test_not_installed_is_info_stale_is_warn_match_is_ok(self):
+        from pathlib import Path as P
+        self.assertEqual(rhc.check_host_config(self._host(None), P("/checkout/config.yml"))[0].level, "info")
+        self.assertEqual(rhc.check_host_config(self._host("a: 2\n"), P("/checkout/config.yml"))[0].level, "warn")
+        self.assertEqual(rhc.check_host_config(self._host("a: 1\n"), P("/checkout/config.yml"))[0].level, "ok")
+
+    def test_info_only_findings_report_ok_overall(self):
+        self.assertEqual(rhc.worst_level([rhc.Finding("x", "info", "")]), "ok")
+        self.assertEqual(rhc.worst_level([rhc.Finding("x", "info", ""), rhc.Finding("y", "warn", "")]), "warn")
+
+
 class StateTests(unittest.TestCase):
     def test_levels_by_check_keeps_the_worst_and_transitions_ignore_info(self):
         findings = [rhc.Finding("a", "ok", ""), rhc.Finding("a", "warn", ""), rhc.Finding("b", "info", ""), rhc.Finding("c", "crit", "")]

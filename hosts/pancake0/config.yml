@@ -635,6 +635,13 @@ cameras:
 
 # Kernel-side tuning the Orange rig depends on (recorded by check_kernel_tuning.py --record).
 # Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
+# Machine-level paths other programs need (schema: paths). data_root still embeds a username until the
+# shared-machine migration (docs/shared_machine_setup_todo.md) moves data to shared storage; change it here only.
+paths:
+  data_root: /home/jeremy/orange_data
+  orange_run_dir: /run/orange
+  shared_config_root: /etc/pancakebatter
+
 kernel_tuning:
   cmdline:
     isolcpus: "1,2,6,8,10,12,33,34,38,40,42,44"
