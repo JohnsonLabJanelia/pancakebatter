@@ -48,7 +48,7 @@ copy or a test file.
 | Area | Stable keys |
 |---|---|
 | identity | `schema.name`, `schema.version`, `system_info.hostname` (= `host_id`) |
-| cameras (map keyed by MAC; the key itself is local, `serial_number` is the join key) | `serial_number`, `ip_address`, `nic_port`, `interface`, `model`, `lens`, `sensor` |
+| cameras (map keyed by MAC; the key itself is local, `serial_number` is the join key) | `serial_number`, `ip_address`, `nic_port`, `interface`, `model`, `lens`, `sensor`, `sensor.x_resolution`, `sensor.y_resolution` (the rest of `sensor` is inventory) |
 | nics (list of one-key maps: `nics.*.*.<field>`) | `role`, `mac_address`, `pcie_id`, `ip_address`, `mtu`, `expected_link` |
 | pdus | `ip_address`, `outlets.*.description`, `outlets.*.camera_serial` (preferred over parsing `SN:` from the description) |
 | kernel_tuning | `isolated_cores`; `core_roles.*.{role, consumer, camera, sibling_of, thread}` |

@@ -1,0 +1,14 @@
+{
+  "consumer": "citrus",
+  "repo": "JohnsonLabJanelia/citrus",
+  "schema_version": 1,
+  "keys": [
+    "cameras.*.serial_number",
+    "cameras.*.sensor.x_resolution",
+    "cameras.*.sensor.y_resolution",
+    "kernel_tuning.core_roles.*.role",
+    "kernel_tuning.core_roles.*.consumer",
+    "paths.data_root"
+  ],
+  "notes": "src/core/HardwareManager.cpp (cameras: serial_number, sensor.x_resolution/y_resolution for arena camera selection); src/utils/host_config.cpp CheckCoreRoles (kernel_tuning.core_roles, startup warning only); scripts/transfer_sessions_gui.py (paths.data_root/exp/unsorted default). Lookup order per docs/host_config_interface.md. Declared 2026-10-06 from citrus branch agent/citrus/host-config-cutover-20261006 @ 42f1a3d."
+}

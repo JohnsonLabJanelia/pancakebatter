@@ -342,6 +342,23 @@
         "nic_port": {
           "type": "string",
           "minLength": 1
+        },
+        "sensor": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "x_resolution": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Sensor width in pixels (promised stable key)."
+            },
+            "y_resolution": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Sensor height in pixels (promised stable key)."
+            }
+          },
+          "description": "Sensor facts; only x_resolution and y_resolution are promised stable keys, the rest is inventory."
         }
       }
     },
