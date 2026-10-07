@@ -91,7 +91,7 @@ Suggested baseline model:
 - [x] Remove personal Conda prefixes from committed environment files where possible. (`environments/rig_control.yaml`, `environments/juicebox.yaml`)
 - [x] Replace personal shebangs with portable ones when appropriate. (`pdu.py`)
 - [ ] Introduce environment variables or config keys for shared roots where the code currently assumes a home path.
-- [x] Make Citrus consume one authoritative machine inventory path instead of relying on a duplicate local copy. (Done 2026-10-06: pancakebatter resolver `PANCAKEBATTER_HOST_CONFIG` > `/etc/pancakebatter/host.yml`, stable-key list, `schemas/consumers/citrus.json`; citrus main @ 42f1a3d reads machine facts through the same resolver. Citrus's leftover local copy is being removed on its side.)
+- [x] Make Citrus consume one authoritative machine inventory path instead of relying on a duplicate local copy. (Done 2026-10-06: pancakebatter resolver `PANCAKEBATTER_HOST_CONFIG` > `/etc/pancakebatter/host.yml`, stable-key list, `schemas/consumers/citrus.json`; citrus main @ 42f1a3d reads machine facts through the same resolver; citrus 40a7e06 removes the copied system_info/pdus/storage_devices/gpus/nics/cameras and the fallback, leaving only citrus_runtime in citrus/system_config.yml.)
 - [ ] Review all repo docs for commands that assume user `jeremy`.
 
 ## Phase 6: Permissions And Operational Policy
