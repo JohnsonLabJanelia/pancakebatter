@@ -31,7 +31,7 @@ Representative examples already present in the current repos:
 - `pdu.py` used a personal Conda shebang (fixed 2026-09-29: now `#!/usr/bin/env python3`, run inside the `rig_control` env or set `RIG_CONTROL_PYTHON` for `reboot_cams.sh`)
 - `environment.yaml` hard-coded a personal Conda prefix (fixed 2026-09-29: now `environments/rig_control.yaml` with no prefix)
 - `orange-jeremy/src/orange.cpp` derives `orange_data` under `/home/<user>/orange_data`
-- `citrus/scripts/system_checkup.py` defaults to `/home/jeremy/pancakebatter/system_config.yml`
+- `citrus/scripts/system_checkup.py` defaulted to `/home/jeremy/pancakebatter/system_config.yml` (fixed 2026-10-06: it resolves the installed host config)
 - some docs and helper scripts still assume `/home/jeremy/orange_data/...`
 
 This is workable for one person, but it is not a clean communal-machine boundary.
@@ -91,7 +91,7 @@ Suggested baseline model:
 - [x] Remove personal Conda prefixes from committed environment files where possible. (`environments/rig_control.yaml`, `environments/juicebox.yaml`)
 - [x] Replace personal shebangs with portable ones when appropriate. (`pdu.py`)
 - [ ] Introduce environment variables or config keys for shared roots where the code currently assumes a home path.
-- [ ] Make Citrus consume one authoritative machine inventory path instead of relying on a duplicate local copy. (pancakebatter side done 2026-10-06: resolver `PANCAKEBATTER_HOST_CONFIG` > `/etc/pancakebatter/host.yml`, stable-key list, `schemas/consumers/`; Citrus cutover pending.)
+- [x] Make Citrus consume one authoritative machine inventory path instead of relying on a duplicate local copy. (Done 2026-10-06: pancakebatter resolver `PANCAKEBATTER_HOST_CONFIG` > `/etc/pancakebatter/host.yml`, stable-key list, `schemas/consumers/citrus.json`; citrus main @ 42f1a3d reads machine facts through the same resolver. Citrus's leftover local copy is being removed on its side.)
 - [ ] Review all repo docs for commands that assume user `jeremy`.
 
 ## Phase 6: Permissions And Operational Policy
@@ -107,7 +107,7 @@ Suggested baseline model:
 - [ ] Verify a second user can log in and operate the rig without reading from `/home/jeremy`.
 - [ ] Verify a second user can read and write the intended shared data/config directories.
 - [ ] Verify Orange and Citrus still resolve their required config, output, and calibration paths.
-- [ ] Verify machine checks still find `system_config.yml` at the intended canonical path. (`rig_health_check.py` now has a `host_config` check for the installed copy; `citrus/scripts/system_checkup.py` still defaults to a path that does not exist.)
+- [x] Verify machine checks still find `system_config.yml` at the intended canonical path. (2026-10-06: `/etc/pancakebatter/host.yml` installed from fcca72f; `rig_health_check.py` `host_config` ok; `citrus/scripts/system_checkup.py` defaults to the resolved host config.)
 - [ ] Verify no critical workflows depend on Jeremy's shell init, Conda base setup, or private files.
 - [ ] Verify the machine can be administered even if the `jeremy` account is absent or disabled.
 
