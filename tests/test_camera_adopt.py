@@ -31,6 +31,42 @@ def device(serial="2012859", mac="e0-55-97-1e-b6-bb", port="mlnx1_p1_25g", ip="1
             "persistent_ip_active": persistent, "dhcp_active": False, "nic": {"name": port, "ip": "192.168.110.1"}}
 
 
+PROBE = {"serial": "2012859", "model": "HB-2800SC", "width_max": 1936, "height_max": 1464,
+         "pixel_formats": ["Mono8", "Mono12", "BayerRG8", "BayerRG12"]}
+
+
+class SensorFactTests(unittest.TestCase):
+    def test_resolution_prefers_the_sensor_size_and_formats_are_split(self):
+        facts = ca.sensor_facts(dict(PROBE, sensor_width=2000, sensor_height=1500, pixel_formats=PROBE["pixel_formats"] + ["RGB8"]))
+        self.assertEqual(facts, {"x_resolution": 2000, "y_resolution": 1500, "monochrome_modes": ["Mono8", "Mono12"],
+                                 "raw_modes": ["BayerRG8", "BayerRG12"], "color_modes": ["RGB8"]})
+        self.assertEqual(ca.sensor_facts(PROBE)["x_resolution"], 1936)
+        self.assertEqual(ca.sensor_facts({}), {})
+
+    def test_recorded_camera_without_resolution_is_planned_for_a_sensor_read(self):
+        cfg = config()
+        cfg["cameras"] = {"E0-55-97-1E-B6-BB": {"serial_number": 2012859, "model": "HB-2800SC",
+                                                "ip_address": "192.168.110.2", "nic_port": "mlnx1_p1_25g"}}
+        plans, problems = ca.plan_adoption([device(ip="192.168.110.2")], cfg)
+        self.assertEqual(problems, [])
+        self.assertEqual((plans[0].needs_program, plans[0].needs_sensor, plans[0].config_action), (False, True, "update"))
+
+    def test_sensor_read_is_skipped_while_orange_runs(self):
+        cfg = config()
+        cfg["cameras"] = {"E0-55-97-1E-B6-BB": {"serial_number": 2012859, "model": "HB-2800SC",
+                                                "ip_address": "192.168.110.2", "nic_port": "mlnx1_p1_25g"}}
+        plans, _ = ca.plan_adoption([device(ip="192.168.110.2")], cfg)
+        args = argparse.Namespace(evttools=Path("/x/evttools"), evttools_timeout=5, settle_seconds=0,
+                                  reboot_check=False, reboot_wait=0, reboot_tool=None)
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "config.yml"
+            path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+            with patch.object(ca, "orange_running", return_value=True), patch.object(ca, "probe_sensor") as probe:
+                ca.apply_plans(plans, path, cfg, args)
+            probe.assert_not_called()
+            self.assertNotIn("sensor", yaml.safe_load(path.read_text())["cameras"]["E0-55-97-1E-B6-BB"])
+
+
 class PlanTests(unittest.TestCase):
     def test_new_off_subnet_camera_is_programmed_and_added(self):
         plans, problems = ca.plan_adoption([device()], config())
@@ -44,10 +80,11 @@ class PlanTests(unittest.TestCase):
     def test_already_correct_camera_needs_nothing(self):
         cfg = config()
         cfg["cameras"] = {"E0-55-97-1E-B6-BB": {"model": "HB-2800SC", "serial_number": 2012859,
-                                                "ip_address": "192.168.110.2", "nic_port": "mlnx1_p1_25g"}}
+                                                "ip_address": "192.168.110.2", "nic_port": "mlnx1_p1_25g",
+                                                "sensor": {"x_resolution": 1936, "y_resolution": 1464}}}
         plans, problems = ca.plan_adoption([device(ip="192.168.110.2")], cfg)
         self.assertEqual(problems, [])
-        self.assertEqual((plans[0].config_action, plans[0].needs_program), ("none", False))
+        self.assertEqual((plans[0].config_action, plans[0].needs_program, plans[0].needs_sensor), ("none", False, False))
 
     def test_refusals(self):
         cases = {
@@ -89,10 +126,16 @@ class ApplyTests(unittest.TestCase):
         for target in (patch.object(ca.time, "sleep"), patch.object(ca.os, "geteuid", return_value=0)):
             target.start()
             self.addCleanup(target.stop)
+        self.setUpProbe()
 
     def run_cmd(self, cmd, timeout):
         self.calls.append(cmd)
         return subprocess.CompletedProcess(cmd, 0, "ok\n", "")
+
+    def setUpProbe(self):
+        for target in (patch.object(ca, "probe_sensor", return_value=PROBE), patch.object(ca, "orange_running", return_value=False)):
+            target.start()
+            self.addCleanup(target.stop)
 
     def plans(self):
         return ca.plan_adoption([device()], config())[0]
@@ -129,20 +172,27 @@ class ApplyTests(unittest.TestCase):
         settled["nic"]["ip"] = "192.168.120.1"
         cfg = config()
         cfg["cameras"] = {"E0-55-97-1E-AB-ED": {"serial_number": 2010093, "model": "HB-2800SC",
-                                                "ip_address": "192.168.120.2", "nic_port": "mlnx1_p2_25g"}}
+                                                "ip_address": "192.168.120.2", "nic_port": "mlnx1_p2_25g",
+                                                "sensor": {"x_resolution": 1936, "y_resolution": 1464}}}
         plans, problems = ca.plan_adoption([settled, device()], cfg)
         self.assertEqual(problems, [])
         self.assertEqual([p.needs_program for p in plans], [False, True])
+        self.assertEqual([p.needs_sensor for p in plans], [False, True])
         self.args.reboot_check = True
         self.args.reboot_tool = "/x/evt_force_reboot"
         after = [device(ip="192.168.110.2")]
-        with patch.object(ca.cnc, "run_command", self.run_cmd), patch.object(ca, "discover", return_value=after):
+        with patch.object(ca.cnc, "run_command", self.run_cmd), patch.object(ca, "discover", return_value=after), \
+             patch.object(ca, "probe_sensor", return_value=PROBE), patch.object(ca, "orange_running", return_value=False):
             ca.apply_plans(plans, self.path, cfg, self.args)
         self.assertEqual(self.calls, [["/x/evttools", "-f", "192.168.110.1", "-o", "bp"],
                                       ["/x/evt_force_reboot", "2012859", "192.168.110.2"]])
         self.assertNotIn(["/x/evttools", "-r", "2010093"], self.calls)
         saved = yaml.safe_load(self.path.read_text())
         self.assertEqual(set(saved["cameras"]), {"E0-55-97-1E-AB-ED", "E0-55-97-1E-B6-BB"})
+        self.assertEqual(saved["cameras"]["E0-55-97-1E-B6-BB"]["sensor"],
+                         {"x_resolution": 1936, "y_resolution": 1464, "monochrome_modes": ["Mono8", "Mono12"],
+                          "raw_modes": ["BayerRG8", "BayerRG12"]})
+        self.assertEqual(saved["cameras"]["E0-55-97-1E-AB-ED"]["sensor"], {"x_resolution": 1936, "y_resolution": 1464})
 
     def test_reboot_check_without_a_reboot_tool_is_skipped_not_fatal(self):
         self.args.reboot_check = True

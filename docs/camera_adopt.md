@@ -22,6 +22,14 @@ Use the `sudo "$(command -v python3)"` form so root runs the same Python (with P
 4. **Verify** by rediscovering on the port: the camera must answer at the new IP and report a persistent IP.
 5. **Record** the entry (MAC key, model, serial, IP, `nic_port`) with a validated, backed-up save.
 
+6. **Read the sensor** for any camera whose entry lacks `sensor.x_resolution`/`y_resolution`:
+   `camera_sensor_probe` (built from `camera_sensor_probe.cpp`) opens the camera's control channel
+   briefly and reads `SensorWidth`/`SensorHeight` (or the `Width`/`Height` maxima) and the
+   `PixelFormat` list, recorded as `x_resolution`, `y_resolution`, `monochrome_modes` (`Mono*`),
+   `raw_modes` (`Bayer*`) and `color_modes` (the rest). Skipped with a note while Orange is running,
+   since the open would take the camera from it. Datasheet-only facts (cell size, optical format,
+   exposure limits, weight...) still go in by hand.
+
 Only cameras programmed in the run are verified and reboot-checked; cameras that are already right
 are listed and left alone. `--reboot-check` uses Orange's `evt_force_reboot` (found under
 `$ORANGE_CAMERA_READY_ROOT/targets/release/`, or `--reboot-tool`), since `evttools` 2.55.02 has no
