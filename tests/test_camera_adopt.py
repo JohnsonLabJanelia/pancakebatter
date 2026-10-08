@@ -84,7 +84,7 @@ class ApplyTests(unittest.TestCase):
         self.path = self.dir / "config.yml"
         self.path.write_text(yaml.safe_dump(config(), sort_keys=False))
         self.args = argparse.Namespace(evttools=Path("/x/evttools"), evttools_timeout=5, settle_seconds=0,
-                                       reboot_check=False, reboot_wait=0)
+                                       reboot_check=False, reboot_wait=0, reboot_tool=None)
         self.calls = []
         for target in (patch.object(ca.time, "sleep"), patch.object(ca.os, "geteuid", return_value=0)):
             target.start()
@@ -121,6 +121,37 @@ class ApplyTests(unittest.TestCase):
                 ca.apply_plans(self.plans(), self.path, yaml.safe_load(before), self.args)
         disc.assert_not_called()
         self.assertEqual(self.path.read_text(), before)
+
+    def test_cameras_that_are_already_right_are_left_alone_even_with_reboot_check(self):
+        # 2026-10-08 on pancake0: the old loop verified and rebooted every camera, and a failed reboot of an
+        # untouched one aborted the adoption of the new one before it was programmed.
+        settled = device(serial="2010093", mac="e0-55-97-1e-ab-ed", port="mlnx1_p2_25g", ip="192.168.120.2")
+        settled["nic"]["ip"] = "192.168.120.1"
+        cfg = config()
+        cfg["cameras"] = {"E0-55-97-1E-AB-ED": {"serial_number": 2010093, "model": "HB-2800SC",
+                                                "ip_address": "192.168.120.2", "nic_port": "mlnx1_p2_25g"}}
+        plans, problems = ca.plan_adoption([settled, device()], cfg)
+        self.assertEqual(problems, [])
+        self.assertEqual([p.needs_program for p in plans], [False, True])
+        self.args.reboot_check = True
+        self.args.reboot_tool = "/x/evt_force_reboot"
+        after = [device(ip="192.168.110.2")]
+        with patch.object(ca.cnc, "run_command", self.run_cmd), patch.object(ca, "discover", return_value=after):
+            ca.apply_plans(plans, self.path, cfg, self.args)
+        self.assertEqual(self.calls, [["/x/evttools", "-f", "192.168.110.1", "-o", "bp"],
+                                      ["/x/evt_force_reboot", "2012859", "192.168.110.2"]])
+        self.assertNotIn(["/x/evttools", "-r", "2010093"], self.calls)
+        saved = yaml.safe_load(self.path.read_text())
+        self.assertEqual(set(saved["cameras"]), {"E0-55-97-1E-AB-ED", "E0-55-97-1E-B6-BB"})
+
+    def test_reboot_check_without_a_reboot_tool_is_skipped_not_fatal(self):
+        self.args.reboot_check = True
+        after = [device(ip="192.168.110.2")]
+        with patch.object(ca.cnc, "run_command", self.run_cmd), patch.object(ca, "discover", return_value=after), \
+             patch.dict(ca.os.environ, {"ORANGE_CAMERA_READY_ROOT": str(self.dir)}):
+            ca.apply_plans(self.plans(), self.path, yaml.safe_load(self.path.read_text()), self.args)
+        self.assertEqual(self.calls, [["/x/evttools", "-f", "192.168.110.1", "-o", "bp"]])
+        self.assertIn("E0-55-97-1E-B6-BB", yaml.safe_load(self.path.read_text())["cameras"])
 
     def test_programming_requires_root(self):
         with patch.object(ca.os, "geteuid", return_value=1000), patch.object(ca.cnc, "run_command") as run:

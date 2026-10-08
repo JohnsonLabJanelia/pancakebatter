@@ -205,11 +205,28 @@ def program_camera(plan: Plan, args: argparse.Namespace) -> None:
     time.sleep(args.settle_seconds)
 
 
+DEFAULT_ORANGE_ROOT = "/home/jeremy/orange-integration-20260921"   # same default as reboot_cams.sh
+
+
+def reboot_tool(args: argparse.Namespace) -> Path | None:
+    """Orange's evt_force_reboot (EVT_ForceReboot over the wire); evttools 2.55.02 has no reboot command."""
+    if args.reboot_tool:
+        return Path(args.reboot_tool)
+    root = os.environ.get("ORANGE_CAMERA_READY_ROOT", DEFAULT_ORANGE_ROOT)
+    tool = Path(root) / "targets" / "release" / "evt_force_reboot"
+    return tool if tool.exists() else None
+
+
 def reboot_check(plan: Plan, args: argparse.Namespace) -> None:
+    tool = reboot_tool(args)
+    if tool is None:
+        print(f"\nSkipping the reboot check for {plan.device['serial']}: no evt_force_reboot tool "
+              f"(build Orange's targets or pass --reboot-tool). The camera reports its IP as persistent.")
+        return
     print(f"\nRebooting {plan.device['serial']} to prove the IP persists...")
-    res = cnc.run_command([str(args.evttools), "-r", plan.device["serial"]], timeout=args.evttools_timeout)
+    res = cnc.run_command([str(tool), str(plan.device["serial"]), str(plan.target_ip)], timeout=args.evttools_timeout)
     if res.returncode != 0:
-        raise AdoptError(f"evttools reboot failed (exit {res.returncode})")
+        raise AdoptError(f"{tool.name} failed (exit {res.returncode}): {(res.stderr or res.stdout).strip()[:200]}")
     time.sleep(args.reboot_wait)
     deadline = time.time() + 60
     while True:
@@ -226,9 +243,12 @@ def reboot_check(plan: Plan, args: argparse.Namespace) -> None:
 def apply_plans(plans: list[Plan], config_path: Path, config: dict[str, Any], args: argparse.Namespace) -> None:
     if any(p.needs_program for p in plans) and os.geteuid() != 0:
         raise AdoptError('programming cameras needs root: sudo "$(command -v python3)" ./camera_adopt.py --apply')
+    # Only cameras programmed in this run are verified and (optionally) rebooted; the ones that were
+    # already right are left alone, so a hiccup on one of them cannot abort the adoption of a new one.
     for p in plans:
-        if p.needs_program:
-            program_camera(p, args)
+        if not p.needs_program:
+            continue
+        program_camera(p, args)
         verify_on_port(p)
         print(f"  OK: {p.device['serial']} answers at {p.target_ip} on {p.port}")
         if args.reboot_check:
@@ -260,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--reboot-check", action="store_true",
                     help="with --apply: reboot each camera and confirm the IP persisted")
     ap.add_argument("--reboot-wait", type=float, default=30.0)
+    ap.add_argument("--reboot-tool", help="path to evt_force_reboot (default: $ORANGE_CAMERA_READY_ROOT/targets/release/evt_force_reboot)")
     args = ap.parse_args(argv)
 
     try:

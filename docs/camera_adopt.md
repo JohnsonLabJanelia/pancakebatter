@@ -21,6 +21,12 @@ Use the `sudo "$(command -v python3)"` form so root runs the same Python (with P
    `evttools` is a thin wrapper around the same eSDK calls (`EVT_ForceIPEx`, `EVT_IPConfig`).
 4. **Verify** by rediscovering on the port: the camera must answer at the new IP and report a persistent IP.
 5. **Record** the entry (MAC key, model, serial, IP, `nic_port`) with a validated, backed-up save.
+
+Only cameras programmed in the run are verified and reboot-checked; cameras that are already right
+are listed and left alone. `--reboot-check` uses Orange's `evt_force_reboot` (found under
+`$ORANGE_CAMERA_READY_ROOT/targets/release/`, or `--reboot-tool`), since `evttools` 2.55.02 has no
+reboot command; without the tool the check is skipped with a note, and the camera's own
+`persistent_ip_active` flag from discovery is the evidence that the IP survives a reboot.
    If any step fails, the config is not touched. Lens details are not reported by cameras: add them in
    `gui_config_editor.py`.
 
