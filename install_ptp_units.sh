@@ -17,6 +17,12 @@ source "$HERE/lib/host_config.sh"
 UNIT_DIR=/etc/systemd/system
 REPLACE=0
 
+
+# Not root? Re-run through the passwordless helper if install_admin_helper.sh has set it up.
+ADMIN_HELPER=/usr/local/libexec/pancakebatter/admin
+if [[ $EUID -ne 0 && -x "$ADMIN_HELPER" ]] && sudo -n -l "$ADMIN_HELPER" >/dev/null 2>&1; then
+    exec sudo -n "$ADMIN_HELPER" install-ptp-units "$@"
+fi
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 
 if [[ "${1:-}" == "--uninstall" ]]; then

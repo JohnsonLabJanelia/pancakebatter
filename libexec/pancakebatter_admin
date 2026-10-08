@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Root-side entry point for pancakebatter's installers, so a rig user can run them without a
+# password. install_admin_helper.sh copies this to /usr/local/libexec/pancakebatter/admin (root-owned,
+# with the checkout path filled in) and adds a sudoers.d rule for exactly that path.
+#
+# It runs the named installer from the checkout as root. That means whoever can edit the checkout can
+# run code as root through this helper without a password: install it only on a machine where the
+# checkout owner already holds sudo (pancake0 today), and uninstall it before the checkout is shared.
+set -euo pipefail
+REPO="@REPO@"
+case "${1:-}" in
+    install-host-config)       shift; exec "$REPO/install_host_config.sh" "$@" ;;
+    install-ptp-units)         shift; exec "$REPO/install_ptp_units.sh" "$@" ;;
+    install-rig-health-timer)  shift; exec "$REPO/install_rig_health_timer.sh" "$@" ;;
+    *) echo "usage: $0 install-host-config|install-ptp-units|install-rig-health-timer [args]" >&2; exit 2 ;;
+esac

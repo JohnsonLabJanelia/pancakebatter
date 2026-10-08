@@ -30,6 +30,13 @@ sudo ./install_host_config.sh        # validates, installs /etc/pancakebatter/ho
 ./install_host_config.sh --check     # is the installed copy current?
 ```
 
+To run the installers without typing a password, `sudo ./install_admin_helper.sh` installs a
+root-owned helper and a `sudoers.d` rule for it; afterwards `./install_host_config.sh`,
+`./install_ptp_units.sh` and `./install_rig_health_timer.sh` re-run themselves through it. The
+helper executes the checkout's scripts as root, so it amounts to passwordless root for the
+checkout owner: appropriate while that person is the machine's sudoer, to be removed
+(`--uninstall`) before the checkout is shared.
+
 The checkout stays the place to edit (`capture_inventory.py`,
 `gui_config_editor.py`, `camera_net_config.py`, by hand); re-run the installer
 after every change. Two things catch a forgotten re-run: `rig_health_check.py`'s

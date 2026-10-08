@@ -17,6 +17,12 @@ ENV_FILE=/etc/default/rig-health
 INTERVAL=5min
 TARGET_USER="${SUDO_USER:-}"
 
+
+# Not root? Re-run through the passwordless helper if install_admin_helper.sh has set it up.
+ADMIN_HELPER=/usr/local/libexec/pancakebatter/admin
+if [[ $EUID -ne 0 && -x "$ADMIN_HELPER" ]] && sudo -n -l "$ADMIN_HELPER" >/dev/null 2>&1; then
+    exec sudo -n "$ADMIN_HELPER" install-rig-health-timer "$@"
+fi
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 
 if [[ "${1:-}" == "--uninstall" ]]; then

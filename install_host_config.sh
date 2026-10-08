@@ -26,6 +26,12 @@ check() {
     return 1
 }
 
+
+# Not root? Re-run through the passwordless helper if install_admin_helper.sh has set it up.
+ADMIN_HELPER=/usr/local/libexec/pancakebatter/admin
+if [[ "${1:-}" != "--check" && $EUID -ne 0 && -x "$ADMIN_HELPER" ]] && sudo -n -l "$ADMIN_HELPER" >/dev/null 2>&1; then
+    exec sudo -n "$ADMIN_HELPER" install-host-config "$@"
+fi
 case "${1:-}" in
     --check) check; exit $? ;;
     --uninstall)
