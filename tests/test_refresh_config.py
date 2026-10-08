@@ -99,6 +99,32 @@ class MergeTests(unittest.TestCase):
         self.assertTrue(any("replaced 1 item" in c for c in changes))
 
 
+class SerialTypeTests(unittest.TestCase):
+    """YAML reads 48816072200219 as an int, capture reports "48816072200219"; they are the same disk."""
+
+    def test_int_serials_match_string_serials_without_duplicating(self):
+        existing = config()
+        existing["storage_devices"] = [{"name": "nvme0n1", "serial_number": 48816072200219, "model": "X"},
+                                       {"name": "nvme1n1", "serial_number": 48816072200222, "model": "X"}]
+        fresh = config()
+        fresh["storage_devices"] = [{"name": "nvme0n1", "serial_number": "48816072200219", "model": "X"},
+                                    {"name": "nvme1n1", "serial_number": "48816072200222", "model": "X"}]
+        merged, changes, notes = rc.merge_facts(existing, fresh)
+        self.assertEqual(changes, [])
+        self.assertFalse([n for n in notes if "storage" in n], notes)
+        self.assertEqual(merged["storage_devices"], existing["storage_devices"])  # int type kept
+
+    def test_renamed_device_node_follows_the_serial(self):
+        existing = config()
+        existing["storage_devices"] = [{"name": "nvme0n1", "serial_number": 111, "device_path": "/dev/nvme0n1"}]
+        fresh = config()
+        fresh["storage_devices"] = [{"name": "nvme2n1", "serial_number": "111", "device_path": "/dev/nvme2n1"}]
+        merged, changes, _ = rc.merge_facts(existing, fresh)
+        self.assertEqual(len(merged["storage_devices"]), 1)
+        self.assertEqual(merged["storage_devices"][0]["name"], "nvme2n1")
+        self.assertEqual(merged["storage_devices"][0]["serial_number"], 111)
+
+
 class RefreshCliTests(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())

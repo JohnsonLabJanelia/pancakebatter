@@ -94,5 +94,46 @@ class FallbackSaveTests(unittest.TestCase):
             self.assertIn("python3-ruamel.yaml", err.getvalue())
 
 
+try:
+    import jsonschema  # noqa: F401
+    HAVE_JSONSCHEMA = True
+except ImportError:
+    HAVE_JSONSCHEMA = False
+
+
+def good():
+    return {"schema": {"name": "system_config", "version": 1},
+            "system_info": {"hostname": "t", "network_renderer": "NetworkManager"},
+            "nics": [{"mlnx1_p1_25g": {"altname": None, "role": "camera", "managed": True, "expected_link": True,
+                                       "mac_address": "aa:bb:cc:dd:ee:01", "mtu": 9000,
+                                       "ip_address": "192.168.110.1/24",
+                                       "link_settings": {"speed": 25000, "autoneg": True}}}],
+            "cameras": {"E0-55-97-1E-B6-BB": {"serial_number": 1, "ip_address": "192.168.110.2",
+                                              "nic_port": "mlnx1_p1_25g"}}}
+
+
+class ValidateTests(unittest.TestCase):
+    def test_good_config_is_valid(self):
+        self.assertEqual(configio.validate(good()), [])
+
+    def test_cross_field_rule_is_enforced_even_with_jsonschema_installed(self):
+        cfg = good()
+        cfg["cameras"]["E0-55-97-1E-B6-BB"]["ip_address"] = "10.0.0.2"  # outside the port's subnet
+        errors = configio.validate(cfg)
+        self.assertTrue(any("outside" in e for e in errors), errors)
+
+    @unittest.skipUnless(HAVE_JSONSCHEMA, "jsonschema not installed")
+    def test_schema_violations_are_reported_with_a_path(self):
+        cfg = good()
+        cfg["nics"][0]["mlnx1_p1_25g"]["pcie_id"] = 3660.0  # unquoted 61:00.0 under YAML 1.1
+        errors = configio.validate(cfg)
+        self.assertTrue(any("pcie_id" in e for e in errors), errors)
+
+    def test_bad_role_is_rejected(self):
+        cfg = good()
+        cfg["nics"][0]["mlnx1_p1_25g"]["role"] = "bogus"
+        self.assertTrue(configio.validate(cfg))
+
+
 if __name__ == "__main__":
     unittest.main()

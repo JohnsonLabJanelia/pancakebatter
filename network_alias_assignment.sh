@@ -8,6 +8,11 @@
 #
 #   sudo ./network_alias_assignment.sh            install the files, then offer a reboot
 #   ./network_alias_assignment.sh --dry-run       print the files; changes nothing, needs no root
+#
+# systemd applies only the FIRST matching .link file per device (alphabetical) and ignores the rest.
+# Our 10-pancakebatter-* files sort early, so any other .link file already governing these NICs
+# (e.g. a 25-mellanox.link forcing speed) would silently stop applying. The script detects that
+# and refuses to install unless --allow-shadowing is given.
 
 # Color codes
 RED="\033[0;31m"
@@ -23,7 +28,8 @@ HOSTNAME="$HOST_NAME"
 CONFIG_FILE="$HOST_CONFIG_FILE"
 LINK_DIR="/etc/systemd/network"
 LINK_PREFIX="10-pancakebatter-"
-LEGACY_RULES_FILE="/etc/udev/rules.d/10-network-aliases.rules"  # older versions wrote NAME= udev rules here
+LEGACY_RULES_GLOB="${LEGACY_RULES_GLOB:-/etc/udev/rules.d/*network-aliases*.rules}"  # older versions wrote NAME= udev rules here (10- or 70-)
+NET_SYSFS_DIR="${NET_SYSFS_DIR:-/sys/class/net}"
 STAGE_DIR="$(mktemp -d)"
 trap 'rm -rf "$STAGE_DIR"' EXIT
 # User who invoked sudo, for running yq safely
@@ -31,11 +37,14 @@ INVOKING_USER="$SUDO_USER"
 
 # --dry-run: print the udev rules that would be written; touch nothing, no root, no reboot prompt.
 DRY_RUN=false
-case "${1:-}" in
-    --dry-run) DRY_RUN=true ;;
-    "") ;;
-    *) echo "usage: $0 [--dry-run]" >&2; exit 1 ;;
-esac
+ALLOW_SHADOWING=false
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=true ;;
+        --allow-shadowing) ALLOW_SHADOWING=true ;;
+        *) echo "usage: $0 [--dry-run] [--allow-shadowing]" >&2; exit 1 ;;
+    esac
+done
 if $DRY_RUN; then
     INVOKING_USER="${SUDO_USER:-$(id -un)}"
     echo "DRY RUN: nothing will be installed; the .link files are printed at the end."
@@ -185,6 +194,34 @@ LINKEOF
 done # End loop through NICs
 
 
+# --- Detect existing .link files that our early-sorting files would shadow -------------------
+# Returns 0 and prints nothing when none; otherwise prints each NIC/file and returns 1.
+check_shadowed_links() {
+    local f mac iface addr applied found=0
+    for f in "${staged[@]}"; do
+        mac=$(sed -n 's/^PermanentMACAddress=//p' "$f" | tr '[:upper:]' '[:lower:]')
+        iface=""
+        for addr in "$NET_SYSFS_DIR"/*/address; do
+            [[ -r "$addr" ]] || continue
+            if [[ "$(tr '[:upper:]' '[:lower:]' < "$addr")" == "$mac" ]]; then
+                iface=$(basename "$(dirname "$addr")")
+                break
+            fi
+        done
+        [[ -n "$iface" ]] || continue
+        applied=$(udevadm test-builtin net_setup_link "$NET_SYSFS_DIR/$iface" 2>/dev/null | sed -n 's/^ID_NET_LINK_FILE=//p')
+        case "$applied" in
+            ""|*/99-default.link|*"/${LINK_PREFIX}"*) ;;   # default or already ours: fine
+            *)
+                found=1
+                echo -e "${YELLOW}  $iface is currently governed by $applied:${NC}"
+                sed -n '/^\[Link\]/,/^\[/p' "$applied" 2>/dev/null | grep -v '^\[' | sed 's/^/      /'
+                ;;
+        esac
+    done
+    return $found
+}
+
 # Final status message
 shopt -s nullglob
 staged=("$STAGE_DIR"/*.link)
@@ -194,13 +231,30 @@ else
     echo -e "${GREEN}Successfully generated all .link files (${#staged[@]}).${NC}"
 fi
 
+shadowed=false
+if ! shadow_report=$(check_shadowed_links); then
+    shadowed=true
+    echo -e "\n${RED}WARNING: other .link files already apply to these NICs, and systemd uses only the first match.${NC}"
+    echo -e "${YELLOW}Installing ours (10-pancakebatter-*) would stop them applying, including any link settings they force:${NC}"
+    echo "$shadow_report"
+    echo -e "${YELLOW}Decide where link settings should live (the config's link_settings or that file) before installing.${NC}"
+fi
+
 if $DRY_RUN; then
     for f in "${staged[@]}"; do
         echo -e "\n${BLUE}--- would install $LINK_DIR/$(basename "$f") ---${NC}"
         cat "$f"
     done
-    [[ -f "$LEGACY_RULES_FILE" ]] && echo -e "\n${YELLOW}Would disable legacy $LEGACY_RULES_FILE (renamed to *.disabled-<date>).${NC}"
-    exit $(( local_errors > 0 ? 1 : 0 ))
+    for legacy in $LEGACY_RULES_GLOB; do
+        [[ -f "$legacy" ]] && echo -e "\n${YELLOW}Would disable legacy $legacy (renamed to *.disabled-<date>).${NC}"
+    done
+    if $shadowed || [[ "$local_errors" -gt 0 ]]; then exit 1; fi
+    exit 0
+fi
+
+if $shadowed && ! $ALLOW_SHADOWING; then
+    echo -e "${RED}Refusing to install: existing .link files would be shadowed. Re-run with --allow-shadowing to override.${NC}"
+    exit 1
 fi
 
 if [[ ${#staged[@]} -eq 0 ]]; then
@@ -215,11 +269,12 @@ for f in "${staged[@]}"; do
     install -o root -g root -m 0644 "$f" "$LINK_DIR/"
 done
 echo -e "${GREEN}Installed ${#staged[@]} .link file(s) to $LINK_DIR${NC}"
-if [[ -f "$LEGACY_RULES_FILE" ]]; then
-    legacy_backup="${LEGACY_RULES_FILE}.disabled-$(date +%Y%m%d-%H%M%S)"
-    mv "$LEGACY_RULES_FILE" "$legacy_backup"
+for legacy in $LEGACY_RULES_GLOB; do
+    [[ -f "$legacy" ]] || continue
+    legacy_backup="${legacy}.disabled-$(date +%Y%m%d-%H%M%S)"
+    mv "$legacy" "$legacy_backup"
     echo -e "${YELLOW}Disabled legacy udev rules (they would conflict): $legacy_backup${NC}"
-fi
+done
 udevadm control --reload 2>/dev/null || true
 
 # Prompt for reboot

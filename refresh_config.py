@@ -30,8 +30,12 @@ def _mac(nic: dict[str, Any]) -> str:
 
 def _set(target: dict[str, Any], key: str, new: Any, label: str, changes: list[str]) -> None:
     """Assign new into target[key] if it is non-empty and different; record the change."""
-    if new is None or target.get(key) == new:
+    cur = target.get(key)
+    if new is None or cur == new:
         return
+    scalar = (int, float, str)
+    if isinstance(cur, scalar) and isinstance(new, scalar) and str(cur) == str(new):
+        return  # YAML reads 48816072200219 as an int, capture reports "48816072200219": same value
     changes.append(f"{label}: {target.get(key)!r} -> {new!r}")
     target[key] = new
 
@@ -100,16 +104,16 @@ def _merge_list(merged: dict[str, Any], fresh: dict[str, Any], section: str, key
                        f"(recorded items had no {key} to match on)")
         merged[section] = copy.deepcopy(new_items)
         return
-    by_key = {i.get(key): i for i in old_items if i.get(key)}
+    by_key = {str(i.get(key)): i for i in old_items if i.get(key)}  # str(): serials may be ints in YAML
     matched = set()
     for new in new_items:
-        old = by_key.get(new.get(key))
+        old = by_key.get(str(new.get(key)))
         label = f"{section}[{new.get(label_key)}]"
         if old is None:
             old_items.append(copy.deepcopy(new))
             changes.append(f"{label}: new {section.rstrip('s')} added ({new.get(key)})")
             continue
-        matched.add(new.get(key))
+        matched.add(str(new.get(key)))
         for field, value in new.items():
             _set(old, field, value, f"{label}.{field}", changes)
     for k, old in by_key.items():

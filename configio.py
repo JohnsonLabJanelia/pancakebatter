@@ -16,13 +16,24 @@ SCHEMA_PATH = hostconfig.REPO_ROOT / "schemas" / "system_config.v1.schema.json"
 
 
 def validate(config: dict[str, Any]) -> list[str]:
+    """JSON Schema errors (when jsonschema is installed) plus the repo's cross-field checks.
+
+    The schema cannot express rules like "a camera's IP must be inside its port's subnet", so the
+    repo checker always runs too; the two never replace each other.
+    """
+    errors: list[str] = []
     try:
         import jsonschema
     except ImportError:
-        return validate_with_repo_checker(config)
-    schema = json.loads(SCHEMA_PATH.read_text())
-    return [f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
-            for e in sorted(jsonschema.Draft202012Validator(schema).iter_errors(config), key=lambda e: list(e.absolute_path))]
+        jsonschema = None
+    if jsonschema is not None:
+        schema = json.loads(SCHEMA_PATH.read_text())
+        errors += [f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
+                   for e in sorted(jsonschema.Draft202012Validator(schema).iter_errors(config),
+                                   key=lambda e: list(e.absolute_path))]
+    if not errors:  # the repo checker assumes a structurally valid config
+        errors += validate_with_repo_checker(config)
+    return errors
 
 
 def validate_with_repo_checker(config: dict[str, Any]) -> list[str]:

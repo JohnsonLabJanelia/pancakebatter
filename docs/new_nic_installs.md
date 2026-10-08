@@ -177,6 +177,16 @@ and `SYMLINK+=` aliases, which never created usable `ethN` names. The script ren
 that file to `*.disabled-<date>` when it installs the new files, because the two
 mechanisms would conflict.
 
+**Existing `.link` files:** systemd applies only the *first* matching `.link` file to a device (alphabetical)
+and ignores the rest. Our `10-pancakebatter-*` files sort early, so another file already governing these
+NICs (for example a `25-mellanox.link` that forces speed or turns autonegotiation off) would silently stop
+applying. The script asks `udevadm` which file currently governs each port, prints any it would shadow with
+their `[Link]` settings, fails the dry run, and refuses to install unless you pass `--allow-shadowing`.
+Decide where link settings should live (the config's `link_settings` or that file) first.
+
+Any legacy `*network-aliases*.rules` file in `/etc/udev/rules.d/` (the `10-` or `70-` prefix) is renamed to
+`*.disabled-<date>` on install, since it would name the same ports.
+
 If the links are needed in early boot, run `sudo update-initramfs -u` before
 rebooting. Reboot after changing NIC names; a reboot is the cleanest way to make
 sure NetworkManager sees the final names.

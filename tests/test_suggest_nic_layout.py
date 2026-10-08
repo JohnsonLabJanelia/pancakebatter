@@ -108,7 +108,7 @@ else: sys.exit(1)
 
 
 class UdevDryRunTests(unittest.TestCase):
-    def run_script(self, cfg, *args):
+    def run_script(self, cfg, *args, stubs=None, extra_env=None):
         tmp = tempfile.mkdtemp()
         bin_dir = Path(tmp) / "bin"
         bin_dir.mkdir()
@@ -118,7 +118,12 @@ class UdevDryRunTests(unittest.TestCase):
         host_dir = Path(tmp) / "hosts" / "testhost"
         host_dir.mkdir(parents=True)
         (host_dir / "config.yml").write_text(yaml.safe_dump(cfg))
-        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "PANCAKEBATTER_HOST": "testhost"}
+        for name, body in (stubs or {}).items():
+            stub = bin_dir / name
+            stub.write_text(body)
+            stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
+        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "PANCAKEBATTER_HOST": "testhost",
+               **(extra_env or {})}
         # run a copy of the repo scripts next to our fake hosts/ dir
         for rel in ("network_alias_assignment.sh", "lib/host_config.sh"):
             dst = Path(tmp) / rel
@@ -141,6 +146,48 @@ class UdevDryRunTests(unittest.TestCase):
         self.assertNotIn("Name=enp211s0f0np0", out)
         self.assertNotIn("SYMLINK", out)
         self.assertNotIn("Rebooting", out)
+
+    @staticmethod
+    def fake_sysfs(tmp, mac="60:5e:65:5c:8b:e0", iface="mlnx1_p1_25g"):
+        net = Path(tmp) / "net" / iface
+        net.mkdir(parents=True)
+        (net / "address").write_text(mac + "\n")
+        return str(Path(tmp) / "net")
+
+    def udevadm_stub(self, link_file):
+        return {"udevadm": f"#!/bin/sh\necho 'ID_NET_LINK_FILE={link_file}'\n"}
+
+    def test_existing_link_file_that_would_be_shadowed_is_reported_and_fails_dry_run(self):
+        cfg = sl.build_layout(captured(), {"f1:00": 1, "21:00": 2}, set(), {1})
+        with tempfile.TemporaryDirectory() as tmp:
+            existing = Path(tmp) / "25-mellanox.link"
+            existing.write_text("[Match]\nDriver=mlx5_core\n\n[Link]\nBitsPerSecond=25G\nAutoNegotiation=no\n")
+            res = self.run_script(cfg, "--dry-run", stubs=self.udevadm_stub(existing),
+                                  extra_env={"NET_SYSFS_DIR": self.fake_sysfs(tmp)})
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("is currently governed by", res.stdout)
+        self.assertIn("25-mellanox.link", res.stdout)
+        self.assertIn("AutoNegotiation=no", res.stdout)  # shows what would stop applying
+
+    def test_default_or_own_link_file_is_not_a_conflict(self):
+        cfg = sl.build_layout(captured(), {"f1:00": 1, "21:00": 2}, set(), {1})
+        for applied in ("/usr/lib/systemd/network/99-default.link",
+                        "/etc/systemd/network/10-pancakebatter-mlnx1_p1_25g.link"):
+            with self.subTest(applied), tempfile.TemporaryDirectory() as tmp:
+                res = self.run_script(cfg, "--dry-run", stubs=self.udevadm_stub(applied),
+                                      extra_env={"NET_SYSFS_DIR": self.fake_sysfs(tmp)})
+                self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+                self.assertNotIn("governed by", res.stdout)
+
+    def test_legacy_rules_with_any_prefix_are_listed_for_retirement(self):
+        cfg = sl.build_layout(captured(), {"f1:00": 1, "21:00": 2}, set(), {1})
+        with tempfile.TemporaryDirectory() as tmp:
+            legacy = Path(tmp) / "70-network-aliases.rules"
+            legacy.write_text("# old\n")
+            res = self.run_script(cfg, "--dry-run", extra_env={"LEGACY_RULES_GLOB": str(Path(tmp) / "*network-aliases*.rules")})
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn("Would disable legacy", res.stdout)
+        self.assertIn("70-network-aliases.rules", res.stdout)
 
     def test_unknown_argument_is_rejected(self):
         res = self.run_script(captured(), "--bogus")
