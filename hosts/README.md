@@ -59,10 +59,11 @@ After `config.yml` has been edited by hand, re-capturing would clobber your choi
 ```bash
 ./capture_inventory.py --refresh            # preview what would change in hosts/<hostname>/config.yml
 ./capture_inventory.py --refresh --write    # apply (validated; timestamped .bak kept)
+./capture_inventory.py --refresh --only system_info --write   # just the software versions, e.g. after an upgrade
 ```
 
 It updates only facts: NIC identity/serials/firmware, transceiver modules, storage, GPUs and
-`system_info`. Roles, IPs, MTU, altnames, `link_settings`, cameras, PDUs and kernel tuning are never
+`system_info`. **Caveat (2026-10-08):** `--write` re-serialises the YAML and drops every comment in the file (the `.bak` keeps them); until the save preserves comments, prefer `--only <section>` to review the changes and apply them by hand to a commented config, or re-add the comments after writing. Roles, IPs, MTU, altnames, `link_settings`, cameras, PDUs and kernel tuning are never
 touched. It never erases: an empty reading (e.g. no root probe) does not replace a recorded value, and
 anything no longer detected is only reported. NICs are matched by MAC address, so renamed ports are
 fine; new NICs are reported, not added. It refuses to run against another machine's config.

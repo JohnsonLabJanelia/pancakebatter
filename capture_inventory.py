@@ -28,6 +28,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -238,6 +239,33 @@ def parse_lsblk(text: str) -> list[dict[str, Any]]:
 
 # ---------------------------------------------------------------------- probes
 
+ESDK_LIB_GLOB = "/opt/EVT/eSDK/lib/libEmergentCamera.so.*"
+ORANGE_FFMPEG = "/opt/orange/lib/ffmpeg-nvidia/bin/ffmpeg"
+ORANGE_OPENCV = "/opt/orange/lib/opencv"
+
+
+def esdk_version_from_libs(paths) -> str | None:
+    """'/opt/EVT/eSDK/lib/libEmergentCamera.so.2.55.02' -> '2.55.02' (highest if several).
+
+    The dpkg package (emergent-esdk-ecapture) is versioned 1.0 regardless of the SDK inside it, and
+    EVT_SDKVersion() needs the library loaded with its dependencies; the soname is the reliable source.
+    """
+    versions = []
+    for path in paths:
+        name = Path(path).name
+        if ".so." in name:
+            v = name.split(".so.", 1)[1]
+            if re.fullmatch(r"\d+(\.\d+)+", v):
+                versions.append(v)
+    return max(versions, key=lambda v: tuple(int(x) for x in v.split("."))) if versions else None
+
+
+def normalize_ffmpeg_version(raw: str) -> str:
+    """'n4.4.5-7-g283dc2e8eb' (git describe of a source build) -> '4.4.5'; plain versions pass through."""
+    m = re.match(r"n?(\d+(?:\.\d+)+)", raw)
+    return m.group(1) if m else raw
+
+
 def probe_system_info() -> dict[str, Any]:
     osr = parse_os_release(read_text("/etc/os-release") or "")
     info: dict[str, Any] = {
@@ -259,24 +287,40 @@ def probe_system_info() -> dict[str, Any]:
     if cmdline:
         info["kernel_cmdline"] = cmdline
 
-    nvcc = run(["nvcc", "--version"]) or ""
+    nvcc_bin = "nvcc" if shutil.which("nvcc") else "/usr/local/cuda/bin/nvcc"
+    nvcc = run([nvcc_bin, "--version"]) or ""
     m = re.search(r"release ([\d.]+).*?V([\d.]+)", nvcc, re.S)
     cuda_json = read_text("/usr/local/cuda/version.json")
-    if cuda_json:
-        info["cuda_version"] = json.loads(cuda_json).get("cuda", {}).get("version")
-    elif m:
-        info["cuda_version"] = m.group(2)
+    if m:
+        info["cuda_version"] = m.group(2)          # nvcc's release build, e.g. 12.2.140
+    elif cuda_json:
+        info["cuda_version"] = json.loads(cuda_json).get("cuda", {}).get("version")   # a build stamp like 12.2.20230823
     else:
         note("no CUDA toolkit found (nvcc / /usr/local/cuda/version.json); cuda_version omitted")
-    ff = run(["ffmpeg", "-version"])
+    # The rig's own ffmpeg/OpenCV builds live under /opt/orange; fall back to whatever is on PATH.
+    ff = run([ORANGE_FFMPEG if Path(ORANGE_FFMPEG).exists() else "ffmpeg", "-version"])
     if ff and (m := re.match(r"ffmpeg version (\S+)", ff)):
-        info["ffmpeg_version"] = m.group(1)
-    cv = run(["pkg-config", "--modversion", "opencv4"])
+        info["ffmpeg_version"] = normalize_ffmpeg_version(m.group(1))
+    cv = None
+    if Path(f"{ORANGE_OPENCV}/bin/opencv_version").exists():
+        cv = run([f"{ORANGE_OPENCV}/bin/opencv_version"])
+    if not cv:
+        cv = run(["pkg-config", "--modversion", "opencv4"])
     if cv:
         info["opencv_version"] = cv.strip()
     trt = sorted(glob.glob("/usr/local/TensorRT-*"))
     if trt:
         info["tensorrt_version"] = Path(trt[-1]).name.removeprefix("TensorRT-")
+    drv = read_text("/sys/module/nvidia/version")
+    if drv:
+        info["nvidia_driver_version"] = drv.strip()
+    else:
+        note("nvidia kernel module not loaded; nvidia_driver_version omitted")
+    esdk = esdk_version_from_libs(glob.glob(ESDK_LIB_GLOB))
+    if esdk:
+        info["esdk_version"] = esdk
+    else:
+        note("no Emergent eSDK library under /opt/EVT/eSDK/lib; esdk_version omitted")
 
     nm_active = (run(["systemctl", "is-active", "NetworkManager"]) or "").strip() == "active"
     info["network_renderer"] = "NetworkManager" if nm_active else "unknown"
@@ -425,11 +469,25 @@ HEADER = """\
 """
 
 
-def refresh(config_path: Path, write: bool) -> int:
-    """Preview (or, with write=True, apply) newly captured facts on top of an existing config."""
+REFRESH_SECTIONS = ("system_info", "nics", "storage_devices", "gpus")
+
+
+def refresh(config_path: Path, write: bool, only: list[str] | None = None) -> int:
+    """Preview (or, with write=True, apply) newly captured facts on top of an existing config.
+
+    `only` limits the refresh to those top-level sections (e.g. ["system_info"] after a software
+    upgrade); the others are passed through unchanged so they produce no changes.
+    """
     if not config_path.exists():
         raise SystemExit(f"{config_path} does not exist; capture a draft first (no --refresh)")
     fresh = build_config()
+    if only:
+        bad = sorted(set(only) - set(REFRESH_SECTIONS))
+        if bad:
+            raise SystemExit(f"--only accepts {', '.join(REFRESH_SECTIONS)}; got {bad}")
+        for section in REFRESH_SECTIONS:
+            if section not in only:
+                fresh.pop(section, None)   # absent = "no new facts" for the merge, so no changes are reported
     try:
         merged, changes, notes = refresh_config.merge_facts(load(config_path), fresh)
     except refresh_config.RefreshError as exc:
@@ -475,12 +533,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--refresh", action="store_true",
                     help="merge newly detected hardware facts into an existing config (preview unless --write)")
     ap.add_argument("--write", action="store_true", help="with --refresh: apply the changes")
+    ap.add_argument("--only", action="append", metavar="SECTION",
+                    help=f"with --refresh: limit to a section ({', '.join(REFRESH_SECTIONS)}); repeatable")
     ap.add_argument("--config", type=Path, help="with --refresh: default hosts/<hostname>/config.yml")
     args = ap.parse_args(argv)
     if args.write and not args.refresh:
         ap.error("--write only applies to --refresh")
     if args.refresh:
-        return refresh(args.config or hostconfig.default_config_path(socket.gethostname().split(".")[0]), args.write)
+        return refresh(args.config or hostconfig.default_config_path(socket.gethostname().split(".")[0]), args.write, args.only)
 
     config = build_config()
     text = HEADER + yaml.safe_dump(config, sort_keys=False, width=120)

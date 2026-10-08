@@ -176,5 +176,20 @@ class ValidationTests(unittest.TestCase):
         self.assertTrue(ci.validate(self.config(self.nic(role="bogus"))))
 
 
+
+
+class SoftwareVersionTests(unittest.TestCase):
+    def test_ffmpeg_git_describe_is_normalised(self):
+        self.assertEqual(ci.normalize_ffmpeg_version("n4.4.5-7-g283dc2e8eb"), "4.4.5")
+        self.assertEqual(ci.normalize_ffmpeg_version("6.1.1-3ubuntu5"), "6.1.1")
+        self.assertEqual(ci.normalize_ffmpeg_version("weird"), "weird")
+
+    def test_esdk_version_comes_from_the_library_soname(self):
+        self.assertEqual(ci.esdk_version_from_libs(["/opt/EVT/eSDK/lib/libEmergentCamera.so.2.55.02"]), "2.55.02")
+        self.assertEqual(ci.esdk_version_from_libs(["/x/libEmergentCamera.so.2.9.1", "/x/libEmergentCamera.so.2.55.02"]), "2.55.02")
+        self.assertIsNone(ci.esdk_version_from_libs(["/opt/EVT/eSDK/lib/libEmergentCamera.so"]))
+        self.assertIsNone(ci.esdk_version_from_libs([]))
+
+
 if __name__ == "__main__":
     unittest.main()

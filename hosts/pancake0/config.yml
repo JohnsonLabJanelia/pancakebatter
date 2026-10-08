@@ -11,15 +11,22 @@ system_info:
   hostname: pancake0
   ubuntu_version: "22.04"
   kernel_version: 6.5.0-44-generic
-  esdk_version: "1.0"
+  esdk_version: "2.55.02"
   cuda_version: "12.2.140"
-  ffmpeg_version: "4.4"
-  opencv_version: "4.8.0"
+  ffmpeg_version: "4.4.5"
+  opencv_version: "4.10.0"
   tensorrt_version: "10.0.1.6"
-  nvidia_driver_version: "535.183.06"
+  nvidia_driver_version: "610.57.04"
   cuda_capability: "sm_86"
   network_renderer: "NetworkManager"
   network_renderer_version: "2"
+  network_manager_version: "1.36.6"
+  cpu_model: "AMD Ryzen Threadripper PRO 5975WX 32-Cores"
+  cpu_threads: 64
+  memory_gb: 252
+  board_vendor: "ASUSTeK COMPUTER INC."
+  board_name: "Pro WS WRX80E-SAGE SE WIFI"
+  bios_version: "1201"
 
 # Power Distribution Units (PDUs)
 pdus:
