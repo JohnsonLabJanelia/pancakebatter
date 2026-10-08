@@ -18,3 +18,5 @@ ripgrep
 parallel
 # Coloured terminal output for rig_health_check.py under the system python (optional; falls back to ANSI)
 python3-rich
+# Comment-preserving saves of hosts/<host>/config.yml by configio.py (capture_inventory, camera_adopt, gui editor)
+python3-ruamel.yaml

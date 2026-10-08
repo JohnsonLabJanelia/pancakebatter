@@ -63,7 +63,7 @@ After `config.yml` has been edited by hand, re-capturing would clobber your choi
 ```
 
 It updates only facts: NIC identity/serials/firmware, transceiver modules, storage, GPUs and
-`system_info`. **Caveat (2026-10-08):** `--write` re-serialises the YAML and drops every comment in the file (the `.bak` keeps them); until the save preserves comments, prefer `--only <section>` to review the changes and apply them by hand to a commented config, or re-add the comments after writing. Roles, IPs, MTU, altnames, `link_settings`, cameras, PDUs and kernel tuning are never
+`system_info`. Saves go through `configio.save`, which keeps the file's comments, key order and quoting when `ruamel.yaml` is installed for the interpreter running the tool (`sudo apt install python3-ruamel.yaml` for the system python; conda base already has it). Without it the file is re-serialised, only the leading header comment survives, and the tool prints a warning; the `.bak` keeps the old file. Roles, IPs, MTU, altnames, `link_settings`, cameras, PDUs and kernel tuning are never
 touched. It never erases: an empty reading (e.g. no root probe) does not replace a recorded value, and
 anything no longer detected is only reported. NICs are matched by MAC address, so renamed ports are
 fine; new NICs are reported, not added. It refuses to run against another machine's config.

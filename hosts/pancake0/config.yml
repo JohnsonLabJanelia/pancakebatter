@@ -642,6 +642,12 @@ cameras:
 
 # Kernel-side tuning the Orange rig depends on (recorded by check_kernel_tuning.py --record).
 # Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
+  E0-55-97-1E-B6-B8:
+    model: HB-2800SC
+    serial_number: 2012856
+    ip_address: 192.168.130.2
+    nic_port: mlnx1_p3_25g
+
 # Machine-level paths other programs need (schema: paths). data_root still embeds a username until the
 # shared-machine migration (docs/shared_machine_setup_todo.md) moves data to shared storage; change it here only.
 paths:
