@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
                "\"user_name\": \"%s\", \"device_version\": \"%s\", "
                "\"ip\": \"%s\", \"mask\": \"%s\", \"gateway\": \"%s\", "
                "\"persistent_ip_supported\": %s, \"persistent_ip_active\": %s, \"dhcp_active\": %s, "
-               "\"nic\": {\"name\": \"%s\", \"ip\": \"%s\", \"mac\": \"%s\"}}",
+               "\"nic\": {\"name\": \"%s\", \"ip\": \"%s\"}}",
                i ? "," : "",
                json_escape(d.macAddress).c_str(), json_escape(d.serialNumber).c_str(), json_escape(d.modelName).c_str(),
                json_escape(d.manufacturerName).c_str(), json_escape(d.userDefinedName).c_str(),
@@ -63,8 +63,8 @@ int main(int argc, char** argv) {
                IS_PERSISTENT_IP_SUPPORTED(d.ipConfigOptions) ? "true" : "false",
                IS_PERSISTENT_IP_ACTIVATED(d.ipConfigCurrent) ? "true" : "false",
                IS_DHCP_ACTIVATED(d.ipConfigCurrent) ? "true" : "false",
-               json_escape(d.nic.friendlyName).c_str(), json_escape(d.nic.ip4Address).c_str(),
-               json_escape(d.nic.macAddress).c_str());
+               // eSDK 2.55.02's NetworkInterfaceController has no MAC field; camera_adopt.py matches by name
+               json_escape(d.nic.friendlyName).c_str(), json_escape(d.nic.ip4Address).c_str());
     }
     printf("\n]}\n");
     return 0;
