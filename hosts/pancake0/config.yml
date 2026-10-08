@@ -198,9 +198,9 @@ nics:
         fiber_type: SMF
   - mlnx1_p3_25g:
       altname: eth2
-      role: spare
-      managed: false
-      expected_link: false
+      role: camera
+      managed: true
+      expected_link: true
       mac_address: a0:88:c2:69:11:a0
       brand: Mellanox
       model: NVIDIA ConnectX-7 MT2910 Family
