@@ -204,6 +204,58 @@
         "type": "object",
         "additionalProperties": true
       }
+    },
+    "pcie_topology": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "PCIe host bridges and the leaf devices below each (pcie_topology.py --record).",
+      "properties": {
+        "host_bridges": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "note": {
+                "type": "string"
+              },
+              "devices": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "pci",
+                    "kind"
+                  ],
+                  "properties": {
+                    "pci": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{2}:[0-9a-f]{2}\\.[0-7]$"
+                    },
+                    "kind": {
+                      "enum": [
+                        "gpu",
+                        "nic",
+                        "nvme",
+                        "other"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mounts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {

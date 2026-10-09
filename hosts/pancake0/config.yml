@@ -741,3 +741,99 @@ kernel_tuning:
     mlnx2_p4_25g:
       mtu: 9000
       mlx5_irq_cpus: [0, 3, 4, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32, 35, 36, 37, 39, 41, 43, 46, 48, 49, 50, 51, 52, 53, 54, 56, 58, 59, 60, 61, 62, 63]
+
+# PCIe host-bridge map (pcie_topology.py --record; notes by hand). Which devices share a root complex,
+# i.e. whose traffic competes. Verify with pcie_topology.py --check after any card move.
+pcie_topology:
+  host_bridges:
+    '00':
+      note: A6000 (GUI/display) alone on the CPU's first root complex.
+      devices:
+      - pci: '01:00.0'
+        kind: gpu
+        name: GPU0 NVIDIA RTX A6000
+    '20':
+      note: 'The crowded one: A16 card A (GPU1-4, the landing dies for the mlnx1 cameras 2010093/2010094), all three
+        NVMe drives (OS, /mnt/Data1, /mnt/Data2) and both Intel X550T 10 GbE ports (ethernet_1 = lab uplink/default
+        route, ethernet_2 = PDU/control net). nvme0 (/mnt/Data2) and the X550T share one x8 chipset link (20:01.1).
+        Writeback bursts across this bridge cost camera frames before (docs/kernel_tuning.md, vm.dirty_*_bytes);
+        any new bulk traffic here during a recording needs its own no-impact proof.'
+      devices:
+      - pci: '23:00.0'
+        kind: nvme
+        name: nvme0
+        mounts:
+        - /mnt/Data2
+      - pci: '24:00.0'
+        kind: nic
+        name: ethernet_1
+      - pci: '24:00.1'
+        kind: nic
+        name: ethernet_2
+      - pci: '29:00.0'
+        kind: nvme
+        name: nvme2
+        mounts:
+        - /boot/efi
+        - /var/snap/firefox/common/host-hunspell
+        - /
+      - pci: 2a:00.0
+        kind: nvme
+        name: nvme1
+        mounts:
+        - /mnt/Data1
+      - pci: 2f:00.0
+        kind: gpu
+        name: GPU1 NVIDIA A16
+      - pci: '30:00.0'
+        kind: gpu
+        name: GPU2 NVIDIA A16
+      - pci: '31:00.0'
+        kind: gpu
+        name: GPU3 NVIDIA A16
+      - pci: '32:00.0'
+        kind: gpu
+        name: GPU4 NVIDIA A16
+    '40':
+      note: A16 card B (GPU5-8) and the mlnx2 ConnectX-7 (cameras 2010095/2010096 on p3/p4; p1/p2 spare).
+      devices:
+      - pci: '45:00.0'
+        kind: gpu
+        name: GPU5 NVIDIA A16
+      - pci: '46:00.0'
+        kind: gpu
+        name: GPU6 NVIDIA A16
+      - pci: '47:00.0'
+        kind: gpu
+        name: GPU7 NVIDIA A16
+      - pci: '48:00.0'
+        kind: gpu
+        name: GPU8 NVIDIA A16
+      - pci: '49:00.0'
+        kind: nic
+        name: mlnx2_p1_25g
+      - pci: '49:00.1'
+        kind: nic
+        name: mlnx2_p2_25g
+      - pci: '49:00.2'
+        kind: nic
+        name: mlnx2_p3_25g
+      - pci: '49:00.3'
+        kind: nic
+        name: mlnx2_p4_25g
+    '60':
+      note: mlnx1 ConnectX-7 only (cameras 2010093/2010094 on p1/p2, 2012856 on p3, p4 spare). Its frames land on
+        card A across bridge 20.
+      devices:
+      - pci: '61:00.0'
+        kind: nic
+        name: mlnx1_p1_25g
+      - pci: '61:00.1'
+        kind: nic
+        name: mlnx1_p2_25g
+      - pci: '61:00.2'
+        kind: nic
+        name: mlnx1_p3_25g
+      - pci: '61:00.3'
+        kind: nic
+        name: mlnx1_p4_25g
