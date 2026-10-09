@@ -34,10 +34,15 @@ verifies the live host against it. Measured 2026-10-09.
   extra NIC in a free slot on bridge 00 (beside the A6000) is the clean option;
   the slot table is not recorded yet (install the root probe and refresh to
   capture `system_info.pcie_slots`).
-- **NVMe names change between boots.** The kernel's `nvmeN` numbering is not
-  stable (today nvme0 = Data2, nvme1 = Data1, nvme2 = OS; the config's
-  `storage_devices` recorded a different order). Mounts are by UUID, so
-  nothing breaks, but refer to drives by PCI address or mount, not by `nvmeN`.
+- **Drives are identified by serial and filesystem UUID, never by `nvmeN`.**
+  The kernel's `nvmeN` numbering changes between boots (today nvme0 = Data2,
+  nvme1 = Data1, nvme2 = OS; after the 2026-10-06 reboot it differed from the
+  recorded order). The topology block therefore carries each drive's
+  controller serial and its partitions' UUIDs with their mounts, `--check`
+  follows a drive by serial (so it can tell a drive that moved slot from one
+  that was renamed), `storage_devices` matches by serial on refresh and now
+  records partition UUIDs, and `/etc/fstab` mounts by UUID. Serials: 219 = Data2
+  (bb4ea7ac...), 297 = Data1 (4b655567...), 222 = OS (c60c38ed...).
 
 ## Keeping it current
 

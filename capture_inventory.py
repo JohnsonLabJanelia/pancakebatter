@@ -220,7 +220,7 @@ def parse_lsblk(text: str) -> list[dict[str, Any]]:
         if d.get("type") != "disk":
             continue
         parts = [
-            {"partition": c["name"], "fs_type": c.get("fstype"), "mount_point": c.get("mountpoint")}
+            {"partition": c["name"], "fs_type": c.get("fstype"), "mount_point": c.get("mountpoint"), "uuid": c.get("uuid")}
             for c in d.get("children") or [] if c.get("type") == "part"
         ]
         devs.append({
@@ -342,7 +342,7 @@ def probe_gpus() -> list[dict[str, Any]]:
 
 
 def probe_storage() -> list[dict[str, Any]]:
-    out = run(["lsblk", "-J", "-b", "-o", "NAME,MODEL,SERIAL,SIZE,TYPE,MOUNTPOINT,FSTYPE,TRAN,PHY-SEC,REV"])
+    out = run(["lsblk", "-J", "-b", "-o", "NAME,MODEL,SERIAL,SIZE,TYPE,MOUNTPOINT,FSTYPE,TRAN,PHY-SEC,REV,UUID"])
     if out is None:
         note("lsblk unavailable; storage_devices omitted")
         return []

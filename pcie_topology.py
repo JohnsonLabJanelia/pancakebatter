@@ -42,17 +42,25 @@ def pci_path(sysdev: str) -> tuple[str, list[str]]:
     return (bridge.group(1) if bridge else "?"), PCI_RE.findall(real)
 
 
-def nvme_mounts() -> dict[str, list[str]]:
-    """nvme controller name -> mount points of its partitions."""
-    out: dict[str, list[str]] = {}
-    for line in run(["lsblk", "-rno", "NAME,MOUNTPOINTS"]).splitlines():
-        parts = line.split(None, 1)
-        if not parts or not parts[0].startswith("nvme"):
+def nvme_partitions() -> dict[str, list[dict]]:
+    """nvme controller name -> [{partition, uuid, mounts}] (the stable identity of what is on the drive)."""
+    out: dict[str, list[dict]] = {}
+    for line in run(["lsblk", "-rno", "NAME,UUID,MOUNTPOINTS"]).splitlines():
+        parts = line.split(None, 2)
+        if not parts or not re.match(r"nvme\d+n\d+p\d+", parts[0]):
             continue
         ctrl = re.match(r"(nvme\d+)", parts[0]).group(1)
-        if len(parts) > 1 and parts[1].strip():
-            out.setdefault(ctrl, []).extend(m for m in parts[1].replace("\\x0a", " ").split() if m.startswith("/"))
+        uuid = parts[1] if len(parts) > 1 else ""
+        mounts = [m for m in (parts[2] if len(parts) > 2 else "").replace("\\x0a", " ").split() if m.startswith("/")]
+        out.setdefault(ctrl, []).append({"partition": parts[0], "uuid": uuid or None, "mounts": mounts})
     return out
+
+
+def read(path: str) -> str | None:
+    try:
+        return Path(path).read_text().strip()
+    except OSError:
+        return None
 
 
 def live_devices() -> list[dict]:
@@ -60,12 +68,15 @@ def live_devices() -> list[dict]:
     for net in sorted(glob.glob("/sys/class/net/*/device")):
         bridge, path = pci_path(net)
         rows.append({"bridge": bridge, "pci": path[-1], "kind": "nic", "name": net.split("/")[4], "path": path})
-    mounts = nvme_mounts()
+    partitions = nvme_partitions()
     for nv in sorted(glob.glob("/sys/class/nvme/nvme*/device")):
         ctrl = nv.split("/")[4]
         bridge, path = pci_path(nv)
+        parts = partitions.get(ctrl, [])
+        # nvmeN is assigned at boot and not stable; the controller serial and the filesystem UUIDs are
         rows.append({"bridge": bridge, "pci": path[-1], "kind": "nvme", "name": ctrl, "path": path,
-                     "mounts": mounts.get(ctrl, [])})
+                     "serial": read(f"/sys/class/nvme/{ctrl}/serial"), "model": read(f"/sys/class/nvme/{ctrl}/model"),
+                     "mounts": [m for pt in parts for m in pt["mounts"]], "partitions": parts})
     for line in run(["nvidia-smi", "--query-gpu=index,name,pci.bus_id", "--format=csv,noheader"]).splitlines():
         idx, name, bus = [x.strip() for x in line.split(",")]
         pci = bus.lower()[-7:]
@@ -87,6 +98,8 @@ def format_table(rows: list[dict]) -> str:
         lines.append(f"host bridge pci0000:{bridge}")
         for d in devs:
             extra = f"  mounts {', '.join(d['mounts'])}" if d.get("mounts") else ""
+            if d.get("serial"):
+                extra = f"  serial {d['serial']}" + extra
             via = " > ".join(d["path"][:-1])
             lines.append(f"  {d['pci']}  {d['kind']:4s} {d['name']:<24s}{extra}" + (f"   via {via}" if via else ""))
     return "\n".join(lines)
@@ -100,8 +113,18 @@ def record_block(rows: list[dict], existing: dict | None) -> str:
         entry: dict = {}
         if notes.get(bridge):
             entry["note"] = notes[bridge]
-        entry["devices"] = [{k: d[k] for k in ("pci", "kind", "name") if k in d} | ({"mounts": d["mounts"]} if d.get("mounts") else {})
-                            for d in devs]
+        devices = []
+        for d in devs:
+            item = {k: d[k] for k in ("pci", "kind", "name") if k in d}
+            if d.get("serial"):
+                item["serial"] = d["serial"]
+                item["name"] = f"{d['name']} (at record time; nvmeN is not stable, the serial is)"
+            if d.get("partitions"):
+                item["partitions"] = [{"uuid": pt["uuid"], "mounts": pt["mounts"]} for pt in d["partitions"] if pt.get("uuid")]
+            elif d.get("mounts"):
+                item["mounts"] = d["mounts"]
+            devices.append(item)
+        entry["devices"] = devices
         doc["pcie_topology"]["host_bridges"][bridge] = entry
     return yaml.safe_dump(doc, sort_keys=False, width=120)
 
@@ -110,16 +133,21 @@ def compare(recorded: dict | None, rows: list[dict]) -> list[str]:
     """Differences between the recorded device->bridge mapping and the live one (names are informational)."""
     if not recorded or not recorded.get("host_bridges"):
         return ["no pcie_topology recorded (run: pcie_topology.py --record)"]
-    rec = {(d["pci"], d["kind"]): b for b, v in recorded["host_bridges"].items() for d in (v.get("devices") or [])}
-    live = {(r["pci"], r["kind"]): r["bridge"] for r in rows}
+    def ident(d):   # drives by serial (slot-independent), everything else by PCI address
+        return (d["kind"], d["serial"]) if d.get("serial") else (d["kind"], d["pci"])
+    rec = {ident(d): (b, d["pci"]) for b, v in recorded["host_bridges"].items() for d in (v.get("devices") or [])}
+    live = {ident(r): (r["bridge"], r["pci"]) for r in rows}
     problems = []
     for key in sorted(set(rec) | set(live)):
+        label = f"{key[0]} {key[1]}"
         if key not in live:
-            problems.append(f"{key[1]} {key[0]} recorded under bridge {rec[key]} is gone")
+            problems.append(f"{label} recorded under bridge {rec[key][0]} is gone")
         elif key not in rec:
-            problems.append(f"{key[1]} {key[0]} under bridge {live[key]} is not recorded")
-        elif rec[key] != live[key]:
-            problems.append(f"{key[1]} {key[0]} moved: recorded bridge {rec[key]}, live {live[key]}")
+            problems.append(f"{label} under bridge {live[key][0]} is not recorded")
+        elif rec[key][0] != live[key][0]:
+            problems.append(f"{label} moved: recorded bridge {rec[key][0]}, live {live[key][0]}")
+        elif rec[key][1] != live[key][1]:
+            problems.append(f"{label} moved within bridge {live[key][0]}: recorded {rec[key][1]}, live {live[key][1]}")
     return problems
 
 

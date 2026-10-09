@@ -248,6 +248,27 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "serial": {
+                      "type": "string",
+                      "description": "Controller serial (NVMe): the stable identity of a drive; nvmeN is not."
+                    },
+                    "partitions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uuid": {
+                            "type": "string"
+                          },
+                          "mounts": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
