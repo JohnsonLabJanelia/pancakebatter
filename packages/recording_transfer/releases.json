@@ -19,6 +19,19 @@
         "tag": "recording-transfer-v3.0.0",
         "note": "History and tags carried over from Citrus; this tag rebuilds the same wheel byte-identically (sha256 eb12e5df...), as reported by the citrus session on 2026-10-10. The installer trusts the sha256, not the repo."
       }
+    },
+    {
+      "version": "3.1.0",
+      "package": "citrus-recording-transfer",
+      "wheel": "citrus_recording_transfer-3.1.0-py3-none-any.whl",
+      "sha256": "145a9b866a95cf36f98c2165867516fb1ea4f18bf8f3e86059574cfb6f977665",
+      "source": {
+        "repo": "JohnsonLabJanelia/pancake-plate",
+        "tag": "recording-transfer-v3.1.0",
+        "tag_object": "8101b9b7699a621ff2466ec89c55977c342d5c51",
+        "commit": "456d7fe947f47aaad797c8747638592155567732"
+      },
+      "notes": "First release from pancake-plate (merge of PR #1): admits Citrus stimulus videos declared in a Citrus receipt v2. Reproducible build (SOURCE_DATE_EPOCH = tag commit time). Wheel sha256 and tag->commit verified by pancakebatter on 2026-10-10 (sha256sum; GitHub API). 3.0.0 stays installed as the rollback until Orange re-pins."
     }
   ]
 }
