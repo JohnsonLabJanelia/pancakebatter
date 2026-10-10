@@ -298,6 +298,14 @@ class HostConfigCheckTests(unittest.TestCase):
         self.assertEqual(rhc.worst_level([rhc.Finding("x", "info", ""), rhc.Finding("y", "warn", "")]), "warn")
 
 
+class RecordingTransferCheckTests(unittest.TestCase):
+    def test_absent_key_skips_empty_root_is_info(self):
+        import tempfile
+        self.assertEqual(rhc.check_recording_transfer({}), [])
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual([f.level for f in rhc.check_recording_transfer({"paths": {"recording_transfer_root": d}})], ["info"])
+
+
 class StateTests(unittest.TestCase):
     def test_levels_by_check_keeps_the_worst_and_transitions_ignore_info(self):
         findings = [rhc.Finding("a", "ok", ""), rhc.Finding("a", "warn", ""), rhc.Finding("b", "info", ""), rhc.Finding("c", "crit", "")]

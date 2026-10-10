@@ -22,6 +22,7 @@ Checks (reads of sysfs, /proc and the journal, plus one nvidia-smi query):
   pcie_aer      new PCIe AER messages since the last run (warn)
   acquisition   whether Orange is recording (info only)
   host_config   the installed copy other programs read (/etc/pancakebatter/host.yml) matches the checkout (warn if stale)
+  recording_transfer  every sealer version under paths.recording_transfer_root matches releases.json, file by file
 
 Staying out of the acquisition pipeline's way: the script renices itself to 19, pins itself to the
 cores NOT in kernel_tuning.isolated_cores, writes nothing outside --state-dir, never touches the NIC
@@ -370,6 +371,26 @@ def check_host_config(host: Host, checkout: Path) -> list[Finding]:
     return [Finding("host_config", "ok", f"{installed} matches the checkout")]
 
 
+def check_recording_transfer(config: dict) -> list[Finding]:
+    """Every installed sealer version still matches its releases.json entry, file by file."""
+    root_value = (config.get("paths") or {}).get("recording_transfer_root")
+    if not root_value:
+        return []
+    import recording_transfer_install as rti
+    root = Path(root_value)
+    versions = rti.installed_versions(root)
+    if not versions:
+        return [Finding("recording_transfer", "info", f"no sealer versions installed under {root}")]
+    try:
+        manifest = rti.load_manifest()
+    except (OSError, ValueError) as exc:
+        return [Finding("recording_transfer", "warn", f"releases.json unreadable: {exc}")]
+    problems = [p for v in versions for p in rti.verify_install(root, v, manifest)]
+    if problems:
+        return [Finding("recording_transfer", "warn", p) for p in problems]
+    return [Finding("recording_transfer", "ok", f"{', '.join(versions)} intact under {root}")]
+
+
 def check_acquisition(host: Host) -> list[Finding]:
     pids = rcn.orange_pids(host)
     return [Finding("acquisition", "info", f"Orange running (pids {pids})" if pids else "Orange not running", pids)]
@@ -483,6 +504,7 @@ def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, w
         findings += check_ptp(host, config, th)
     findings += check_time_sync(host, th, ntp_server)
     findings += check_pcie_aer(host, since)
+    findings += check_recording_transfer(config)
     findings += check_acquisition(host)
     return findings
 

@@ -662,6 +662,7 @@ paths:
   data_root: /home/jeremy/orange_data
   orange_run_dir: /run/orange
   shared_config_root: /etc/pancakebatter
+  recording_transfer_root: /opt/recording-transfer   # per-version sealer installs (install_recording_transfer.sh)
 
 kernel_tuning:
   cmdline:

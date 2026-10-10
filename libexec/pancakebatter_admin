@@ -12,5 +12,6 @@ case "${1:-}" in
     install-host-config)       shift; exec "$REPO/install_host_config.sh" "$@" ;;
     install-ptp-units)         shift; exec "$REPO/install_ptp_units.sh" "$@" ;;
     install-rig-health-timer)  shift; exec "$REPO/install_rig_health_timer.sh" "$@" ;;
-    *) echo "usage: $0 install-host-config|install-ptp-units|install-rig-health-timer [args]" >&2; exit 2 ;;
+    install-recording-transfer) shift; exec /usr/bin/python3 -E -s "$REPO/recording_transfer_install.py" "$@" ;;
+    *) echo "usage: $0 install-host-config|install-ptp-units|install-rig-health-timer|install-recording-transfer [args]" >&2; exit 2 ;;
 esac

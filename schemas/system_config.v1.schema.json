@@ -153,6 +153,10 @@
         "shared_config_root": {
           "type": "string",
           "description": "Where machine-level configuration lives (default /etc/pancakebatter)."
+        },
+        "recording_transfer_root": {
+          "type": "string",
+          "description": "Root of the per-version recording-transfer sealer installs: <root>/<version>/bin/<script>, INSTALLED.json."
         }
       }
     },

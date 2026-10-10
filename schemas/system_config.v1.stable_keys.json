@@ -34,7 +34,8 @@
     "kernel_tuning.core_roles.*.thread",
     "paths.data_root",
     "paths.orange_run_dir",
-    "paths.shared_config_root"
+    "paths.shared_config_root",
+    "paths.recording_transfer_root"
   ],
   "optional_sections": [
     "pdus",
@@ -54,6 +55,7 @@
     "paths.orange_run_dir",
     "paths.shared_config_root",
     "cameras.*.sensor.x_resolution",
-    "cameras.*.sensor.y_resolution"
+    "cameras.*.sensor.y_resolution",
+    "paths.recording_transfer_root"
   ]
 }
