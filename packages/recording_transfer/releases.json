@@ -1,6 +1,6 @@
 {
   "schema": "pancakebatter.recording_transfer_releases.v1",
-  "description": "Released recording-transfer sealer wheels that may be installed on rig hosts. One entry per version; adding a version is a reviewed commit. install_recording_transfer.sh refuses any wheel whose sha256 differs from its entry.",
+  "description": "Released recording-transfer sealer wheels that may be installed on rig hosts. One entry per version; adding a version is a reviewed commit. install_recording_transfer.sh refuses any wheel whose sha256 differs from its entry. New releases (3.1.0 onwards) come from JohnsonLabJanelia/pancake-plate (private); the package name stays citrus-recording-transfer.",
   "wheel_dir": "/home/jeremy/recording-transfer-wheels",
   "releases": [
     {
@@ -8,8 +8,17 @@
       "package": "citrus-recording-transfer",
       "wheel": "citrus_recording_transfer-3.0.0-py3-none-any.whl",
       "sha256": "eb12e5df5435eb5ca11907cd5a0ceba9092b17bcc9d17f28a757539fadbdf1c9",
-      "source": {"repo": "JohnsonLabJanelia/citrus", "tag": "recording-transfer-v3.0.0", "commit": "334f53a"},
-      "notes": "Last release built from the Citrus repository; kept installed as the rollback for the 3.1.0 cutover (approved 2026-10-10). Matches Orange's pin."
+      "source": {
+        "repo": "JohnsonLabJanelia/citrus",
+        "tag": "recording-transfer-v3.0.0",
+        "commit": "334f53a"
+      },
+      "notes": "Last release built from the Citrus repository; kept installed as the rollback for the 3.1.0 cutover (approved 2026-10-10). Matches Orange's pin.",
+      "also_built_by": {
+        "repo": "JohnsonLabJanelia/pancake-plate",
+        "tag": "recording-transfer-v3.0.0",
+        "note": "History and tags carried over from Citrus; this tag rebuilds the same wheel byte-identically (sha256 eb12e5df...), as reported by the citrus session on 2026-10-10. The installer trusts the sha256, not the repo."
+      }
     }
   ]
 }

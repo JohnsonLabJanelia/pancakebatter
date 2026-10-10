@@ -54,7 +54,7 @@ version no longer matches its manifest entry.
 
 ## Cutover to 3.1.0
 
-1. Citrus releases 3.1.0 from the new repository; its wheel and sha256 are added
+1. 3.1.0 is released from the new repository, `JohnsonLabJanelia/pancake-plate` (private; history and the nine earlier tags carried over from Citrus, and its `recording-transfer-v3.0.0` tag rebuilds the 3.0.0 wheel byte-identically); its wheel and sha256 are added
    to `releases.json` (reviewed commit) and the wheel saved in `wheel_dir`.
 2. `./install_recording_transfer.sh install 3.1.0`; 3.0.0 stays installed.
 3. Orange re-pins its pre-check to `/opt/recording-transfer/3.1.0/` and the 3.1.0
