@@ -24,6 +24,18 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# GitHub's apt repository, so sysadmin.txt's gh is current rather than jammy's 2.4.0
+echo ""
+echo "Adding the GitHub CLI apt repository"
+echo ""
+
+if ! "${SCRIPT_DIR}/install_gh_apt_repo.sh"; then
+    echo ""
+    echo -e "${RED}GitHub CLI repository setup failed. Please check the errors above.${NC}"
+    echo ""
+    exit 1
+fi
+
 # Install recommended packages
 echo ""
 echo "Installing recommended packages"
