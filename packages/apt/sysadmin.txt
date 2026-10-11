@@ -20,3 +20,6 @@ parallel
 python3-rich
 # Comment-preserving saves of hosts/<host>/config.yml by configio.py (capture_inventory, camera_adopt, gui editor)
 python3-ruamel.yaml
+# GitHub CLI. Add GitHub's apt repo first (https://cli.github.com/packages, keyring in /etc/apt/keyrings);
+# without it this installs Ubuntu jammy's gh 2.4.0, which lacks flags such as release create --verify-tag.
+gh
