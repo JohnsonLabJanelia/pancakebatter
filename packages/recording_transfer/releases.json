@@ -50,7 +50,9 @@
         "repo": "JohnsonLabJanelia/pancake-plate",
         "tag": "recording-transfer-v3.2.0",
         "tag_object": "0b1ea29339bfef0b1ea20db0652d176b033a1bf9",
-        "commit": "00787e7c36ba9fa27adba1a80b49c3996afb5426"
+        "commit": "00787e7c36ba9fa27adba1a80b49c3996afb5426",
+        "release_url": "https://github.com/JohnsonLabJanelia/pancake-plate/releases/tag/recording-transfer-v3.2.0",
+        "release_assets": "wheel + SHA256SUMS, published 2026-10-11 by the citrus session; downloaded asset verified against the sha256 above"
       },
       "notes": "Merge of pancake-plate PR #3 (reviewed by pancakebatter): admits Citrus finalized receipt v3 (receipt v2 plus contract.subject_reference, checked structurally). Same snapshot v3 / marker v4 as 3.1.0; v1/v2 inputs seal byte-identically to 3.1.0 (tested against the installed 3.1.0). 3.1.0 stays installed as the rollback.",
       "build": {
