@@ -40,6 +40,26 @@
         "command": "SOURCE_DATE_EPOCH=1791645056 python -m pip wheel --no-deps --no-build-isolation -w dist .  (in a checkout of the tag, with setuptools==75.8.0 installed)",
         "verified": "Rebuilt byte-identically by pancakebatter on 2026-10-11 from a tarball of 456d7fe (Python 3.12.8, pip 24.3.1). setuptools 84.0.0 gives a different digest, so the pin matters."
       }
+    },
+    {
+      "version": "3.2.0",
+      "package": "citrus-recording-transfer",
+      "wheel": "citrus_recording_transfer-3.2.0-py3-none-any.whl",
+      "sha256": "02cd77b78aa7bc95eeebfa80abcac9abd2b781104dedda7b07103861b43bf35a",
+      "source": {
+        "repo": "JohnsonLabJanelia/pancake-plate",
+        "tag": "recording-transfer-v3.2.0",
+        "tag_object": "0b1ea29339bfef0b1ea20db0652d176b033a1bf9",
+        "commit": "00787e7c36ba9fa27adba1a80b49c3996afb5426"
+      },
+      "notes": "Merge of pancake-plate PR #3 (reviewed by pancakebatter): admits Citrus finalized receipt v3 (receipt v2 plus contract.subject_reference, checked structurally). Same snapshot v3 / marker v4 as 3.1.0; v1/v2 inputs seal byte-identically to 3.1.0 (tested against the installed 3.1.0). 3.1.0 stays installed as the rollback.",
+      "build": {
+        "setuptools": "75.8.0",
+        "umask": "0002",
+        "source_date_epoch": 1791757205,
+        "command": "umask 0002; SOURCE_DATE_EPOCH=1791757205 python -m pip wheel --no-deps --no-build-isolation -w dist .  (in a checkout of the tag, with setuptools==75.8.0 installed)",
+        "verified": "Built by the citrus session and rebuilt byte-identically by pancakebatter on 2026-10-11 from a tarball of 00787e7 (Python 3.12.8, pip 24.3.1)."
+      }
     }
   ]
 }
