@@ -31,7 +31,13 @@
         "tag_object": "8101b9b7699a621ff2466ec89c55977c342d5c51",
         "commit": "456d7fe947f47aaad797c8747638592155567732"
       },
-      "notes": "First release from pancake-plate (merge of PR #1): admits Citrus stimulus videos declared in a Citrus receipt v2. Reproducible build (SOURCE_DATE_EPOCH = tag commit time). Wheel sha256 and tag->commit verified by pancakebatter on 2026-10-10 (sha256sum; GitHub API). 3.0.0 stays installed as the rollback until Orange re-pins."
+      "notes": "First release from pancake-plate (merge of PR #1): admits Citrus stimulus videos declared in a Citrus receipt v2. Reproducible build (SOURCE_DATE_EPOCH = tag commit time). Wheel sha256 and tag->commit verified by pancakebatter on 2026-10-10 (sha256sum; GitHub API). 3.0.0 stays installed as the rollback until Orange re-pins.",
+      "build": {
+        "setuptools": "75.8.0",
+        "source_date_epoch": 1791645056,
+        "command": "SOURCE_DATE_EPOCH=1791645056 python -m pip wheel --no-deps --no-build-isolation -w dist .  (in a checkout of the tag, with setuptools==75.8.0 installed)",
+        "verified": "Rebuilt byte-identically by pancakebatter on 2026-10-11 from a tarball of 456d7fe (Python 3.12.8, pip 24.3.1). setuptools 84.0.0 gives a different digest, so the pin matters."
+      }
     }
   ]
 }
