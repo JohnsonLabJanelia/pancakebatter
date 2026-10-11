@@ -690,8 +690,9 @@ kernel_tuning:
       consumer: citrus
       thread: "ArenaUpdateManager::UpdateLoop"
       note: "Fixed-rate arena state update loop. citrus_runtime.threading.arena_update_core / CITRUS_ARENA_UPDATE_CORE. Its
-        worker pool (CPU 24+) and the Shaman IPC readers (CPU 20+) are not on isolated CPUs. SMT sibling 34 is isolated with
-        it (added 2026-10-06)."
+        four arena workers float on the housekeeping CPUs (arena_worker_base_core: -1, Citrus PR #10, 2026-10-11; pinning
+        them one per shared core 24-27 cost ~14 ms wake-ups during recordings) and the Shaman IPC readers are pinned from CPU
+        20 up; neither is on an isolated CPU. SMT sibling 34 is isolated with it (added 2026-10-06)."
     "6":
       role: yolo
       consumer: orange
