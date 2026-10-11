@@ -29,7 +29,9 @@
         "repo": "JohnsonLabJanelia/pancake-plate",
         "tag": "recording-transfer-v3.1.0",
         "tag_object": "8101b9b7699a621ff2466ec89c55977c342d5c51",
-        "commit": "456d7fe947f47aaad797c8747638592155567732"
+        "commit": "456d7fe947f47aaad797c8747638592155567732",
+        "release_url": "https://github.com/JohnsonLabJanelia/pancake-plate/releases/tag/recording-transfer-v3.1.0",
+        "release_assets": "wheel + SHA256SUMS, published 2026-10-11 on Jeremy's approval; downloaded asset verified against the sha256 above"
       },
       "notes": "First release from pancake-plate (merge of PR #1): admits Citrus stimulus videos declared in a Citrus receipt v2. Reproducible build (SOURCE_DATE_EPOCH = tag commit time). Wheel sha256 and tag->commit verified by pancakebatter on 2026-10-10 (sha256sum; GitHub API). 3.0.0 stays installed as the rollback until Orange re-pins.",
       "build": {
