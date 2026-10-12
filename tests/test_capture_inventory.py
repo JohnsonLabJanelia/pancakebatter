@@ -1,5 +1,7 @@
 import json
 import unittest
+from pathlib import Path
+from unittest import mock
 
 import capture_inventory as ci
 
@@ -189,6 +191,39 @@ class SoftwareVersionTests(unittest.TestCase):
         self.assertEqual(ci.esdk_version_from_libs(["/x/libEmergentCamera.so.2.9.1", "/x/libEmergentCamera.so.2.55.02"]), "2.55.02")
         self.assertIsNone(ci.esdk_version_from_libs(["/opt/EVT/eSDK/lib/libEmergentCamera.so"]))
         self.assertIsNone(ci.esdk_version_from_libs([]))
+
+
+class SystemPythonTests(unittest.TestCase):
+    def test_manifest_lines_ignore_comments_and_blanks(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+            f.write("# header\n\npython3-yaml\npython3-rich  # trailing\n")
+        self.assertEqual(ci.manifest_packages(Path(f.name)), ["python3-yaml", "python3-rich"])
+        Path(f.name).unlink()
+
+    def test_repo_manifest_is_python3_packages(self):
+        names = ci.manifest_packages(ci.PYTHON_MANIFEST)
+        self.assertIn("python3-yaml", names)
+        self.assertTrue(all(n.startswith("python3-") for n in names), names)
+
+    def test_dpkg_listing_keeps_installed_only(self):
+        text = ("python3-yaml ii  5.4.1-1ubuntu1\n"
+                "python3-old rc  1.0-1\n"          # removed, config files left
+                "python3-rich ii  11.2.0-1\n")
+        self.assertEqual(ci.parse_dpkg_versions(text), {"python3-yaml": "5.4.1-1ubuntu1", "python3-rich": "11.2.0-1"})
+
+    def test_probe_reports_missing_manifest_packages(self):
+        probe_out = '{"version": "3.10.12", "pip": {"/usr/local/lib/python3.10/dist-packages": {"tensorrt": "10.0.1"}}}'
+        outputs = {"/usr/bin/python3": probe_out, "dpkg-query": "python3-yaml ii  5.4.1-1ubuntu1\n"}
+        ci.NOTES.clear()
+        with mock.patch.object(ci, "run", side_effect=lambda args, **kw: outputs[args[0]]), \
+             mock.patch.object(ci, "manifest_packages", return_value=["python3-yaml", "python3-rich"]):
+            got = ci.probe_system_python()
+        self.assertEqual(got["version"], "3.10.12")
+        self.assertEqual(got["apt_manifest"], {"python3-yaml": "5.4.1-1ubuntu1", "python3-rich": None})
+        self.assertEqual(got["pip_installed"], {"/usr/local/lib/python3.10/dist-packages": {"tensorrt": "10.0.1"}})
+        self.assertTrue(any("python3-rich" in n for n in ci.NOTES))
+        ci.NOTES.clear()
 
 
 if __name__ == "__main__":

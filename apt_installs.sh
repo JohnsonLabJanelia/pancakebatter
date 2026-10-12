@@ -41,7 +41,7 @@ echo ""
 echo "Installing recommended packages"
 echo ""
 
-if install_apt_manifest_packages "recommended packages" base network_tools build_tools sysadmin data_diagnostics; then
+if install_apt_manifest_packages "recommended packages" base network_tools build_tools sysadmin data_diagnostics python; then
     echo ""
     echo -e "${GREEN}Basic Linux packages installed successfully!${NC}"
     echo ""

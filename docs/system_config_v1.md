@@ -230,3 +230,34 @@ isolated CPU (string key) to its purpose (`role`, optional `consumer`,
 `camera`, `sibling_of`, `note`). The schema validates the section's shape;
 `check_kernel_tuning.py` compares it with the live host. See
 [`kernel_tuning.md`](kernel_tuning.md).
+
+## `system_python` (optional, captured)
+
+What the system interpreter (`/usr/bin/python3`) has, so a host's Python state is on
+record next to its other software versions:
+
+```yaml
+system_python:
+  executable: /usr/bin/python3
+  version: 3.10.12
+  apt_manifest:                    # packages/apt/python.txt -> apt version; null = missing
+    python3-yaml: 5.4.1-1ubuntu1
+    python3-ruamel.yaml: null
+  pip_installed:                   # anything outside apt's /usr/lib/python3/dist-packages
+    /usr/local/lib/python3.10/dist-packages:
+      tensorrt: 10.0.1
+```
+
+`capture_inventory.py` fills it; after installing or removing system-python packages run
+
+```bash
+./capture_inventory.py --refresh --only system_python            # preview
+./capture_inventory.py --refresh --only system_python --write    # record
+```
+
+Unlike the hardware sections, a refresh replaces the listing and reports removed
+packages, since it is a complete reading of one interpreter. `pip_installed` includes
+the capturing user's `~/.local` site-packages, which shadows apt modules for that user
+only; the directory key says whose it is. Install system-python modules from apt
+(`packages/apt/python.txt`, run by `apt_installs.sh`), not `sudo pip`. The section is
+internal: no consumer may rely on its keys.

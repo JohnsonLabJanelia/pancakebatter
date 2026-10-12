@@ -19,6 +19,7 @@ you set by hand. Previews by default; nothing is erased, only added or updated:
     ./capture_inventory.py --refresh                    # preview changes to hosts/<hostname>/config.yml
     ./capture_inventory.py --refresh --write            # apply (validated, timestamped backup)
     ./capture_inventory.py --refresh --config PATH
+    ./capture_inventory.py --refresh --only system_python --write   # after apt/pip changes to /usr/bin/python3
 """
 from __future__ import annotations
 
@@ -43,6 +44,21 @@ from configio import load, save, validate  # noqa: F401  (validate is re-exporte
 
 UNASSIGNED_IP = "0.0.0.0/0"
 ROOT_PROBE = "/usr/local/libexec/pancakebatter/root_probe.py"  # see install_root_probe.sh
+SYSTEM_PYTHON = "/usr/bin/python3"
+PYTHON_MANIFEST = Path(__file__).resolve().parent / "packages" / "apt" / "python.txt"
+# Run under the system python (capture itself may run in conda): its version, and every
+# distribution pip put outside apt's /usr/lib/python3/dist-packages, by directory.
+SYSTEM_PYTHON_PROBE = r"""
+import importlib.metadata as md, json, platform, site, sys
+dirs = [p for p in sys.path if p.endswith(("dist-packages", "site-packages")) and not p.startswith("/usr/lib/")]
+dirs.append(site.getusersitepackages())
+pip = {}
+for d in dict.fromkeys(dirs):
+    pkgs = {x.metadata["Name"]: x.version for x in md.distributions(path=[d])}
+    if pkgs:
+        pip[d] = dict(sorted(pkgs.items(), key=lambda kv: kv[0].lower()))
+print(json.dumps({"version": platform.python_version(), "pip": pip}))
+"""
 NOTES: list[str] = []
 
 
@@ -332,6 +348,50 @@ def probe_system_info() -> dict[str, Any]:
     return info
 
 
+def manifest_packages(path: Path) -> list[str]:
+    names = []
+    for line in path.read_text().splitlines():
+        line = line.split("#", 1)[0].strip()
+        if line:
+            names.append(line)
+    return names
+
+
+def parse_dpkg_versions(text: str) -> dict[str, str]:
+    """dpkg-query -W -f '${Package} ${db:Status-Abbrev} ${Version}\n': installed ('ii') packages only."""
+    out = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) == 3 and parts[1] == "ii":
+            out[parts[0]] = parts[2]
+    return out
+
+
+def probe_system_python() -> dict[str, Any] | None:
+    """What /usr/bin/python3 has: version, the packages/apt/python.txt modules (null = missing),
+    and anything pip installed outside apt (/usr/local, the capturing user's site-packages)."""
+    if not Path(SYSTEM_PYTHON).exists():
+        note(f"{SYSTEM_PYTHON} not found; system_python omitted")
+        return None
+    raw = run([SYSTEM_PYTHON, "-I", "-c", SYSTEM_PYTHON_PROBE])
+    if not raw:
+        note(f"{SYSTEM_PYTHON} probe failed; system_python omitted")
+        return None
+    found = json.loads(raw)
+    wanted = manifest_packages(PYTHON_MANIFEST)
+    # One pattern query: naming the packages makes dpkg-query fail when any one is missing.
+    dpkg = parse_dpkg_versions(run(["dpkg-query", "-W", "-f", "${Package} ${db:Status-Abbrev} ${Version}\n", "python3-*"]) or "")
+    missing = [w for w in wanted if w not in dpkg]
+    if missing:
+        note(f"system python is missing {', '.join(missing)} (sudo apt install {' '.join(missing)})")
+    return {
+        "executable": SYSTEM_PYTHON,
+        "version": found["version"],
+        "apt_manifest": {w: dpkg.get(w) for w in wanted},
+        "pip_installed": found["pip"],
+    }
+
+
 def probe_gpus() -> list[dict[str, Any]]:
     out = run(["nvidia-smi", "--query-gpu=name,driver_version,uuid,pci.bus_id,memory.total,compute_cap",
                "--format=csv,noheader"])
@@ -449,7 +509,7 @@ def build_config() -> dict[str, Any]:
     if gpus:
         info["nvidia_driver_version"] = sorted({g["driver_version"] for g in gpus})[0]
         info["cuda_capability"] = caps[0] if len(caps) == 1 else caps
-    return {
+    config = {
         "schema": {"name": "system_config", "version": 1},
         "system_info": info,
         "storage_devices": probe_storage(),
@@ -457,11 +517,15 @@ def build_config() -> dict[str, Any]:
         "nics": probe_nics(),
         "cameras": {},
     }
+    system_python = probe_system_python()
+    if system_python:
+        config["system_python"] = system_python
+    return config
 
 
 HEADER = """\
 # DRAFT captured by capture_inventory.py -- review before use.
-# Auto-filled: system_info, storage_devices, gpus, nics (hardware/link facts).
+# Auto-filled: system_info, system_python, storage_devices, gpus, nics (hardware/link facts).
 # Still needs a human: nic role/managed/expected_link/ip_address, cameras, pdus,
 # kernel_tuning. NIC part/serial and transceiver details are only filled when run as root;
 # otherwise enter them with gui_config_editor.py.
@@ -469,7 +533,7 @@ HEADER = """\
 """
 
 
-REFRESH_SECTIONS = ("system_info", "nics", "storage_devices", "gpus")
+REFRESH_SECTIONS = ("system_info", "system_python", "nics", "storage_devices", "gpus")
 
 
 def refresh(config_path: Path, write: bool, only: list[str] | None = None) -> int:

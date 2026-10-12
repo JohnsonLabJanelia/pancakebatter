@@ -33,7 +33,7 @@ Thresholds are overridable per run: `--threshold nic_warn=80 --threshold disk_wa
 On a terminal the findings are coloured by level (green ok, cyan info, yellow
 warn, bold red crit). The script uses `rich` when the interpreter has it and
 plain ANSI codes when it does not, so colour never depends on an install;
-`rich` adds aligned, wrapped columns. It is in `packages/apt/sysadmin.txt` as
+`rich` adds aligned, wrapped columns. It is in `packages/apt/python.txt` as
 `python3-rich` for the system python, or `pip install rich` in a conda env.
 `--color always|never` overrides the terminal detection and `NO_COLOR` is
 honoured. Under the timer (journal), in a pipe and in alert mails the output

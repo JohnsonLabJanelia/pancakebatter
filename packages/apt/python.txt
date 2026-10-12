@@ -1,0 +1,15 @@
+# Python modules the repo's tools need under the system python (/usr/bin/python3).
+# Install from apt, never `sudo pip install`: pip writes into /usr/local and can shadow or
+# break apt's own python3-* packages. capture_inventory.py records what is actually installed
+# (system_python in hosts/<host>/config.yml), including anything pip put there.
+
+# PyYAML: hostconfig.py, configio.py, capture_inventory.py, rigconfig.py, the test suite
+python3-yaml
+# Comment-preserving saves of hosts/<host>/config.yml by configio.py (capture_inventory, camera_adopt, gui editor)
+python3-ruamel.yaml
+# Coloured terminal output for rig_health_check.py and pdu.py (optional in rig_health_check; falls back to ANSI)
+python3-rich
+# pdu.py: the PDU's telnet console
+python3-pexpect
+# Not here: jsonschema. jammy's python3-jsonschema is 3.2 and lacks Draft202012Validator, which
+# configio.validate uses; without it validation falls back to check_network_settings' checks.

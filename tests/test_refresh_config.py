@@ -161,5 +161,30 @@ class RefreshCliTests(unittest.TestCase):
             ci.main(["--refresh", "--config", str(self.dir / "nope.yml")])
 
 
+class SystemPythonMergeTests(unittest.TestCase):
+    def base(self, **sp):
+        cfg = {"system_info": {"hostname": "h"}, "nics": []}
+        if sp:
+            cfg["system_python"] = sp
+        return cfg
+
+    def test_fresh_listing_replaces_and_reports_added_changed_removed(self):
+        old = self.base(version="3.10.12", apt_manifest={"python3-yaml": "5.4", "python3-rich": None},
+                        pip_installed={"/usr/local/lib/python3.10/dist-packages": {"tensorrt": "10.0.1", "gone": "1"}})
+        new = self.base(version="3.10.12", apt_manifest={"python3-yaml": "5.4", "python3-rich": "11.2.0-1"},
+                        pip_installed={"/usr/local/lib/python3.10/dist-packages": {"tensorrt": "10.0.2"}})
+        merged, changes, _ = rc.merge_facts(old, new)
+        self.assertEqual(merged["system_python"], new["system_python"])
+        self.assertIn("system_python.apt_manifest.python3-rich: None -> '11.2.0-1'", changes)
+        self.assertTrue(any("gone" in c and "removed" in c for c in changes), changes)
+        self.assertTrue(any("tensorrt: '10.0.1' -> '10.0.2'" in c for c in changes), changes)
+
+    def test_no_capture_keeps_the_recorded_listing(self):
+        old = self.base(version="3.10.12", apt_manifest={}, pip_installed={})
+        merged, changes, _ = rc.merge_facts(old, {"system_info": {"hostname": "h"}})
+        self.assertEqual(merged["system_python"], old["system_python"])
+        self.assertEqual(changes, [])
+
+
 if __name__ == "__main__":
     unittest.main()

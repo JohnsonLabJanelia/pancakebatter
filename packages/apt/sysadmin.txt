@@ -16,10 +16,6 @@ mokutil
 jq
 ripgrep
 parallel
-# Coloured terminal output for rig_health_check.py under the system python (optional; falls back to ANSI)
-python3-rich
-# Comment-preserving saves of hosts/<host>/config.yml by configio.py (capture_inventory, camera_adopt, gui editor)
-python3-ruamel.yaml
 # GitHub CLI from GitHub's apt repo, added by install_gh_apt_repo.sh (apt_installs.sh runs it first);
 # without that repo this installs Ubuntu jammy's gh 2.4.0, which lacks flags such as release create --verify-tag.
 gh

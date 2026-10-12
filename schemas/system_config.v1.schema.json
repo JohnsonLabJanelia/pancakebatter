@@ -281,6 +281,45 @@
           }
         }
       }
+    },
+    "system_python": {
+      "type": "object",
+      "description": "What /usr/bin/python3 has, captured by capture_inventory.py (--refresh --only system_python after changes). Internal: not a stable key.",
+      "required": [
+        "executable",
+        "version",
+        "apt_manifest",
+        "pip_installed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "executable": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "apt_manifest": {
+          "type": "object",
+          "description": "packages/apt/python.txt -> installed apt version, null when missing.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "pip_installed": {
+          "type": "object",
+          "description": "Distributions outside apt's /usr/lib/python3/dist-packages, by directory (/usr/local and the capturing user's site-packages) -> {name: version}. Empty when pip has put nothing there.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {

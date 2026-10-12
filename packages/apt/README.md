@@ -17,6 +17,7 @@ Current manifests:
 - `build_tools.txt` - extra toolchain packages installed by `apt_installs.sh`.
 - `sysadmin.txt` - admin, storage, and network diagnostics installed by `apt_installs.sh`.
 - `data_diagnostics.txt` - HDF5 CLI tools, graphviz, imagemagick, and Tk installed by `apt_installs.sh`.
+- `python.txt` - the `python3-*` modules the repo's tools import under the system python, installed by `apt_installs.sh`. Install system-python modules from apt, not `sudo pip`; `./capture_inventory.py --refresh --only system_python` records what is actually there (see `docs/system_config_v1.md`).
 - `domain_join.txt` - SSSD/Kerberos/realmd packages for joining the machine to a domain. Opt-in: not run by `apt_installs.sh` because `krb5-user` prompts for a realm and joining is a deliberate step. Install with:
 
   ```bash

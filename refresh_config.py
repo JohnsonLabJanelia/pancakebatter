@@ -2,12 +2,14 @@
 
 Used by `capture_inventory.py --refresh`. Only hardware/software *facts* are updated:
 NIC identity (brand/model/serials/PCIe/driver/firmware), transceiver modules, storage,
-GPUs and system_info. Everything a person decided (role, managed, expected_link,
+GPUs, system_info and system_python. Everything a person decided (role, managed, expected_link,
 ip_address, mtu, altname, link_settings, card, cameras, pdus, kernel_tuning) is untouched.
 
 Refresh never erases: a missing reading usually means "could not read" (e.g. no root
 access), not "removed", so an existing value is only replaced by a newer non-empty one.
-Anything that no longer shows up is reported, not deleted.
+Anything that no longer shows up is reported, not deleted. The exception is system_python:
+it is a complete listing of one interpreter, so a fresh capture replaces it and a package
+that disappeared is reported as removed.
 """
 from __future__ import annotations
 
@@ -40,6 +42,29 @@ def _set(target: dict[str, Any], key: str, new: Any, label: str, changes: list[s
     target[key] = new
 
 
+def _flatten(d: Any, prefix: str = "") -> dict[str, Any]:
+    """{'pip_installed': {'/usr/local/...': {'tensorrt': '10'}}} -> {"pip_installed['/usr/local/...'].tensorrt": '10'}"""
+    if not isinstance(d, dict) or not d:
+        return {prefix: d} if prefix else {}
+    out: dict[str, Any] = {}
+    for k, v in d.items():
+        key = f"{prefix}[{k!r}]" if "/" in str(k) else (f"{prefix}.{k}" if prefix else str(k))
+        out.update(_flatten(v, key))
+    return out
+
+
+def _diff_flat(old: dict[str, Any], new: dict[str, Any]) -> list[str]:
+    out = []
+    for k in sorted(set(old) | set(new)):
+        if k not in new:
+            out.append(f"{k}: {old[k]!r} removed")
+        elif k not in old:
+            out.append(f"{k}: added {new[k]!r}")
+        elif old[k] != new[k]:
+            out.append(f"{k}: {old[k]!r} -> {new[k]!r}")
+    return out
+
+
 def merge_facts(existing: dict[str, Any], fresh: dict[str, Any]) -> tuple[dict[str, Any], list[str], list[str]]:
     """Return (merged config, changes, notes). `existing` is not modified."""
     old_host = (existing.get("system_info") or {}).get("hostname")
@@ -57,6 +82,14 @@ def merge_facts(existing: dict[str, Any], fresh: dict[str, Any]) -> tuple[dict[s
     for key, value in (fresh.get("system_info") or {}).items():
         if key not in SYSTEM_SKIP:
             _set(info, key, value, f"system_info.{key}", changes)
+
+    # --- system_python: a fresh, complete listing replaces the recorded one
+    if fresh.get("system_python"):
+        old = merged.get("system_python") or {}
+        changes += [f"system_python.{c}" for c in _diff_flat(_flatten(old), _flatten(fresh["system_python"]))]
+        merged["system_python"] = copy.deepcopy(fresh["system_python"])
+    elif "system_python" in fresh:
+        notes.append("system_python: nothing captured now; kept the recorded listing")
 
     # --- NICs, matched by MAC address (names are human-chosen and may differ)
     fresh_by_mac = {}

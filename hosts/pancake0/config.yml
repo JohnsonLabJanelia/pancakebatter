@@ -28,6 +28,25 @@ system_info:
   board_name: "Pro WS WRX80E-SAGE SE WIFI"
   bios_version: "1201"
 
+# What /usr/bin/python3 has (docs/system_config_v1.md); refresh with
+# ./capture_inventory.py --refresh --only system_python --write after apt/pip changes.
+system_python:
+  executable: /usr/bin/python3
+  version: 3.10.12
+  apt_manifest:
+    python3-yaml: 5.4.1-1ubuntu1
+    python3-ruamel.yaml: null
+    python3-rich: 11.2.0-1
+    python3-pexpect: 4.8.0-2ubuntu1
+  pip_installed:
+    /usr/local/lib/python3.10/dist-packages:
+      tensorrt: 10.0.1
+    /home/jeremy/.local/lib/python3.10/site-packages:
+      markdown-it-py: 3.0.0
+      mdurl: 0.1.2
+      Pygments: 2.18.0
+      typing_extensions: 4.12.2
+
 # Power Distribution Units (PDUs)
 pdus:
   - name: pdu1
