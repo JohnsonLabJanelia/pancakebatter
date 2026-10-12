@@ -9,6 +9,8 @@ pkg-config
 libglvnd-dev
 smartmontools
 git
+# Large-file support for repos that track binaries with LFS; apt_installs.sh runs `git lfs install --system`
+git-lfs
 openssh-server
 openssh-client
 libxcb-xinerama0

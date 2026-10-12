@@ -6,6 +6,7 @@ Each manifest in this directory contains one apt package name per line.
 - Lines beginning with `#` are comments.
 - Installer scripts load these manifests through [`lib/apt_packages.sh`](../../lib/apt_packages.sh).
 - `gh` in `sysadmin.txt` comes from GitHub's apt repository, which [`install_gh_apt_repo.sh`](../../install_gh_apt_repo.sh) adds (keyring checked against pinned fingerprints); `apt_installs.sh` runs it before the manifests. `./install_gh_apt_repo.sh --check` reports the state without root.
+- `git-lfs` in `base.txt`: after the manifests, `apt_installs.sh` runs `git lfs install --system`, which sets the LFS filters in `/etc/gitconfig` for every user (run as root, a plain `git lfs install` would only configure root). On an existing machine: `sudo apt install -y git-lfs && sudo git lfs install --system`.
 - `yq` is managed separately by [`install_yq.sh`](../../install_yq.sh) because the network scripts require `yq e` compatibility.
 
 Keep manifests focused on a machine role or installer so package changes stay reviewable.

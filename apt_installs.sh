@@ -52,6 +52,22 @@ else
     exit 1
 fi
 
+# Git LFS hooks and filters for every user (/etc/gitconfig), not just root's ~/.gitconfig
+echo ""
+echo "Enabling Git LFS for all users"
+echo ""
+
+if git lfs install --system; then
+    echo ""
+    echo -e "${GREEN}Git LFS enabled system-wide!${NC}"
+    echo ""
+else
+    echo ""
+    echo -e "${RED}git lfs install --system failed. Please check the errors above.${NC}"
+    echo ""
+    exit 1
+fi
+
 echo ""
 echo "Installing compatible yq"
 echo ""
