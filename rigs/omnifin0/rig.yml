@@ -14,7 +14,7 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 4
+rig_geometry_revision: 5
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
 last_physical_change: unknown
 
@@ -27,7 +27,7 @@ provenance:
 
 projection_paths:
   main:
-    projection_mode: unknown
+    projection_mode: rear
     projector_mount: unknown
     projector_mount_rotation_deg_about_optical_axis: 180
     projector_firmware_flip: unknown
@@ -35,11 +35,17 @@ projection_paths:
     evidence:
       note: >-
         Rotation 180 from Citrus rig_config_v1 rev 3 ("Projector body is rotated 180 degrees about
-        its optical axis on this rig"). Mode, mount, menu flip and mirrors not yet read off the rig:
+        its optical axis on this rig"). projection_mode rear (rev 5): the projector is below the
+        diffusive gel film (the projected surface) and the fish and camera are above it, per the
+        omnifin0/shadow media order in Citrus docs/rig_component_model_implementation_todo.md
+        (projector -> cover -> air -> shelf -> water -> gel film -> water -> dish -> fish plane;
+        citrus ec1134c) and the straight-down camera in docs/runtime_plane_and_parallax_decision.md.
+        Mount, menu flip and mirrors not yet read off the rig:
         record the BenQ "Projector Position" menu wording here when it is (README maps it to a flip).
         Citrus measured a y reflection in arena_1's active camera->canvas homography; that is a
-        measurement to check against, not a declaration.
-      declared_by: pancakebatter session (draft)
+        measurement to check against, not a declaration. With rear projection and the GL
+        presentation flip, it predicts a Rear menu mode or one fold mirror.
+      declared_by: pancakebatter session (draft); rev 5 approved by Jeremy
       declared_at: "2026-10-12"
     derived:
       canvas_space_parity: unknown

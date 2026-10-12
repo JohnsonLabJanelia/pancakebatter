@@ -45,7 +45,8 @@
     "cameras.*.genicam.xml_sha256",
     "cameras.*.genicam.captured_at",
     "cameras.*.genicam.nodes_present",
-    "cameras.*.genicam.nodes_absent"
+    "cameras.*.genicam.nodes_absent",
+    "rigs.*.display_outputs.*.projector.part_id"
   ],
   "optional_sections": [
     "pdus",
@@ -74,6 +75,7 @@
     "cameras.*.genicam.xml_sha256",
     "cameras.*.genicam.captured_at",
     "cameras.*.genicam.nodes_present",
-    "cameras.*.genicam.nodes_absent"
+    "cameras.*.genicam.nodes_absent",
+    "rigs.*.display_outputs.*.projector.part_id"
   ]
 }

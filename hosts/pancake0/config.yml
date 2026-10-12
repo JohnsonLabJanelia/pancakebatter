@@ -730,6 +730,7 @@ rigs:
         projector:
           manufacturer: BenQ
           model: X3100i
+          part_id: projector.benq.x3100i
           serial_number:
           firmware_version:
 

@@ -12,13 +12,18 @@ HARDWARE_LIBRARY = Path(os.environ.get("PANCAKEBATTER_HARDWARE_LIBRARY", Path.ho
 
 
 def part_ids(config):
-    """(where, category, part_id, model) for every part_id on cameras and their lenses."""
+    """(where, category, part_id, model) for every part_id on cameras, their lenses and bound projectors."""
     for key, cam in (config.get("cameras") or {}).items():
         if cam.get("part_id"):
             yield f"cameras.{key}", "camera", cam["part_id"], cam.get("model")
         lens = cam.get("lens") or {}
         if lens.get("part_id"):
             yield f"cameras.{key}.lens", "lens", lens["part_id"], lens.get("model")
+    for i, rig in enumerate(config.get("rigs") or []):
+        for j, out in enumerate(rig.get("display_outputs") or []):
+            proj = out.get("projector") or {}
+            if proj.get("part_id"):
+                yield f"rigs[{i}].display_outputs[{j}].projector", "projector", proj["part_id"], proj.get("model")
 
 
 class HostConfigTests(unittest.TestCase):

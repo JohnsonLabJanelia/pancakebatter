@@ -379,6 +379,11 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "part_id": {
+                      "type": "string",
+                      "pattern": "^projector\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+                      "description": "Optional link to the projector's part design in hardware_library (parts/projectors/<part_id>/part.yml)."
                     }
                   }
                 }
