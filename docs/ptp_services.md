@@ -65,7 +65,8 @@ installed root-owned to `/usr/local/libexec/pancakebatter/`) after each start.
 It waits for ptp4l's management socket, reads `GRANDMASTER_SETTINGS_NP`, and
 sends it back with only `currentUtcOffsetValid` set to 1. The setting lasts as
 long as the ptp4l process, hence the hook. It refuses (and logs why) if ptp4l
-announces an offset other than 37 or a non-PTP timescale. Its `ExecStartPost=-`
+announces a non-PTP timescale or an offset other than the one the leap-second
+table gives (next section). Its `ExecStartPost=-`
 prefix means a failure never stops ptp4l: the cameras keep their clock and only
 the flag is missing.
 
@@ -80,15 +81,48 @@ Deliberately unchanged:
 - **`timeSource` stays `0xa0`** (internal oscillator), `clockClass 248` and the
   other quality fields as ptp4l set them.
 
-If the IERS ever announces a leap second (Bulletin C, about six months ahead),
-change `EXPECTED_UTC_OFFSET` in the script and `utc_offset` in `ptp4l.conf`
-together; until then the script refuses to declare any other value valid.
+### Where 37 comes from
+
+TAI-UTC is published by the IERS (International Earth Rotation and Reference
+Systems Service), which announces each leap second about six months ahead:
+
+- IERS Bulletin C, the announcement itself, issued every six months:
+  <https://datacenter.iers.org/data/latestVersion/bulletinC.txt>. Bulletin C 72
+  (checked 2026-10-12): "from 2017 January 1, 0h UTC, until further notice:
+  UTC-TAI = -37 s" and "NO leap second will be introduced at the end of
+  December 2026".
+- The machine-readable table, `leap-seconds.list`, kept by IANA with the time
+  zone database and mirrored by the IERS:
+  <https://data.iana.org/time-zones/tzdb/leap-seconds.list>,
+  <https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list>. Last entry
+  `3692217600 37 # 1 Jan 2017`; the copy checked on 2026-10-12 expires
+  28 June 2027.
+- Ubuntu's `tzdata` package installs that table as
+  `/usr/share/zoneinfo/leap-seconds.list`, updated with ordinary package
+  updates.
+- IEEE 1588 defines `currentUtcOffset` as TAI-UTC; `man ptp4l` documents
+  `utc_offset` ("The current offset between TAI and UTC. The default is 37").
+
+`ptp4l_gm_settings` takes the expected offset from the installed table, not
+from a constant. It declares the flag only if the table passes its own SHA-1
+check (the `#h` line), has not expired (`#@` line), and its TAI-UTC for now
+equals the `currentUtcOffset` ptp4l announces. Within 90 days of the table's
+expiry it still declares the flag but logs a warning. After expiry, or on any
+mismatch, it leaves the flag unset and logs why. Recordings then classify the
+cameras `ieee1588_ptp_timescale_untraceable`, not TAI, until it is fixed.
+
+When the IERS announces a leap second: install the updated `tzdata` before the
+leap second takes effect, set `utc_offset` in `configs/ptp4l.conf` and
+`/etc/ptp4l.conf` to the new value on the leap-second date, and restart ptp4l
+with no Orange running (`sudo ./install_ptp_units.sh --restart`). Between those
+two steps the table and ptp4l disagree, so the flag is deliberately not
+declared.
 
 Check it (root, because the socket is `root:root 0660`):
 
 ```bash
 sudo pmc -u -b 0 -s /var/run/ptp4l 'GET TIME_PROPERTIES_DATA_SET'   # currentUtcOffsetValid 1
-journalctl -u ptp4l -b | grep ptp4l_gm_settings                     # "currentUtcOffset 37 declared valid"
+journalctl -u ptp4l -b | grep ptp4l_gm_settings                     # "currentUtcOffset 37 declared valid (matches ...)"
 ```
 
 ## Clock direction and NTP
