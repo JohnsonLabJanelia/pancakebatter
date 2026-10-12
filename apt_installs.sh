@@ -52,18 +52,19 @@ else
     exit 1
 fi
 
-# Git LFS hooks and filters for every user (/etc/gitconfig), not just root's ~/.gitconfig
+# Git LFS filters for every user (/etc/gitconfig), not just root's ~/.gitconfig; --skip-repo
+# keeps it from installing hooks and a root-owned .git/lfs into this checkout
 echo ""
 echo "Enabling Git LFS for all users"
 echo ""
 
-if git lfs install --system; then
+if git lfs install --system --skip-repo; then
     echo ""
     echo -e "${GREEN}Git LFS enabled system-wide!${NC}"
     echo ""
 else
     echo ""
-    echo -e "${RED}git lfs install --system failed. Please check the errors above.${NC}"
+    echo -e "${RED}git lfs install --system --skip-repo failed. Please check the errors above.${NC}"
     echo ""
     exit 1
 fi
