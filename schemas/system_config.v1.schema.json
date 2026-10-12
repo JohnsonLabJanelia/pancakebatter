@@ -475,6 +475,25 @@
             }
           },
           "description": "Sensor facts; only x_resolution and y_resolution are promised stable keys, the rest is inventory."
+        },
+        "part_id": {
+          "type": "string",
+          "pattern": "^camera\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "description": "Optional link to the camera's part design in hardware_library (parts/cameras/<part_id>/part.yml): CAD, datum frame, dimensions. This entry is the instance (serial, MAC, host)."
+        },
+        "lens": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "part_id": {
+              "type": "string",
+              "pattern": "^lens\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+              "description": "Optional link to the lens's part design in hardware_library (parts/lenses/<part_id>/part.yml)."
+            }
+          }
         }
       }
     },

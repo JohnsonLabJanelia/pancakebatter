@@ -383,10 +383,12 @@ nics:
 cameras:
   E0-55-97-1E-AB-ED:
     model: HB-20000-SB-M-E2
+    part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010093
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
+      part_id: lens.canon.ef100_f2_8l_macro_is_usm
       serial_number:
       mount: EF
       focal_length_mm: 100
@@ -454,10 +456,12 @@ cameras:
 
   E0-55-97-1E-AB-EE:
     model: HB-20000-SB-M-E2
+    part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010094
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
+      part_id: lens.canon.ef100_f2_8l_macro_is_usm
       serial_number:
       mount: EF
       focal_length_mm: 100
@@ -524,10 +528,12 @@ cameras:
 
   E0-55-97-1E-AB-EF:
     model: HB-20000-SB-M-E2
+    part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010095
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
+      part_id: lens.canon.ef100_f2_8l_macro_is_usm
       serial_number:
       mount: EF
       focal_length_mm: 100
@@ -594,10 +600,12 @@ cameras:
 
   E0-55-97-1E-AB-F0:
     model: HB-20000-SB-M-E2
+    part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010096
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
+      part_id: lens.canon.ef100_f2_8l_macro_is_usm
       serial_number:
       mount: EF
       focal_length_mm: 100
@@ -671,6 +679,7 @@ cameras:
 # Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
   E0-55-97-1E-B6-B8:
     model: HB-2800SC
+    part_id: camera.emergent.hb_2800sc
     serial_number: 2012856
     ip_address: 192.168.130.2
     nic_port: mlnx1_p3_25g

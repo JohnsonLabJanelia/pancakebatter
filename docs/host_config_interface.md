@@ -55,7 +55,7 @@ copy or a test file.
 | Area | Stable keys |
 |---|---|
 | identity | `schema.name`, `schema.version`, `system_info.hostname` (= `host_id`) |
-| cameras (map keyed by MAC; the key itself is local, `serial_number` is the join key) | `serial_number`, `ip_address`, `nic_port`, `interface`, `model`, `lens`, `sensor`, `sensor.x_resolution`, `sensor.y_resolution` (the rest of `sensor` is inventory) |
+| cameras (map keyed by MAC; the key itself is local, `serial_number` is the join key) | `serial_number`, `ip_address`, `nic_port`, `interface`, `model`, `lens`, `sensor`, `sensor.x_resolution`, `sensor.y_resolution` (the rest of `sensor` is inventory), `part_id`, `lens.part_id` |
 | nics (list of one-key maps: `nics.*.*.<field>`) | `role`, `mac_address`, `pcie_id`, `ip_address`, `mtu`, `expected_link` |
 | pdus | `ip_address`, `outlets.*.description`, `outlets.*.camera_serial` (preferred over parsing `SN:` from the description) |
 | kernel_tuning | `isolated_cores`; `core_roles.*.{role, consumer, camera, sibling_of, thread}` |
@@ -66,7 +66,7 @@ snapshot fields in `system_info`, `storage_devices`, `gpus`, transceiver
 details, `kernel_tuning.camera_ports.*.mlx5_irq_cpus` (a recording; the check
 uses the invariant), `sysctl`, `transparent_hugepage`, `cmdline`.
 
-Keys listed under `optional_keys` in the stable-keys file (camera `model`, `lens`,
+Keys listed under `optional_keys` in the stable-keys file (camera `model`, `lens`, `part_id`, `lens.part_id`,
 `sensor`, `interface`; outlet `camera_serial`; the descriptive `core_roles` fields;
 `paths.orange_run_dir`, `paths.shared_config_root`) are promised in meaning and
 type when present, but a host may lack them (a camera recorded before its lens
@@ -120,3 +120,13 @@ don't copy it:
 2. During cutover, fall back to your local copy only with a loud warning that
    names the resolver; then delete the copy.
 3. Add your `schemas/consumers/<program>.json`.
+
+### Part ids
+
+`cameras.*.part_id` and `cameras.*.lens.part_id` are optional links from an instance
+(this serial, on this host) to its part design in `~/hardware_library`
+(`parts/<category>/<part_id>/part.yml`: CAD, datum frame, dimensions). The camera's
+id starts `camera.`, the lens's `lens.`. `tests/test_host_configs.py` checks the
+prefix always and, when a hardware_library checkout exists
+(`$PANCAKEBATTER_HARDWARE_LIBRARY`, default `~/hardware_library`), that the part
+exists and that the camera's `model` is one of the part's `links.pancakebatter_models`.

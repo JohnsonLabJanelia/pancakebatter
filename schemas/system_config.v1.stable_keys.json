@@ -35,7 +35,9 @@
     "paths.data_root",
     "paths.orange_run_dir",
     "paths.shared_config_root",
-    "paths.recording_transfer_root"
+    "paths.recording_transfer_root",
+    "cameras.*.part_id",
+    "cameras.*.lens.part_id"
   ],
   "optional_sections": [
     "pdus",
@@ -56,6 +58,8 @@
     "paths.shared_config_root",
     "cameras.*.sensor.x_resolution",
     "cameras.*.sensor.y_resolution",
-    "paths.recording_transfer_root"
+    "paths.recording_transfer_root",
+    "cameras.*.part_id",
+    "cameras.*.lens.part_id"
   ]
 }
