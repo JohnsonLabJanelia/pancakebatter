@@ -389,6 +389,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010093
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010093_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
@@ -462,6 +470,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010094
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010094_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
@@ -534,6 +550,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010095
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010095_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
@@ -606,6 +630,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010096
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010096_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM

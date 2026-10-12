@@ -41,7 +41,11 @@
     "rigs.*.rig_id",
     "rigs.*.display_outputs.*.output_name",
     "rigs.*.display_outputs.*.projection_path",
-    "rigs.*.display_outputs.*.projector"
+    "rigs.*.display_outputs.*.projector",
+    "cameras.*.genicam.xml_sha256",
+    "cameras.*.genicam.captured_at",
+    "cameras.*.genicam.nodes_present",
+    "cameras.*.genicam.nodes_absent"
   ],
   "optional_sections": [
     "pdus",
@@ -66,6 +70,10 @@
     "paths.recording_transfer_root",
     "cameras.*.part_id",
     "cameras.*.lens.part_id",
-    "rigs.*.display_outputs.*.projector"
+    "rigs.*.display_outputs.*.projector",
+    "cameras.*.genicam.xml_sha256",
+    "cameras.*.genicam.captured_at",
+    "cameras.*.genicam.nodes_present",
+    "cameras.*.genicam.nodes_absent"
   ]
 }
