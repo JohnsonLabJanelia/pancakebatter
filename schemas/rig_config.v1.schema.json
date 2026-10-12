@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orange.local/schemas/rig_config.v1.schema.json",
+  "title": "rig_config v1",
+  "description": "Declared physical/optical layout of one rig (rigs/<rig_id>/rig.yml): projection paths and camera mounts. Camera fields are expectations that producers' readbacks (Orange camera_geometry_v1) are checked against, not applied state; camera-to-arena assignment is Citrus registered geometry and is not here. Every physical field is a declared value or the string 'unknown'. derived.* fields are products computed by rigconfig.py and checked by tests; rules in rigs/README.md. Host inventory (NIC, IP, lens, sensor) is not here; cameras join to the host config by serial_number.",
+  "type": "object",
+  "required": [
+    "schema",
+    "rig_id",
+    "rig_geometry_revision",
+    "description",
+    "last_physical_change",
+    "provenance",
+    "projection_paths",
+    "cameras"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "rig_config"
+        },
+        "version": {
+          "const": 1
+        }
+      }
+    },
+    "rig_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "rig_geometry_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Bumped whenever any physical field changes, including unknown -> declared. rigs/<rig_id>/revisions.json pins the physical digest of each revision."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "last_physical_change": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        {
+          "const": "unknown"
+        }
+      ],
+      "description": "Date the hardware was last physically changed (not the date of the declaration)."
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "declared_by",
+        "declared_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "declared_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declared_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "projection_paths": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/projection_path"
+      },
+      "description": "Keyed by a path id (e.g. main). A host binds each path to one display output."
+    },
+    "cameras": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[0-9]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/camera"
+      },
+      "description": "Keyed by camera serial_number as a string, the only join key to host inventory."
+    }
+  },
+  "$defs": {
+    "parity": {
+      "enum": [
+        1,
+        -1,
+        "unknown"
+      ]
+    },
+    "projection_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection_mode",
+        "projector_mount",
+        "projector_mount_rotation_deg_about_optical_axis",
+        "projector_firmware_flip",
+        "optical_mirror_count",
+        "evidence",
+        "derived"
+      ],
+      "properties": {
+        "projection_mode": {
+          "enum": [
+            "front",
+            "rear",
+            "unknown"
+          ],
+          "description": "Physical geometry relative to the reference view (dish seen from above): front = projector light reaches the image surface from above; rear = from below, image seen through the surface. Not the projector menu setting. Rear = -1."
+        },
+        "projector_mount": {
+          "enum": [
+            "table",
+            "ceiling",
+            "unknown"
+          ],
+          "description": "Physical body orientation (upright vs inverted). A rotation: parity +1."
+        },
+        "projector_mount_rotation_deg_about_optical_axis": {
+          "enum": [
+            0,
+            90,
+            180,
+            270,
+            "unknown"
+          ],
+          "description": "A rotation: parity +1."
+        },
+        "projector_firmware_flip": {
+          "enum": [
+            "none",
+            "horizontal",
+            "vertical",
+            "both",
+            "unknown"
+          ],
+          "description": "Net mirroring set in the projector menu (README maps BenQ Projector Position to this). horizontal/vertical = -1; both (= 180 rotation) = +1."
+        },
+        "optical_mirror_count": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "const": "unknown"
+            }
+          ],
+          "description": "Fold mirrors between projector lens and image surface. Odd = -1."
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "note",
+            "declared_by",
+            "declared_at"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "note": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_at": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          "description": "Who declared this field group, when, and on what evidence (menu wording, photo, measurement, document)."
+        },
+        "derived": {
+          "type": "object",
+          "required": [
+            "canvas_space_parity"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "canvas_space_parity": {
+              "$ref": "#/$defs/parity",
+              "description": "projection_mode x projector_firmware_flip x (-1)^optical_mirror_count: citrus.display_canvas_px (as scanned out, xrandr output unreflected) relative to the canvas as it lands on the dish seen from above. Excludes Citrus's OpenGL presentation reflection and the session's xrandr reflection; Citrus composes those."
+            }
+          }
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "viewing_side",
+        "optical_mirror_count",
+        "reverse_x",
+        "reverse_y",
+        "rotation_deg",
+        "mount_notes",
+        "evidence",
+        "derived"
+      ],
+      "properties": {
+        "viewing_side": {
+          "enum": [
+            "dorsal",
+            "ventral",
+            "unknown"
+          ],
+          "description": "Expected side of the dish the optical path leaves toward the camera (before any fold mirror). ventral = -1."
+        },
+        "optical_mirror_count": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "const": "unknown"
+            }
+          ],
+          "description": "Fold mirrors between dish and camera. Odd = -1."
+        },
+        "reverse_x": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "not_supported_by_firmware",
+                "unknown"
+              ]
+            }
+          ],
+          "description": "Expected camera ReverseX, the value Orange's sealed readback is checked against. true = -1; false and not_supported_by_firmware (the camera has no ReverseX node, so it cannot flip) = +1."
+        },
+        "reverse_y": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "not_supported_by_firmware",
+                "unknown"
+              ]
+            }
+          ],
+          "description": "Expected camera ReverseY, the value Orange's sealed readback is checked against. true = -1; false and not_supported_by_firmware (the camera has no ReverseY node, so it cannot flip) = +1."
+        },
+        "rotation_deg": {
+          "enum": [
+            0,
+            90,
+            180,
+            270,
+            "unknown"
+          ],
+          "description": "Expected software rotation before recording, checked against Orange's readback. A rotation: parity +1."
+        },
+        "mount_notes": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "note",
+            "declared_by",
+            "declared_at"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "note": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_at": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          "description": "Who declared this field group, when, and on what evidence (menu wording, photo, measurement, document)."
+        },
+        "derived": {
+          "type": "object",
+          "required": [
+            "recorded_space_parity",
+            "expected_camera_to_canvas_handedness"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "recorded_space_parity": {
+              "$ref": "#/$defs/parity",
+              "description": "viewing_side x (-1)^optical_mirror_count x reverse_x x reverse_y: camera.recorded_px relative to the dish seen from above."
+            },
+            "expected_camera_to_canvas_handedness": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "enum": [
+                  "preserved",
+                  "reflected",
+                  "unknown"
+                ]
+              },
+              "description": "Keyed by projection path id: preserved when recorded_space_parity x that path's canvas_space_parity = +1, reflected when -1. Per path rather than per arena: which canvas region a camera sees is Citrus's registered geometry. Assumes an unreflected xrandr output."
+            }
+          }
+        },
+        "nominal_geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional. Nominal mount geometry for the deferred parallax model; consumed by no runtime today. Physical: a change bumps rig_geometry_revision. Scale stays in Citrus calibration.",
+          "properties": {
+            "height_above_gel_mm": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Nominal distance from the lens entrance pupil to the gel surface along the optical axis."
+            },
+            "optical_axis_tilt_from_nadir_deg": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Nominal angle between the optical axis and the vertical (0 = looking straight down/up)."
+            }
+          }
+        }
+      }
+    }
+  }
+}

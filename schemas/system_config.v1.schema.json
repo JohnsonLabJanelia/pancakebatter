@@ -320,6 +320,73 @@
           }
         }
       }
+    },
+    "rigs": {
+      "type": "array",
+      "description": "Rigs this host drives (rigs/<rig_id>/rig.yml) and which display output drives each projection path. Ids and host-side hardware only; physical layout lives in the rig document. Optional section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "rig_id",
+          "display_outputs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "rig_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "display_outputs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "output_name",
+                "projection_path"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "output_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "xrandr output name (e.g. DP-3)."
+                },
+                "projection_path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Key in the rig document's projection_paths."
+                },
+                "projector": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "manufacturer": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "serial_number": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "firmware_version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {

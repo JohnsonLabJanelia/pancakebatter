@@ -688,6 +688,19 @@ cameras:
     ip_address: 192.168.130.2
     nic_port: mlnx1_p3_25g
 
+# Rigs this host drives (schema: rigs; layout in rigs/<rig_id>/rig.yml, rules in rigs/README.md).
+# Ids and host-side hardware only; the rig document joins to `cameras` by serial_number.
+rigs:
+  - rig_id: omnifin0
+    display_outputs:
+      - output_name: DP-3
+        projection_path: main
+        projector:
+          manufacturer: BenQ
+          model: X3100i
+          serial_number:
+          firmware_version:
+
 # Machine-level paths other programs need (schema: paths). data_root still embeds a username until the
 # shared-machine migration (docs/shared_machine_setup_todo.md) moves data to shared storage; change it here only.
 paths:

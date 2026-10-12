@@ -37,12 +37,17 @@
     "paths.shared_config_root",
     "paths.recording_transfer_root",
     "cameras.*.part_id",
-    "cameras.*.lens.part_id"
+    "cameras.*.lens.part_id",
+    "rigs.*.rig_id",
+    "rigs.*.display_outputs.*.output_name",
+    "rigs.*.display_outputs.*.projection_path",
+    "rigs.*.display_outputs.*.projector"
   ],
   "optional_sections": [
     "pdus",
     "kernel_tuning",
-    "paths"
+    "paths",
+    "rigs"
   ],
   "optional_keys": [
     "cameras.*.interface",
@@ -60,6 +65,7 @@
     "cameras.*.sensor.y_resolution",
     "paths.recording_transfer_root",
     "cameras.*.part_id",
-    "cameras.*.lens.part_id"
+    "cameras.*.lens.part_id",
+    "rigs.*.display_outputs.*.projector"
   ]
 }

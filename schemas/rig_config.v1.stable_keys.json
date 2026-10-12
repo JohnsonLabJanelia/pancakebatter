@@ -1,0 +1,31 @@
+{
+  "schema": {
+    "name": "rig_config",
+    "version": 1
+  },
+  "description": "Key paths in rigs/<rig_id>/rig.yml (installed as /etc/pancakebatter/rigs/<rig_id>.yml) other programs may rely on. Same rules as system_config.v1.stable_keys.json: '*' fans out over map values; additive changes stay in version 1; renaming or removing a key, or changing a derived rule, bumps schema.version. Every key here exists in every rig document; any physical value may be the string 'unknown', which a consumer must treat as undeclared, never as a default. Free text (description, mount_notes, evidence) is for people and may change.",
+  "keys": [
+    "schema.name",
+    "schema.version",
+    "rig_id",
+    "rig_geometry_revision",
+    "last_physical_change",
+    "provenance.declared_by",
+    "provenance.declared_at",
+    "projection_paths.*.projection_mode",
+    "projection_paths.*.projector_mount",
+    "projection_paths.*.projector_mount_rotation_deg_about_optical_axis",
+    "projection_paths.*.projector_firmware_flip",
+    "projection_paths.*.optical_mirror_count",
+    "projection_paths.*.derived.canvas_space_parity",
+    "cameras.*.viewing_side",
+    "cameras.*.optical_mirror_count",
+    "cameras.*.reverse_x",
+    "cameras.*.reverse_y",
+    "cameras.*.rotation_deg",
+    "cameras.*.derived.recorded_space_parity",
+    "cameras.*.derived.expected_camera_to_canvas_handedness.*"
+  ],
+  "optional_sections": [],
+  "optional_keys": []
+}

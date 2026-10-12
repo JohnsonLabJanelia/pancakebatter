@@ -1,0 +1,116 @@
+# omnifin0: declared physical/optical layout (rig_config v1; rules in rigs/README.md).
+# Host inventory (NIC, IP, lens, sensor, transceiver) is NOT here: cameras join to
+# hosts/<host>/config.yml by serial_number only, and the host's `rigs:` block says which
+# display output drives which projection path.
+#
+# Changing any physical field (see rigs/README.md) needs rig_geometry_revision + 1 and a new
+# rigs/omnifin0/revisions.json entry; `python3 rigconfig.py rigs/omnifin0/rig.yml` prints the
+# derived values to copy in and the digest to record.
+
+schema:
+  name: rig_config
+  version: 1
+
+rig_id: omnifin0
+# 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
+# 4 is the first declaration here, so a pinned 3 still means Citrus's file.
+rig_geometry_revision: 4
+description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
+last_physical_change: unknown
+
+provenance:
+  declared_by: pancakebatter session (draft for Jeremy's review)
+  declared_at: "2026-10-12"
+  note: >-
+    Drafted from Citrus rig_config_v1 rev 3, Citrus calibration artifact names, and the
+    HB-20000-SB GenICam XML captured 2026-07-24. Everything not backed by one of those is unknown.
+
+projection_paths:
+  main:
+    projection_mode: unknown
+    projector_mount: unknown
+    projector_mount_rotation_deg_about_optical_axis: 180
+    projector_firmware_flip: unknown
+    optical_mirror_count: unknown
+    evidence:
+      note: >-
+        Rotation 180 from Citrus rig_config_v1 rev 3 ("Projector body is rotated 180 degrees about
+        its optical axis on this rig"). Mode, mount, menu flip and mirrors not yet read off the rig:
+        record the BenQ "Projector Position" menu wording here when it is (README maps it to a flip).
+        Citrus measured a y reflection in arena_1's active camera->canvas homography; that is a
+        measurement to check against, not a declaration.
+      declared_by: pancakebatter session (draft)
+      declared_at: "2026-10-12"
+    derived:
+      canvas_space_parity: unknown
+
+cameras:
+  "2010093":
+    viewing_side: unknown
+    optical_mirror_count: unknown
+    reverse_x: not_supported_by_firmware
+    reverse_y: not_supported_by_firmware
+    rotation_deg: unknown
+    mount_notes: ""
+    nominal_geometry:            # optional; parallax model only, consumed by nothing today
+      height_above_gel_mm: unknown
+      optical_axis_tilt_from_nadir_deg: unknown
+    evidence: &camera_evidence
+      note: >-
+        reverse_x/y not_supported_by_firmware: the camera's GenICam XML (~/orange_data/calibrations/rig_characterization/
+        sensor_pipeline/genicam_<serial>_20260724_235450.xml) has no ReverseX/ReverseY node, so the
+        camera cannot flip. Viewing side and mirrors: Orange docs say "top-down camera" in prose only;
+        Citrus's camera_view_assumed "dorsal_unmirrored" is an assumption. Rotation: any software
+        rotation Orange applies before recording is still to be confirmed by Orange. Camera->arena
+        assignment is Citrus registered geometry and deliberately not here.
+      declared_by: pancakebatter session (draft)
+      declared_at: "2026-10-12"
+    derived:
+      recorded_space_parity: unknown
+      expected_camera_to_canvas_handedness:
+        main: unknown
+  "2010094":
+    viewing_side: unknown
+    optical_mirror_count: unknown
+    reverse_x: not_supported_by_firmware
+    reverse_y: not_supported_by_firmware
+    rotation_deg: unknown
+    mount_notes: ""
+    nominal_geometry:            # optional; parallax model only, consumed by nothing today
+      height_above_gel_mm: unknown
+      optical_axis_tilt_from_nadir_deg: unknown
+    evidence: *camera_evidence
+    derived:
+      recorded_space_parity: unknown
+      expected_camera_to_canvas_handedness:
+        main: unknown
+  "2010095":
+    viewing_side: unknown
+    optical_mirror_count: unknown
+    reverse_x: not_supported_by_firmware
+    reverse_y: not_supported_by_firmware
+    rotation_deg: unknown
+    mount_notes: ""
+    nominal_geometry:            # optional; parallax model only, consumed by nothing today
+      height_above_gel_mm: unknown
+      optical_axis_tilt_from_nadir_deg: unknown
+    evidence: *camera_evidence
+    derived:
+      recorded_space_parity: unknown
+      expected_camera_to_canvas_handedness:
+        main: unknown
+  "2010096":
+    viewing_side: unknown
+    optical_mirror_count: unknown
+    reverse_x: not_supported_by_firmware
+    reverse_y: not_supported_by_firmware
+    rotation_deg: unknown
+    mount_notes: ""
+    nominal_geometry:            # optional; parallax model only, consumed by nothing today
+      height_above_gel_mm: unknown
+      optical_axis_tilt_from_nadir_deg: unknown
+    evidence: *camera_evidence
+    derived:
+      recorded_space_parity: unknown
+      expected_camera_to_canvas_handedness:
+        main: unknown
