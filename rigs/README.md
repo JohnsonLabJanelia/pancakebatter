@@ -79,15 +79,20 @@ pattern.
 The product relates `citrus.display_canvas_px`, as scanned out with an **unreflected xrandr
 output**, to the canvas as it lands on the dish seen from above. It does **not** include:
 
-- **Citrus's OpenGL presentation reflection** (`citrus.framebuffer_px` and
-  `citrus.stimulus_video_px` are the canvas reflected once vertically). That is a Citrus
-  software fact about how those rasters are stored relative to the canvas, not about the
-  light path. Citrus composes it on mappings into those spaces and never applies it to
-  canvas parity. If Citrus finds that the reflection also reaches the scanned-out image,
-  it is still Citrus's to compose per session; it does not belong in the rig document.
+- **Citrus's OpenGL presentation reflection.** It reaches the scanned-out raster (Citrus
+  verified 2026-10-12: the fullscreen quad maps texcoord v=0 to the window bottom and the
+  canvas is uploaded row 0 first; the H5 presentation mapping declares the framebuffer as
+  the top-left view of the raster delivered to the output, y' = H − y). It is a Citrus
+  software fact, so Citrus composes it per session; it does not belong in the rig document.
 - **The session's xrandr rotation/reflection/transform.** Citrus captures it per session
   (§4 of the contract). Session canvas parity = `canvas_space_parity` × xrandr reflection
   parity (`X` or `Y` = −1, both = +1, rotations +1).
+
+So a consumer checking a camera.recorded_px → citrus.display_canvas_px homography requires
+
+```
+sign(det H) = recorded_space_parity × canvas_space_parity × (−1, GL presentation flip) × xrandr reflection parity
+```
 
 **`cameras.<serial>.derived.recorded_space_parity`** =
 `viewing_side` × (−1)^`optical_mirror_count` × `reverse_x` × `reverse_y`
@@ -109,7 +114,9 @@ the session's xrandr reflection before comparing with a homography's determinant
 `rig_geometry_revision` is bumped whenever a physical field changes, including
 `unknown` → declared, since a recording pins what was declared. The physical fields are
 everything in `projection_paths.*` and `cameras.*` except `evidence`, `mount_notes` and
-`derived`, plus `rig_id`. Free text (description, provenance, evidence, notes) does not bump.
+`derived`, plus `rig_id`. That includes the optional `nominal_geometry`, so editing a
+nominal height bumps the revision even though nothing consumes it yet. Free text
+(description, provenance, evidence, notes) does not bump.
 
 `revisions.json` records the sha256 of the physical fields for each revision
 (`rigconfig.physical_digest`). `tests/test_rig_configs.py` fails when rig.yml's physical
