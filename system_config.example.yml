@@ -373,7 +373,7 @@ cameras:
       fiber_type: SMF
     sensor:
       brand: Sony Pregius S
-      model: IMX530
+      model: IMX531
       mp_resolution: 20.28
       x_resolution: 4512
       y_resolution: 4512
@@ -443,7 +443,7 @@ cameras:
       fiber_type: SMF
     sensor:
       brand: Sony Pregius S
-      model: IMX530
+      model: IMX531
       mp_resolution: 20.28
       x_resolution: 4512
       y_resolution: 4512
@@ -513,7 +513,7 @@ cameras:
       fiber_type: SMF
     sensor:
       brand: Sony Pregius S
-      model: IMX530
+      model: IMX531
       mp_resolution: 20.28
       x_resolution: 4512
       y_resolution: 4512
@@ -583,7 +583,7 @@ cameras:
       fiber_type: SMF
     sensor:
       brand: Sony Pregius S
-      model: IMX530
+      model: IMX531
       mp_resolution: 20.28
       x_resolution: 4512
       y_resolution: 4512
