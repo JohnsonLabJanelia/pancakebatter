@@ -12,6 +12,9 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 ExecStart=/usr/sbin/ptp4l @INTERFACE_ARGS@ -f /etc/ptp4l.conf -m
+# Declare the 37 s TAI-UTC offset valid in what the grandmaster announces (linuxptp 3.1.1 has no
+# config option for currentUtcOffsetValid). "-": a failure is logged but never stops ptp4l.
+ExecStartPost=-@GM_SETTINGS@
 Restart=on-failure
 RestartSec=15
 # Keep off the isolated acquisition cores (same list the health timer uses).

@@ -2,8 +2,13 @@
 # Install (or remove) ptp4l.service and phc2sys.service so PTP for the camera ports starts at boot
 # and restarts on failure, instead of the hand-started "sudo -b ptp4l ... / sudo -b phc2sys ...".
 #
-#   sudo ./install_ptp_units.sh [--replace-running]   # render, install, enable --now
+#   sudo ./install_ptp_units.sh [--replace-running] [--restart]   # render, install, enable --now
 #   sudo ./install_ptp_units.sh --uninstall
+#
+# --restart: also restart a running ptp4l.service (phc2sys follows, PartOf) so changed units take
+# effect; refused while Orange runs, because the cameras briefly lose PTP lock.
+# libexec/ptp4l_gm_settings.sh is installed root-owned to $GM_SETTINGS and run by ptp4l.service
+# after each start to declare the UTC offset valid (docs/ptp_services.md).
 #
 # Interfaces: every NIC in hosts/<host>/config.yml with role camera and expected_link true.
 # /etc/ptp4l.conf: installed from configs/ptp4l.conf if absent; an existing, different file is
@@ -15,7 +20,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/lib/host_config.sh"
 UNIT_DIR=/etc/systemd/system
+GM_SETTINGS=/usr/local/libexec/pancakebatter/ptp4l_gm_settings
 REPLACE=0
+RESTART=0
 
 
 # Not root? Re-run through the passwordless helper if install_admin_helper.sh has set it up.
@@ -27,7 +34,7 @@ fi
 
 if [[ "${1:-}" == "--uninstall" ]]; then
     systemctl disable --now phc2sys.service ptp4l.service 2>/dev/null || true
-    rm -f "$UNIT_DIR/ptp4l.service" "$UNIT_DIR/phc2sys.service"
+    rm -f "$UNIT_DIR/ptp4l.service" "$UNIT_DIR/phc2sys.service" "$GM_SETTINGS"
     systemctl daemon-reload
     echo "removed ptp4l.service and phc2sys.service (/etc/ptp4l.conf kept)"
     exit 0
@@ -35,6 +42,7 @@ fi
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --replace-running) REPLACE=1 ;;
+        --restart) RESTART=1 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
@@ -85,8 +93,13 @@ elif ! cmp -s /etc/ptp4l.conf "$HERE/configs/ptp4l.conf"; then
     diff /etc/ptp4l.conf "$HERE/configs/ptp4l.conf" || true
 fi
 
+WAS_ACTIVE=0
+systemctl is-active --quiet ptp4l.service && WAS_ACTIVE=1
+install -d -o root -g root -m 0755 "$(dirname "$GM_SETTINGS")"
+install -o root -g root -m 0755 "$HERE/libexec/ptp4l_gm_settings.sh" "$GM_SETTINGS"
 sed -e "s|@REPO@|$HERE|g" -e "s|@INTERFACE_ARGS@|${IFACE_ARGS% }|g" -e "s|@DEVICE_UNITS@|${DEVICE_UNITS% }|g" \
-    -e "s|@CPUAFFINITY@|$AFFINITY|g" "$HERE/systemd/ptp4l.service.in" > "$UNIT_DIR/ptp4l.service"
+    -e "s|@CPUAFFINITY@|$AFFINITY|g" -e "s|@GM_SETTINGS@|$GM_SETTINGS|g" \
+    "$HERE/systemd/ptp4l.service.in" > "$UNIT_DIR/ptp4l.service"
 sed -e "s|@REPO@|$HERE|g" -e "s|@CPUAFFINITY@|$AFFINITY|g" "$HERE/systemd/phc2sys.service.in" > "$UNIT_DIR/phc2sys.service"
 chmod 0644 "$UNIT_DIR/ptp4l.service" "$UNIT_DIR/phc2sys.service"
 systemctl daemon-reload
@@ -94,6 +107,17 @@ if [[ -n "$MANUAL" && $REPLACE -eq 0 ]]; then
     systemctl enable ptp4l.service phc2sys.service
 else
     systemctl enable --now ptp4l.service phc2sys.service
+    if (( RESTART )); then
+        if pgrep -x orange >/dev/null; then
+            echo "Orange is running; not restarting ptp4l (the cameras would lose PTP lock). Stop it first." >&2
+            exit 3
+        fi
+        systemctl restart ptp4l.service phc2sys.service
+        echo "restarted ptp4l.service and phc2sys.service"
+    elif (( WAS_ACTIVE )); then
+        echo "NOTE: ptp4l.service was already running and keeps its old settings until restarted"
+        echo "      (re-run with --restart when no recording or stream is active)."
+    fi
 fi
 
 echo "ptp4l.service: $IFACE_ARGS(CPUs $AFFINITY); phc2sys.service follows it (PartOf)"

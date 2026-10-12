@@ -16,6 +16,7 @@ sudo -b phc2sys -a -rr -z /var/run/ptp4l -m
 ```bash
 sudo ./install_ptp_units.sh                    # install + enable; starts now unless hand-started daemons exist
 sudo ./install_ptp_units.sh --replace-running  # also kill the hand-started ones (refused while Orange records)
+sudo ./install_ptp_units.sh --restart          # also restart running units so changes apply (refused while Orange runs)
 sudo ./install_ptp_units.sh --uninstall
 systemctl status ptp4l phc2sys --no-pager
 journalctl -u ptp4l -u phc2sys -f
@@ -45,6 +46,50 @@ journalctl -u ptp4l -u phc2sys -f
 - `/etc/ptp4l.conf` is tracked as `configs/ptp4l.conf`. The installer copies
   it in when missing and only reports a difference when a different file is
   already installed.
+
+## The UTC offset the grandmaster announces
+
+PTP time is TAI-like: camera timestamps run 37 s ahead of UTC (TAI-UTC has been
+37 s since 2017-01-01). The grandmaster says so in every Announce message as
+`currentUtcOffset` plus a `currentUtcOffsetValid` flag. linuxptp 3.1.1 sends
+the offset from `utc_offset` in `ptp4l.conf`, default 37, but announces it
+**not valid**, and its config file has no option for the flag. Until
+2026-10-11 pancake0 therefore announced `currentUtcOffset 37`,
+`currentUtcOffsetValid 0`, `ptpTimescale 1`, `timeTraceable 0`,
+`timeSource 0xa0` (internal oscillator). Orange's clock classifier rightly
+refused to certify camera time as TAI on that basis, even though Palette had
+checked camera_ts - 37 s = host CLOCK_REALTIME on every recording in its store.
+
+`ptp4l.service` now runs `ptp4l_gm_settings` (`libexec/ptp4l_gm_settings.sh`,
+installed root-owned to `/usr/local/libexec/pancakebatter/`) after each start.
+It waits for ptp4l's management socket, reads `GRANDMASTER_SETTINGS_NP`, and
+sends it back with only `currentUtcOffsetValid` set to 1. The setting lasts as
+long as the ptp4l process, hence the hook. It refuses (and logs why) if ptp4l
+announces an offset other than 37 or a non-PTP timescale. Its `ExecStartPost=-`
+prefix means a failure never stops ptp4l: the cameras keep their clock and only
+the flag is missing.
+
+Deliberately unchanged:
+
+- **`timeTraceable` stays 0.** The chain is NTP (timesyncd) → system clock →
+  `phc2sys -rr` → PHCs → cameras, so time is traceable to UTC only once
+  timesyncd has synchronized, which is not true at boot. A flag set once at
+  start would then be wrong for the first minute and wrong again whenever NTP
+  is lost. Gating it on `NTPSynchronized` would need a periodic updater, and no
+  consumer needs it today.
+- **`timeSource` stays `0xa0`** (internal oscillator), `clockClass 248` and the
+  other quality fields as ptp4l set them.
+
+If the IERS ever announces a leap second (Bulletin C, about six months ahead),
+change `EXPECTED_UTC_OFFSET` in the script and `utc_offset` in `ptp4l.conf`
+together; until then the script refuses to declare any other value valid.
+
+Check it (root, because the socket is `root:root 0660`):
+
+```bash
+sudo pmc -u -b 0 -s /var/run/ptp4l 'GET TIME_PROPERTIES_DATA_SET'   # currentUtcOffsetValid 1
+journalctl -u ptp4l -b | grep ptp4l_gm_settings                     # "currentUtcOffset 37 declared valid"
+```
 
 ## Clock direction and NTP
 
