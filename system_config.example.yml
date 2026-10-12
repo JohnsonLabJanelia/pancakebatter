@@ -416,7 +416,7 @@ cameras:
         - 40 # Degrees Celsius
         - 80
       dimensions:
-        - 97 # in cm
+        - 97 # in mm
         - 66
         - 52
       weight: 500 # in grams
@@ -486,7 +486,7 @@ cameras:
         - 40 # Degrees Celsius
         - 80
       dimensions:
-        - 97 # in cm
+        - 97 # in mm
         - 66
         - 52
       weight: 500 # in grams
@@ -556,7 +556,7 @@ cameras:
         - 40 # Degrees Celsius
         - 80
       dimensions:
-        - 97 # in cm
+        - 97 # in mm
         - 66
         - 52
       weight: 500 # in grams
@@ -626,7 +626,7 @@ cameras:
         - 40 # Degrees Celsius
         - 80
       dimensions:
-        - 97 # in cm
+        - 97 # in mm
         - 66
         - 52
       weight: 500 # in grams
