@@ -95,8 +95,9 @@ PY
 )"
 [[ -n "$SERIALS" ]] || die 2 "no camera serials found in hosts/<hostname>/config.yml for PDU $PDU_HOST"
 
-# -x matches the process name exactly; -f on the path also matched any shell that merely mentioned it
-if pgrep -x orange >/dev/null; then
+# -x matches the process name exactly; -f on the path also matched any shell that merely mentioned it.
+# orange_client is the headless client (orange-local-benchmark), which streams the cameras too.
+if pgrep -x 'orange|orange_client' >/dev/null; then
   die 3 "Orange is running; stop it before power-cycling the cameras."
 fi
 

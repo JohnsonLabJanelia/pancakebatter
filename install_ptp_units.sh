@@ -74,7 +74,7 @@ for name in ptp4l phc2sys; do
 done
 if [[ -n "$MANUAL" ]]; then
     if (( REPLACE )); then
-        if pgrep -x orange >/dev/null; then
+        if pgrep -x 'orange|orange_client' >/dev/null; then
             echo "Orange is recording; not killing the running PTP daemons. Stop it first." >&2; exit 3
         fi
         echo "stopping hand-started ptp4l/phc2sys: $MANUAL"
@@ -108,7 +108,7 @@ if [[ -n "$MANUAL" && $REPLACE -eq 0 ]]; then
 else
     systemctl enable --now ptp4l.service phc2sys.service
     if (( RESTART )); then
-        if pgrep -x orange >/dev/null; then
+        if pgrep -x 'orange|orange_client' >/dev/null; then
             echo "Orange is running; not restarting ptp4l (the cameras would lose PTP lock). Stop it first." >&2
             exit 3
         fi

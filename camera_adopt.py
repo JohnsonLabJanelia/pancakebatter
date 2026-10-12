@@ -140,7 +140,8 @@ def has_resolution(entry: dict[str, Any]) -> bool:
 
 
 def orange_running() -> bool:
-    return subprocess.run(["pgrep", "-x", "orange"], capture_output=True).returncode == 0
+    # orange_client is the headless client, which streams the cameras like the GUI does
+    return subprocess.run(["pgrep", "-x", "orange|orange_client"], capture_output=True).returncode == 0
 
 
 # ------------------------------------------------------------------- planning

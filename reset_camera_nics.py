@@ -50,6 +50,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR / "logs" / "nic_reset"
 PCI_DEVICES = Path("/sys/bus/pci/devices")
 ORANGE_PATTERN = "targets/release/orange"
+ORANGE_HEADLESS = "orange_client"  # headless client (orange-local-benchmark); process name, matched with pgrep -x
 PTP_PROCESSES = ("ptp4l", "phc2sys")  # start order matters: phc2sys talks to ptp4l's socket
 HEALTH_PATTERNS = (
     "temp_warn",
@@ -274,13 +275,16 @@ def firmware_dead(sys_: System, pcie_ids: list[str], since: str) -> list[str]:
 
 
 def orange_pids(sys_: System) -> list[int]:
-    """PIDs whose executable is Orange (argv[0] check, so a shell merely mentioning the path does not count)."""
+    """PIDs whose executable is Orange (argv[0] check, so a shell merely mentioning the path does not count),
+    plus the headless client orange_client, which streams the cameras just like the GUI."""
     res = sys_.run(["pgrep", "-f", ORANGE_PATTERN])
     pids = []
     for pid in (res.stdout.split() if res.returncode == 0 else []):
         argv0 = (sys_.read(f"/proc/{pid}/cmdline") or "").split("\0")[0]
         if argv0.endswith(ORANGE_PATTERN) or os.path.basename(argv0) == "orange":
             pids.append(int(pid))
+    res = sys_.run(["pgrep", "-x", ORANGE_HEADLESS])
+    pids += [int(pid) for pid in (res.stdout.split() if res.returncode == 0 else []) if int(pid) not in pids]
     return pids
 
 
