@@ -64,17 +64,59 @@ factor −1; rotations are +1. A product with any `unknown` factor is `unknown`.
 | `projector_mount`, `projector_mount_rotation_deg_about_optical_axis` | always (rotations) | — |
 
 `projection_mode` is the physical geometry, **not** the projector menu. The menu goes in
-`projector_firmware_flip`. For a BenQ "Projector Position" setting:
+`projector_firmware_flip`, with the menu state itself in `projector_settings` (below).
 
-| Menu | `projector_firmware_flip` |
-|---|---|
-| Front Table | `none` |
-| Rear Table | `horizontal` |
-| Front Ceiling | `both` |
-| Rear Ceiling | `vertical` |
+### BenQ X3100i Projector Position
 
-Record the menu wording in the evidence note, and confirm by projecting an asymmetric test
-pattern.
+Source: BenQ X3100i user manual v1.00 (2023-09), Installation menu pp. 45-46, RS-232 table
+pp. 60-64 ([PDF](https://esupportdownload.benq.com/esupport/PROJECTOR/UserManual/X3100i/X3100i_UM_EN_230919170246.pdf),
+sha256 `fa90efe9659d26ae8da8bca0cc68bf0e8fe70de81a3057a8f85b563e5579563f`; a local copy is in
+`~/Documents/vendor_manuals/benq_x3100i/` on pancake0, not in this repo: vendor copyright).
+
+| Menu (Installation > Projector Position) | RS-232 name (`*pp=` code) | `position_menu` / `position_effective` | `projector_firmware_flip` |
+|---|---|---|---|
+| Front | Front Table (`FT`) | `front` | `none` |
+| Rear | Rear Table (`RE`) | `rear` | `horizontal` |
+| Front Ceiling | Front Ceiling (`FC`) | `front_ceiling` | `both` |
+| Rear Ceiling | Rear Ceiling (`RC`) | `rear_ceiling` | `vertical` |
+| Auto | (no write command) | `auto` / the mode it chose | from the effective mode |
+
+- **Auto.** The manual says the projector picks a position by itself at power-on. With Auto in
+  the menu, the menu does not say which flip is applied; `position_effective` must come from
+  RS-232 `*pp=?#` or a test pattern. On omnifin0 the body is upside down and points up, so do
+  not guess what Auto picks.
+- **The flip column is BenQ convention, not stated in the manual.** The manual says where each
+  position is used, never which mirroring it applies. Confirm by projecting an asymmetric
+  pattern (an "F") and photographing it from above.
+- `rigconfig.validate` refuses a `projector_firmware_flip` that disagrees with a declared
+  `position_effective`, and a `position_effective` that differs from a non-Auto `position_menu`.
+
+### Projector settings
+
+`projection_paths.<id>.projector_settings` records menu state that changes where or how the canvas
+lands. Every key is required (`unknown` allowed) and is part of the physical digest, so changing
+one needs a revision bump. Vocabulary is the BenQ X3100i menu; another projector model would add
+its own values.
+
+| Key | Values | Menu | RS-232 read |
+|---|---|---|---|
+| `position_menu` | auto, front, front_ceiling, rear, rear_ceiling | Installation > Projector Position | — (reads the effective one) |
+| `position_effective` | front, front_ceiling, rear, rear_ceiling | — | `*pp=?#` |
+| `keystone_h`, `keystone_v` | −30 to 30 (want 0: non-zero warps the canvas) | Installation > 2D Keystone | `*hkeystone=?#`, `*vkeystone=?#` |
+| `digital_zoom_percent` | 80 to 100 (100 = off) | Game Settings > Digital Zoom | none |
+| `aspect_ratio` | auto, 4:3, 16:9 | Display > Aspect Ratio | `*asp=?#` |
+| `upscaling_4k` | on, off | Display > 4K Upscaling | none |
+
+The projector's serial number and firmware are instance facts and go in the host binding
+(`projector.serial_number`, `projector.firmware_version`): menu Information > Service Code and
+Firmware Version, or RS-232 `*serialnumber=?#` and `*sysfwversion=?#` (also `*scalerfwversion=?#`,
+`*mcufwversion=?#`, `*modelname=?#`).
+
+**RS-232 readback (not set up).** The X3100i has a 9-pin RS-232 port (pin 2 RX, 3 TX, 5 GND;
+baud rate 9600-115200, set in Installation > Baud Rate). Commands are ASCII `<CR>*cmd=?#<CR>`.
+pancake0 has no serial adapter today. With a USB-RS-232 cable, a read-only script could capture
+the keys above (except digital zoom and 4K upscaling) at install time or per session, instead of
+someone reading the menu. The manual does not show the reply format; check it on the device first.
 
 The product relates `citrus.display_canvas_px`, as scanned out with an **unreflected xrandr
 output**, to the canvas as it lands on the dish seen from above. It does **not** include:
@@ -148,7 +190,7 @@ Set `last_physical_change` when the hardware itself moved, not when a declaratio
    commit: <full 40-character sha>
    installed: <ISO time>
    sha256: <sha256 of the installed file>
-   rig_geometry_revision: 4
+   rig_geometry_revision: <n>
    ```
 
    and switch `host.yml.source` to the full commit sha too;

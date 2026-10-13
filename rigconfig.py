@@ -40,6 +40,18 @@ HANDEDNESS = ("preserved", "reflected", UNKNOWN)
 PROJECTION_PHYSICAL = ("projection_mode", "projector_mount", "projector_mount_rotation_deg_about_optical_axis",
                        "projector_firmware_flip", "optical_mirror_count")
 CAMERA_PHYSICAL = ("viewing_side", "optical_mirror_count", "reverse_x", "reverse_y", "rotation_deg")
+# Projector menu state that changes where or how the canvas lands (README "Projector settings").
+# Vocabulary is the BenQ X3100i menu; position_effective is what is applied (the menu may say "auto").
+PROJECTOR_SETTINGS_ENUMS = {
+    "position_menu": ("auto", "front", "front_ceiling", "rear", "rear_ceiling"),
+    "position_effective": ("front", "front_ceiling", "rear", "rear_ceiling"),
+    "aspect_ratio": ("auto", "4:3", "16:9"),
+    "upscaling_4k": ("on", "off"),
+}
+PROJECTOR_SETTINGS_RANGES = {"keystone_h": (-30, 30), "keystone_v": (-30, 30), "digital_zoom_percent": (80, 100)}
+PROJECTOR_SETTINGS = tuple(PROJECTOR_SETTINGS_ENUMS) + tuple(PROJECTOR_SETTINGS_RANGES)
+# BenQ Projector Position -> net firmware mirroring (BenQ convention; the manual does not state it).
+POSITION_FLIP = {"front": "none", "rear": "horizontal", "front_ceiling": "both", "rear_ceiling": "vertical"}
 # Optional; recorded for the deferred parallax model, consumed by no runtime today.
 CAMERA_NOMINAL = ("height_above_gel_mm", "optical_axis_tilt_from_nadir_deg")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -100,7 +112,9 @@ def derived(doc: dict[str, Any]) -> dict[str, Any]:
 def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
     return {
         "rig_id": doc["rig_id"],
-        "projection_paths": {pid: {k: p[k] for k in PROJECTION_PHYSICAL} for pid, p in doc["projection_paths"].items()},
+        "projection_paths": {pid: {**{k: p[k] for k in PROJECTION_PHYSICAL},
+                                   "projector_settings": {k: p["projector_settings"][k] for k in PROJECTOR_SETTINGS}}
+                             for pid, p in doc["projection_paths"].items()},
         "cameras": {s: {**{k: c[k] for k in CAMERA_PHYSICAL},
                         **({"nominal_geometry": c["nominal_geometry"]} if "nominal_geometry" in c else {})}
                     for s, c in doc["cameras"].items()},
@@ -122,6 +136,29 @@ def _evidence_errors(where: str, ev: Any) -> list[str]:
     errs = [f"{where}.evidence.{k}: missing or empty" for k in ("note", "declared_by") if not ev.get(k)]
     if not (isinstance(ev.get("declared_at"), str) and DATE.match(ev["declared_at"])):
         errs.append(f"{where}.evidence.declared_at: quoted YYYY-MM-DD required")
+    return errs
+
+
+def _projector_settings_errors(where: str, p: dict[str, Any]) -> list[str]:
+    ps = p.get("projector_settings")
+    where = f"{where}.projector_settings"
+    if not isinstance(ps, dict):
+        return [f"{where}: required (every key, unknown allowed)"]
+    extra = sorted(set(ps) - set(PROJECTOR_SETTINGS))
+    errs = [f"{where}: unexpected keys {extra}"] if extra else []
+    for k, allowed in PROJECTOR_SETTINGS_ENUMS.items():
+        if ps.get(k) not in allowed + (UNKNOWN,):
+            errs.append(f"{where}.{k}: one of {allowed + (UNKNOWN,)}")
+    for k, (lo, hi) in PROJECTOR_SETTINGS_RANGES.items():
+        v = ps.get(k)
+        if not (v == UNKNOWN or (isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi)):
+            errs.append(f"{where}.{k}: integer {lo}..{hi} or unknown")
+    menu, eff = ps.get("position_menu"), ps.get("position_effective")
+    if menu in POSITION_FLIP and eff != menu:
+        errs.append(f"{where}.position_effective: must equal position_menu ({menu!r}) unless the menu is auto")
+    if eff in POSITION_FLIP and p.get("projector_firmware_flip") != POSITION_FLIP[eff]:
+        errs.append(f"{where}: position_effective {eff!r} means projector_firmware_flip {POSITION_FLIP[eff]!r}, "
+                    f"not {p.get('projector_firmware_flip')!r}")
     return errs
 
 
@@ -161,6 +198,7 @@ def validate(doc: Any) -> list[str]:
             errs.append(f"{where}.projector_mount_rotation_deg_about_optical_axis: one of {ROTATIONS} or unknown")
         if not _count_ok(p.get("optical_mirror_count")):
             errs.append(f"{where}.optical_mirror_count: integer >= 0 or unknown")
+        errs += _projector_settings_errors(where, p)
         errs += _evidence_errors(where, p.get("evidence"))
 
     cams = doc.get("cameras")

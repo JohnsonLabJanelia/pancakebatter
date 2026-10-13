@@ -14,7 +14,7 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 5
+rig_geometry_revision: 6
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
 last_physical_change: unknown
 
@@ -32,6 +32,14 @@ projection_paths:
     projector_mount_rotation_deg_about_optical_axis: 180
     projector_firmware_flip: unknown
     optical_mirror_count: unknown
+    projector_settings:          # BenQ menu state; read it on the rig or over RS-232 (README)
+      position_menu: unknown
+      position_effective: unknown
+      aspect_ratio: unknown
+      upscaling_4k: unknown
+      keystone_h: unknown
+      keystone_v: unknown
+      digital_zoom_percent: unknown
     evidence:
       note: >-
         Rotation 180 from Citrus rig_config_v1 rev 3 ("Projector body is rotated 180 degrees about
@@ -41,7 +49,9 @@ projection_paths:
         (projector -> cover -> air -> shelf -> water -> gel film -> water -> dish -> fish plane;
         citrus ec1134c) and the straight-down camera in docs/runtime_plane_and_parallax_decision.md.
         Mount, menu flip and mirrors not yet read off the rig:
-        record the BenQ "Projector Position" menu wording here when it is (README maps it to a flip).
+        record the BenQ "Projector Position" menu wording in projector_settings when it is (README maps
+        it to a flip). If the menu says Auto, position_effective must come from RS-232 *pp=?# or a test
+        pattern, not from the menu.
         Citrus measured a y reflection in arena_1's active camera->canvas homography; that is a
         measurement to check against, not a declaration. With rear projection and the GL
         presentation flip, it predicts a Rear menu mode or one fold mirror.

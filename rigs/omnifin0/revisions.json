@@ -3,6 +3,7 @@
   "note": "One entry per rig_geometry_revision: the sha256 of the physical fields (rigconfig.physical_digest). tests/test_rig_configs.py fails when rig.yml's physical fields no longer match the entry for its revision. Never edit an existing entry; add the next revision. Revisions 1-3 live in Citrus's untracked rig_config_v1 file and are not recorded here.",
   "revisions": {
     "4": {"physical_sha256": "16572d60acec6d0d12b615d71bb38902ed5e8b8ab9e2b9969acef9a382cb73e0", "declared_at": "2026-10-12", "change": "first pancakebatter declaration (draft): Citrus rev 3's projector rotation; reverse_x/y not_supported_by_firmware from the GenICam XML; rest unknown"},
-    "5": {"physical_sha256": "8be581f566c19a8e99fe0609cc7bd1efbd963af5bf6be9e1f109a1b2bb5c17c5", "declared_at": "2026-10-12", "change": "projection_mode rear (projector below the gel film, camera above; Citrus media order), approved by Jeremy"}
+    "5": {"physical_sha256": "8be581f566c19a8e99fe0609cc7bd1efbd963af5bf6be9e1f109a1b2bb5c17c5", "declared_at": "2026-10-12", "change": "projection_mode rear (projector below the gel film, camera above; Citrus media order), approved by Jeremy"},
+    "6": {"physical_sha256": "5f7dde25bf0e03bb6c8ac96294da1e1aa8d8a46332da9738ff0e5f64658bc99d", "declared_at": "2026-10-13", "change": "projector_settings added to the digest (BenQ Projector Position, aspect, 4K upscaling, keystone, digital zoom), all unknown; no physical change"}
   }
 }

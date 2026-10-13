@@ -90,6 +90,44 @@ class RigDocumentTests(unittest.TestCase):
                 self.assertTrue(rc.validate(d))
 
 
+class ProjectorSettingsTests(unittest.TestCase):
+    def doc(self, flip="unknown", **settings):
+        doc = copy.deepcopy(next(iter(RIGS.values())))
+        p = next(iter(doc["projection_paths"].values()))
+        p["projector_firmware_flip"] = flip
+        p["projector_settings"].update(settings)
+        p["derived"]["canvas_space_parity"] = rc.canvas_space_parity(p)
+        for serial, want in rc.derived(doc)["cameras"].items():
+            doc["cameras"][serial]["derived"] = want
+        return doc, p
+
+    def test_required_and_in_the_digest(self):
+        doc, p = self.doc()
+        base = rc.physical_digest(doc)
+        p["projector_settings"]["keystone_v"] = 0
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        del p["projector_settings"]
+        self.assertTrue(any("projector_settings: required" in e for e in rc.validate(doc)))
+
+    def test_effective_position_fixes_the_firmware_flip(self):
+        for pos, flip in rc.POSITION_FLIP.items():
+            with self.subTest(position=pos):
+                self.assertEqual(rc.validate(self.doc(flip, position_menu=pos, position_effective=pos)[0]), [])
+                wrong = "vertical" if flip != "vertical" else "none"
+                self.assertTrue(rc.validate(self.doc(wrong, position_menu=pos, position_effective=pos)[0]))
+
+    def test_auto_menu_needs_the_effective_position_separately(self):
+        self.assertEqual(rc.validate(self.doc(position_menu="auto")[0]), [])
+        self.assertEqual(rc.validate(self.doc("horizontal", position_menu="auto", position_effective="rear")[0]), [])
+        self.assertTrue(rc.validate(self.doc("both", position_menu="rear", position_effective="front_ceiling")[0]))
+
+    def test_bad_values_are_refused(self):
+        for key, bad in (("keystone_h", 31), ("keystone_v", None), ("digital_zoom_percent", 79),
+                         ("digital_zoom_percent", True), ("position_menu", "Front Table"), ("aspect_ratio", "21:9")):
+            with self.subTest(key=key, value=bad):
+                self.assertTrue(rc.validate(self.doc(**{key: bad})[0]))
+
+
 class ParityRuleTests(unittest.TestCase):
     def test_canvas_parity(self):
         self.assertEqual(rc.canvas_space_parity(path()), 1)

@@ -115,6 +115,7 @@
         "projector_mount_rotation_deg_about_optical_axis",
         "projector_firmware_flip",
         "optical_mirror_count",
+        "projector_settings",
         "evidence",
         "derived"
       ],
@@ -166,6 +167,99 @@
             }
           ],
           "description": "Fold mirrors between projector lens and image surface. Odd = -1."
+        },
+        "projector_settings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "position_menu",
+            "position_effective",
+            "aspect_ratio",
+            "upscaling_4k",
+            "keystone_h",
+            "keystone_v",
+            "digital_zoom_percent"
+          ],
+          "description": "Projector menu state that changes where or how the canvas lands; part of the physical digest. Vocabulary is the BenQ X3100i menu (user manual v1.00 pp. 45-46; RS-232 table pp. 60-64). rigconfig checks position_effective against projector_firmware_flip.",
+          "properties": {
+            "position_menu": {
+              "enum": [
+                "auto",
+                "front",
+                "front_ceiling",
+                "rear",
+                "rear_ceiling",
+                "unknown"
+              ],
+              "description": "Installation > Projector Position as shown in the menu (Auto/Front/Front Ceiling/Rear/Rear Ceiling). RS-232 names Front and Rear 'Front Table' and 'Rear Table'."
+            },
+            "position_effective": {
+              "enum": [
+                "front",
+                "front_ceiling",
+                "rear",
+                "rear_ceiling",
+                "unknown"
+              ],
+              "description": "The position actually applied: equals position_menu unless that is auto, when the projector chooses at power-on. RS-232 *pp=?# reads it. Maps to projector_firmware_flip: front none, rear horizontal, front_ceiling both, rear_ceiling vertical."
+            },
+            "aspect_ratio": {
+              "enum": [
+                "auto",
+                "4:3",
+                "16:9",
+                "unknown"
+              ],
+              "description": "Display > Aspect Ratio (RS-232 *asp=?#)."
+            },
+            "upscaling_4k": {
+              "enum": [
+                "on",
+                "off",
+                "unknown"
+              ],
+              "description": "Display > 4K Upscaling (XPR pixel shift on all timings). No RS-232 read command."
+            },
+            "keystone_h": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": -30,
+                  "maximum": 30
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Installation > 2D Keystone H (RS-232 *hkeystone=?#). Non-zero warps the canvas."
+            },
+            "keystone_v": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": -30,
+                  "maximum": 30
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Installation > 2D Keystone V (RS-232 *vkeystone=?#). Non-zero warps the canvas."
+            },
+            "digital_zoom_percent": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 80,
+                  "maximum": 100
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Game Settings > Digital Zoom, 100 = off. No RS-232 read command."
+            }
+          }
         },
         "evidence": {
           "type": "object",
