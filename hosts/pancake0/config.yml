@@ -679,7 +679,7 @@ cameras:
 # Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
   E0-55-97-1E-B6-B8:
     model: HB-2800SC
-    part_id: camera.emergent.hb_2800sc
+    part_id: camera.emergent.hb_2800_s_c
     serial_number: 2012856
     ip_address: 192.168.130.2
     nic_port: mlnx1_p3_25g
