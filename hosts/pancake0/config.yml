@@ -75,27 +75,31 @@ pdus:
       1:
         name: E0-55-97-1E-AB-F0 # Cam MAC address
         description: "Camera 4 (SN: 2010096)"
+        camera_serial: "2010096"
       2:
         name: E0-55-97-1E-AB-EF
         description: "Camera 3 (SN: 2010095)"
+        camera_serial: "2010095"
       3:
         name: E0-55-97-1E-AB-EE
         description: "Camera 2 (SN: 2010094)"
+        camera_serial: "2010094"
       4:
         name: E0-55-97-1E-AB-ED
         description: "Camera 1 (SN: 2010093)"
+        camera_serial: "2010093"
       5:
-        name:
-        description:
+        name: unused
+        description: "Empty, no device plugged in (checked 2026-10-14)"
       6:
-        name:
-        description:
+        name: unused
+        description: "Empty, no device plugged in (checked 2026-10-14)"
       7:
-        name:
-        description:
+        name: light-array-1
+        description: "Light array 1 (details pending from the engineers who built it)"
       8:
-        name:
-        description:
+        name: light-array-2
+        description: "Light array 2 (details pending from the engineers who built it)"
 
 
 # Storage Devices

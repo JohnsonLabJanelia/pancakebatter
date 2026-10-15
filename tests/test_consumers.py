@@ -45,7 +45,7 @@ class StableKeyTests(unittest.TestCase):
     def test_optional_stable_keys_are_a_subset_and_each_resolves_somewhere_or_is_new(self):
         self.assertTrue(set(STABLE["optional_keys"]) <= set(STABLE["keys"]))
         never = [k for k in STABLE["optional_keys"] if not any(resolve(c, k)[0] for c in HOST_CONFIGS.values())]
-        self.assertEqual(never, ["pdus.*.outlets.*.camera_serial"], never)   # promised, not yet populated anywhere
+        self.assertEqual(never, [], never)
 
     def test_stable_key_list_is_well_formed(self):
         self.assertEqual(STABLE["schema"], {"name": "system_config", "version": 1})
