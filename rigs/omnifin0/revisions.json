@@ -4,6 +4,7 @@
   "revisions": {
     "4": {"physical_sha256": "16572d60acec6d0d12b615d71bb38902ed5e8b8ab9e2b9969acef9a382cb73e0", "declared_at": "2026-10-12", "change": "first pancakebatter declaration (draft): Citrus rev 3's projector rotation; reverse_x/y not_supported_by_firmware from the GenICam XML; rest unknown"},
     "5": {"physical_sha256": "8be581f566c19a8e99fe0609cc7bd1efbd963af5bf6be9e1f109a1b2bb5c17c5", "declared_at": "2026-10-12", "change": "projection_mode rear (projector below the gel film, camera above; Citrus media order), approved by Jeremy"},
-    "6": {"physical_sha256": "5f7dde25bf0e03bb6c8ac96294da1e1aa8d8a46332da9738ff0e5f64658bc99d", "declared_at": "2026-10-13", "change": "projector_settings added to the digest (BenQ Projector Position, aspect, 4K upscaling, keystone, digital zoom), all unknown; no physical change"}
+    "6": {"physical_sha256": "5f7dde25bf0e03bb6c8ac96294da1e1aa8d8a46332da9738ff0e5f64658bc99d", "declared_at": "2026-10-13", "change": "projector_settings added to the digest (BenQ Projector Position, aspect, 4K upscaling, keystone, digital zoom), all unknown; no physical change"},
+    "7": {"physical_sha256": "49d18446a1c5eca501e8203af52861032bcf987720f2247b6dc9db76c4106a72", "declared_at": "2026-10-14", "change": "rotation_deg 0 on all four cameras: no software rotation before recording (Orange, palette #377), approved by Jeremy"}
   }
 }
