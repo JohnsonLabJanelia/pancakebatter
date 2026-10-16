@@ -26,6 +26,9 @@ sudo ./install_rig_health_timer.sh --uninstall
 | `ptp` | `pgrep ptp4l`/`phc2sys`, `journalctl _COMM=phc2sys` | process missing: warn; any port whose latest phc2sys sample is not servo state `s2` (locked): crit; worst *locked* `sys offset` in 5 min >100 µs warn, >10 ms crit (the step at start-up is `s0`/`s1` and is not counted once locked); `--no-ptp` skips. With the units from `install_ptp_units.sh` the daemons come back at boot, so this only fires when they are really down |
 | `time_sync` | `timedatectl show`, one SNTP packet to `--ntp-server` (default pool.ntp.org) | no NTP service or not synchronized: warn; clock off by >1 s warn, >300 s crit; `--no-ntp-query` skips the packet |
 | `pcie_aer` | `journalctl -k --since <last run>` | any `AER:` line: warn, with the device |
+| `storage_errors` | `journalctl -k --since <last run>` | any `critical medium error`, nvme `I/O Error`, `I/O error, dev`, `Buffer I/O error`, nvme timeout or controller reset: crit per drive, and it **stays crit** on later runs until the drive is acknowledged |
+| `nvme_smart` | `/var/lib/pancakebatter-nvme/smart.json` (root snapshot, below) | `critical_warning` ≠ 0, media errors above the acknowledged baseline (any, if never acknowledged), available spare at or below its threshold: crit. Increases since the last run in error-log entries, unsafe shutdowns, warning/critical temperature minutes, and `percent_used` ≥ 80: warn. Snapshot older than 15 min: warn. Not installed: info |
+| `nvme_firmware` | `/sys/class/nvme/*/{model,firmware_rev,serial}` | same-model drives on different firmware, or firmware differing from `storage_devices` in the host config: warn |
 | `acquisition` | `pgrep` for `targets/release/orange` (argv[0] checked) | info only |
 
 Thresholds are overridable per run: `--threshold nic_warn=80 --threshold disk_warn_pct=15`.
@@ -40,6 +43,56 @@ honoured. Under the timer (journal), in a pipe and in alert mails the output
 is always plain text.
 Only non-ok findings are listed individually; ok readings collapse to one line
 per check with the highest value.
+
+## Drive health
+
+Added after 2026-10-16, when `/mnt/Data1` (nvme1n1, Sabrent Rocket 4 Plus on
+R4PTLC.3) failed reads during Orange's finalize of a 95-minute run. SMART had
+already counted 1,495 media errors and the kernel logged 217 `critical medium
+error` lines, while the 00:00 and 00:05 runs reported ok.
+
+**SMART needs root.** `/dev/nvmeN` is mode 0600 and the health unit runs
+unprivileged with `NoNewPrivileges`, so a separate root unit takes the reading:
+
+```bash
+sudo ./install_nvme_smart_snapshot.sh              # every 5min; --interval 2min to change
+sudo ./install_nvme_smart_snapshot.sh --uninstall
+```
+
+It installs a root-owned copy of `libexec/nvme_smart_snapshot.py` to
+`/usr/local/libexec/pancakebatter/nvme_smart_snapshot` (re-run the installer after
+editing it), and `nvme-smart-snapshot.timer`, which runs
+`nvme smart-log /dev/nvmeN -o json` for every controller and writes
+`/var/lib/pancakebatter-nvme/smart.json` (0644). Nothing else is written, no
+device is changed, and the unit has no network and the same idle scheduling and
+CPU pinning as the health check.
+
+**Acknowledging a drive.** Media errors and kernel storage errors are sticky:
+a drive stays crit until someone records that its errors are known. That sets the
+baseline to the drive's current `media_errors`, so only new ones alert again:
+
+```bash
+./rig_health_check.py --state-dir /var/lib/rig-health --acknowledge-drive <serial> --note "rescued; RMA"
+```
+
+The drive can be named by serial, `nvmeN`, or a namespace/partition (`nvme1n1p1`).
+Acknowledgements live in `/var/lib/rig-health/drive_acks.json`.
+
+**Pre-recording gate.** Before a record start, the recorder can ask whether the
+drive under its recording root is fit to record onto:
+
+```bash
+./rig_health_check.py --preflight --recording-root /mnt/Data2/orange --expected-gb 333 --state-dir /var/lib/rig-health
+```
+
+It finds the drive through the mount (`st_dev` → `/sys/dev/block`) and judges
+only that drive: unacknowledged media errors, a SMART critical warning, spare at
+threshold, or kernel storage errors are exit 2; so is free space below
+`--expected-gb` plus 10 % (`--threshold preflight_margin_pct=N`). Softer signals
+are exit 1, healthy is 0. It reads the timer's state for its journal window and
+acknowledgements but writes nothing and sends no mail. Calling it, and refusing to
+start on exit 2, is up to the recorder (Orange owns the record start); a 95-minute
+run is about 333 GB.
 
 ## Not interfering with acquisition
 

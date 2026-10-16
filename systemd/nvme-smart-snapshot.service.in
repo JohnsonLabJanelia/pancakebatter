@@ -1,0 +1,26 @@
+# Rendered by install_nvme_smart_snapshot.sh (@CPUAFFINITY@ is filled in).
+[Unit]
+Description=NVMe SMART snapshot for the rig health check (read-only, pancakebatter)
+Documentation=file://@REPO@/docs/rig_health_monitor.md
+
+[Service]
+Type=oneshot
+# Root is needed for the NVMe admin command (smart-log); nothing else about it is privileged.
+ExecStart=/usr/local/libexec/pancakebatter/nvme_smart_snapshot
+StateDirectory=pancakebatter-nvme
+StateDirectoryMode=0755
+TimeoutStartSec=60
+
+# Stay out of the acquisition pipeline's way.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+CPUAffinity=@CPUAFFINITY@
+
+# Read-only everywhere except the snapshot directory; no network.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/pancakebatter-nvme
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+NoNewPrivileges=yes
