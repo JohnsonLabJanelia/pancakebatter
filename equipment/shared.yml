@@ -1,0 +1,59 @@
+# Shared equipment: instruments that move between hosts and rigs (a calibration photodetector, a
+# power meter, a loaner DAQ), recorded once here instead of in every host config that uses them.
+# Schema: schemas/shared_equipment.v1.schema.json. Docs: docs/host_config_interface.md#shared-equipment.
+#
+# A host config refers to an item by id (daqs.*.shared_id or photodetectors.*.shared_id); the item
+# supplies part_id, serial_number and calibration. Update current_location when an item moves.
+# Check with: python3 instruments.py [--host <hostname>]
+#
+# items:
+#   - id: pd-cal-1                                    # stable handle, never reused
+#     part_id: photodetector.thorlabs.pda36a2         # optional hardware_library link
+#     serial_number: "..."
+#     description: "..."
+#     home_location: storage                          # host id, rig id, or storage[:<place>]
+#     current_location: pancake0
+#     calibration: {certificate_id: "...", calibrated_at: "YYYY-MM-DD", due: "YYYY-MM-DD", performed_by: "...",
+#                   filter: {part_id: filter.<maker>.<model>, serial_or_lot: "..."}}
+
+schema:
+  name: shared_equipment
+  version: 1
+
+items:
+  - id: spectrometer-qepro-1
+    # part_id omitted until rig-designer's spectrometer.ocean_insight.qe_pro lands in hardware_library
+    # (needs Jeremy's OK for the new spectrometer category).
+    serial_number: QEP04819
+    description: Ocean Insight QE Pro spectrometer (rig display and light calibration)
+    home_location: unknown
+    current_location: pancake0       # on USB there 2026-10-19 (usb3 via a hub, 12 Mb/s; move to usb7/usb8 for runs)
+    configuration:                   # fixed for this unit; per-run acquisition settings go in Citrus capture records
+      device_readout:
+        source: seabreeze 2.11 (cseabreeze), read-only, 2026-10-19, citrus-specsail-integration
+        wavelength_range_nm: [346.9, 927.3]   # factory wavelength calibration, ~0.56 nm/px
+        pixels: 1044
+        dark_pixels: [[0, 3], [1040, 1043]]
+        integration_time_limits_s: [0.008, 1600]
+        saturation_counts: 200000
+        nonlinearity_coefficients: stored on device
+        irradiance_calibration: none stored   # no collection area; irradiance-cal and stray-light reads fail
+      purchase_paperwork:            # the firmware doesn't expose these; null until the paperwork is found
+        source: null
+        grating: null
+        slit_um: null
+      # Input optics (fiber, cosine corrector) are separate items below; which was attached is per run.
+    note: >-
+      Identified by Jeremy 2026-10-19 (relayed by citrus-specsail-integration). No calibration
+      certificate known and no irradiance calibration stored on the device, so no calibration block
+      until one exists. TEC read -9.76 C at the 2026-10-19 read.
+  - id: fiber-p50-vis-nir-1
+    # part_id omitted until rig-designer's optic.ocean_insight.p50_1_vis_nir lands in hardware_library
+    # (branch part/spectrometer-qe-pro, unmerged).
+    serial_number: EOS-A705799       # label ID
+    description: Ocean Insight P50-1-VIS-NIR optical fiber (QE Pro input; moves between instruments)
+    home_location: unknown
+    current_location: pancake0
+    note: >-
+      Identified by Jeremy 2026-10-19 from its label (relayed by citrus-specsail-integration). Which
+      instrument it was attached to is recorded per run in the Citrus capture record. No calibration block.

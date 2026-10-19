@@ -7,6 +7,7 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 STABLE = json.loads((REPO / "schemas" / "system_config.v1.stable_keys.json").read_text())
+SCHEMA = json.loads((REPO / "schemas" / "system_config.v1.schema.json").read_text())
 CONSUMERS = sorted((REPO / "schemas" / "consumers").glob("*.json"))
 HOST_CONFIGS = {p.parent.name: yaml.safe_load(p.read_text()) for p in sorted((REPO / "hosts").glob("*/config.yml"))}
 
@@ -30,6 +31,30 @@ def resolve(doc, path):
     return True, values
 
 
+def schema_declares(schema, path):
+    """True when the JSON Schema declares a dotted key path ('*' = array items or map values)."""
+    def nodes(node):
+        if "$ref" in node:  # local refs only: #/$defs/<name>
+            node = {**SCHEMA["$defs"][node["$ref"].split("/")[-1]], **{k: v for k, v in node.items() if k != "$ref"}}
+        yield node
+        for branch in node.get("allOf", []) + node.get("anyOf", []) + node.get("oneOf", []):
+            yield from nodes(branch)
+
+    current = [schema]
+    for part in path.split("."):
+        nxt = []
+        for node in (n for c in current for n in nodes(c)):
+            if part == "*":
+                nxt += [s for s in (node.get("items"), node.get("additionalProperties")) if isinstance(s, dict)]
+                nxt += list(node.get("patternProperties", {}).values())
+            elif part in node.get("properties", {}):
+                nxt.append(node["properties"][part])
+        if not nxt:
+            return False
+        current = nxt
+    return True
+
+
 class StableKeyTests(unittest.TestCase):
     def test_required_stable_keys_resolve_on_every_host_that_has_the_section(self):
         for host, cfg in HOST_CONFIGS.items():
@@ -44,8 +69,20 @@ class StableKeyTests(unittest.TestCase):
 
     def test_optional_stable_keys_are_a_subset_and_each_resolves_somewhere_or_is_new(self):
         self.assertTrue(set(STABLE["optional_keys"]) <= set(STABLE["keys"]))
-        never = [k for k in STABLE["optional_keys"] if not any(resolve(c, k)[0] for c in HOST_CONFIGS.values())]
+        # "New" = declared in the schema but on no host yet (e.g. daqs before any DAQ is installed).
+        never = [k for k in STABLE["optional_keys"]
+                 if not any(resolve(c, k)[0] for c in HOST_CONFIGS.values()) and not schema_declares(SCHEMA, k)]
         self.assertEqual(never, [], never)
+
+    def test_every_stable_key_is_declared_in_the_schema_or_resolves_on_a_host(self):
+        missing = [k for k in STABLE["keys"]
+                   if not schema_declares(SCHEMA, k) and not any(resolve(c, k)[0] for c in HOST_CONFIGS.values())]
+        self.assertEqual(missing, [], missing)
+
+    def test_schema_declares_follows_refs_and_rejects_typos(self):
+        self.assertTrue(schema_declares(SCHEMA, "daqs.*.channels.*.source.kind"))
+        self.assertTrue(schema_declares(SCHEMA, "photodetectors.*.calibration"))
+        self.assertFalse(schema_declares(SCHEMA, "daqs.*.chanels.*.id"))
 
     def test_stable_key_list_is_well_formed(self):
         self.assertEqual(STABLE["schema"], {"name": "system_config", "version": 1})

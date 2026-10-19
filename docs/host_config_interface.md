@@ -60,6 +60,9 @@ copy or a test file.
 | pdus | `ip_address`, `outlets.*.description`, `outlets.*.camera_serial` (preferred over parsing `SN:` from the description) |
 | kernel_tuning | `isolated_cores`; `core_roles.*.{role, consumer, camera, sibling_of, thread}` |
 | paths | `data_root`, `orange_run_dir`, `shared_config_root` |
+| light_arrays | `name`, `pdu`, `outlet`, `wavelength_nm`, `strobe.source`; optional `part_id`, `strobe.{camera_serial, gpio_line, daq_channel, via}` |
+| daqs | `name`, `channels.*.{id, direction, kind, signal, source.kind}`; optional `shared_id`, `part_id`, `serial_number`, `channels.*.source.{camera_serial, gpio_line, name}`, `calibration` |
+| photodetectors | `name`; optional `shared_id`, `part_id`, `serial_number`, `filter`, `daq_channel`, `calibration` |
 
 Everything else is internal and may change without notice: the version
 snapshot fields in `system_info`, `storage_devices`, `gpus`, transceiver
@@ -75,8 +78,12 @@ host that has the section.
 
 Rules: additive changes stay in version 1; renaming or removing a stable key
 bumps `schema.version` and is announced to every consumer on file.
-`pdus`, `kernel_tuning` and `paths` are optional sections (dumpling has none of
-them), so a consumer checks for the section before reading into it.
+`pdus`, `kernel_tuning`, `paths`, `daqs`, `photodetectors` and `light_arrays` are
+optional sections (dumpling has none of them), so a consumer checks for the
+section before reading into it. A stable key may be declared in the schema
+before any host has it (`daqs` before the first DAQ is installed);
+`tests/test_consumers.py` accepts that and still rejects a key the schema does
+not declare.
 
 ### Machine paths
 
@@ -130,3 +137,126 @@ id starts `camera.`, the lens's `lens.`. `tests/test_host_configs.py` checks the
 prefix always and, when a hardware_library checkout exists
 (`$PANCAKEBATTER_HARDWARE_LIBRARY`, default `~/hardware_library`), that the part
 exists and that the camera's `model` is one of the part's `links.pancakebatter_models`.
+The instrument sections below follow the same rule: `daqs.*.part_id` starts `daq.`,
+`photodetectors.*.part_id` `photodetector.`, `light_arrays.*.part_id` `light_source.`,
+a filter's `part_id` `filter.`; a shared item's id may be any category. The same test
+checks them, and `equipment/shared.yml`, against hardware_library.
+
+## Instruments
+
+Three optional sections record bench instruments: what they are, what is wired
+where, and whether their calibration still applies. `instruments.py` holds the
+cross-checks; `configio.validate()` runs them, so the editor, `capture_inventory.py`
+and `install_host_config.sh` refuse a config that fails them.
+
+```yaml
+light_arrays:
+  - name: light-array-1        # must equal pdus[pdu].outlets[outlet].name
+    pdu: pdu1
+    outlet: 7
+    part_id: light_source.<maker>.<model>   # optional; omitted while unknown
+    wavelength_nm: 850
+    driver: null               # free text; null while unknown
+    strobe:
+      source: camera_gpio      # camera_gpio | daq | none | unknown
+      camera_serial: "2010096" # camera_gpio: must be in cameras
+      gpio_line: null          # camera_gpio: integer, null until confirmed
+      daq_channel: {daq: daq0, channel: DIO2}   # daq: must exist
+      via: unknown             # direct | driver_board | unknown (camera_gpio and daq)
+    note: free text
+
+daqs:
+  - name: daq0
+    part_id: daq.<maker>.<model>            # optional
+    serial_number: "01ABCDEF"               # or shared_id: <equipment/shared.yml id>
+    firmware: null
+    driver: {name: uldaq, version: "1.2.1"}
+    channels:
+      - id: AI0                # as the device labels it: AI0, DIO3, CTR0
+        direction: in          # in | out
+        kind: analog           # analog | digital | counter
+        signal: corner_tl
+        source: {kind: photodetector, name: pd-tl}
+        # {kind: camera_gpio, camera_serial: "2010096", gpio_line: 1}
+        # {kind: light_array, name: light-array-1}
+        # {kind: host}
+        # {kind: other, note: "projector vsync tap"}   (note required)
+    calibration: {...}         # optional, see below
+
+photodetectors:
+  - name: pd-tl
+    part_id: photodetector.thorlabs.pda36a2
+    serial_number: "..."                    # or shared_id
+    settings: {gain_db: 40}                 # parts with front-panel settings
+    filter: {part_id: filter.<maker>.<model>, serial_or_lot: "...", fitted_at: "2026-10-20"}   # or: none
+    daq_channel: {daq: daq0, channel: AI0}  # that channel's source must name this photodetector
+    calibration: {...}                      # must include filter
+```
+
+A calibration block (DAQs, photodetectors, shared items):
+
+```yaml
+calibration:
+  certificate_id: "C-123"      # null for an in-house calibration without one
+  calibrated_at: "2026-10-02"
+  due: "2027-10-02"
+  performed_by: Thorlabs
+  filter: {part_id: filter.<maker>.<model>, serial_or_lot: "..."}   # photodetectors: required; or none
+```
+
+Quote dates: YAML loads an unquoted `2026-10-02` as a date object, which the
+schema rejects as not a string.
+
+Rules beyond the schema (errors unless noted):
+
+- DAQ channel sources name a camera serial in `cameras`, a photodetector or light
+  array by name on this host; `other` needs a `note`. Channel ids are unique per DAQ.
+- A photodetector's `daq_channel` names an existing DAQ and channel, and that
+  channel's `source` names the photodetector back.
+- A light array's `pdu`/`outlet` exists and the outlet's `name` is the array's
+  `name`. `strobe.camera_serial` is in `cameras`; `strobe.daq_channel` exists.
+- **Filter vs calibration.** A photodetector's response is calibrated through its
+  filter, so the fitted `filter` must be the calibration's `filter` (same
+  `part_id` and `serial_or_lot`; `none` matches only `none`; `fitted_at` is not
+  compared). Swapping, removing or not recording the filter is an error: the
+  calibration no longer applies. Recalibrate, or refit the calibrated filter.
+- **Overdue.** A `due` date before today is a *warning*: `configio.validate()`
+  still passes and `configio.warnings()` returns it; `install_host_config.sh`
+  prints it.
+
+Not-yet-known values follow the rest of the file: an optional link such as
+`part_id` is omitted (as on cameras without one), a scalar fact known to exist
+but not yet read is `null` (as NIC `part_number`), and an enum carries `unknown`
+(as NIC `role`). pancake0's light arrays are the example.
+
+## Shared equipment
+
+Equipment that moves between hosts and rigs (a calibration photodetector, a
+power meter, a loaner DAQ) is recorded once in `equipment/shared.yml`
+(`schemas/shared_equipment.v1.schema.json`), not in each host config:
+
+```yaml
+schema: {name: shared_equipment, version: 1}
+items:
+  - id: pd-cal-1                     # stable handle, never reused
+    part_id: photodetector.thorlabs.pda36a2   # optional
+    serial_number: "..."
+    description: calibration detector for the fish-plane probe
+    home_location: storage           # a host id, a rig id, or storage[:<place>]
+    current_location: pancake0
+    calibration: {...}               # optional, same block as above
+```
+
+A DAQ or photodetector on a host uses an item with `shared_id: pd-cal-1` in
+place of `part_id`, `serial_number` and `calibration`, which come from the item
+(repeating any of them is an error). It keeps its own `name`, wiring and fitted
+`filter`, so the filter rule compares the host's fitted filter with the item's
+calibration. An unknown `shared_id` is an error; an item whose
+`current_location` is not the referencing host is a warning (update the file
+when it moves). Check the file, and optionally a host, with
+`python3 instruments.py [--host <hostname>]`.
+
+Open: `install_host_config.sh` publishes only `host.yml`, not the shared file,
+so a consumer cannot yet resolve a `shared_id` from the installed copy (and must
+not guess a checkout path). Publishing `equipment/shared.yml` next to it is the
+likely fix once a host uses a shared item.
