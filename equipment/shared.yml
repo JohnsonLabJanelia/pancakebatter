@@ -48,7 +48,8 @@ items:
       certificate known and no irradiance calibration stored on the device, so no calibration block
       until one exists. TEC read -9.76 C at the 2026-10-19 read.
   - id: fiber-p50-vis-nir-1
-    # part_id omitted until rig-designer's fiber.ocean_insight.p50_1_vis_nir lands in hardware_library.
+    # part_id omitted until rig-designer's optic.ocean_insight.p50_1_vis_nir lands in hardware_library
+    # (branch part/spectrometer-qe-pro, unmerged).
     serial_number: EOS-A705799       # label ID
     description: Ocean Insight P50-1-VIS-NIR optical fiber (QE Pro input; moves between instruments)
     home_location: unknown
