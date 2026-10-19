@@ -1,0 +1,23 @@
+# Shared equipment: instruments that move between hosts and rigs (a calibration photodetector, a
+# power meter, a loaner DAQ), recorded once here instead of in every host config that uses them.
+# Schema: schemas/shared_equipment.v1.schema.json. Docs: docs/host_config_interface.md#shared-equipment.
+#
+# A host config refers to an item by id (daqs.*.shared_id or photodetectors.*.shared_id); the item
+# supplies part_id, serial_number and calibration. Update current_location when an item moves.
+# Check with: python3 instruments.py [--host <hostname>]
+#
+# items:
+#   - id: pd-cal-1                                    # stable handle, never reused
+#     part_id: photodetector.thorlabs.pda36a2         # optional hardware_library link
+#     serial_number: "..."
+#     description: "..."
+#     home_location: storage                          # host id, rig id, or storage[:<place>]
+#     current_location: pancake0
+#     calibration: {certificate_id: "...", calibrated_at: "YYYY-MM-DD", due: "YYYY-MM-DD", performed_by: "...",
+#                   filter: {part_id: filter.<maker>.<model>, serial_or_lot: "..."}}
+
+schema:
+  name: shared_equipment
+  version: 1
+
+items: []

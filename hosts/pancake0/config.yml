@@ -101,6 +101,36 @@ pdus:
         name: light-array-2
         description: "Light array 2 (details pending from the engineers who built it)"
 
+# Light arrays (docs/host_config_interface.md#instruments): name = the PDU outlet's name.
+# Unknown so far: part_id (omitted), driver (null), strobe.gpio_line (null), strobe.via (unknown).
+light_arrays:
+  - name: light-array-1
+    pdu: pdu1
+    outlet: 7
+    wavelength_nm: 850
+    driver: null
+    strobe:
+      source: camera_gpio
+      camera_serial: "2010096"
+      gpio_line: null
+      via: unknown
+    note: >-
+      Jeremy confirmed 2026-10-19 that Cam2010096 drives the omnifin0 light arrays. GPIO line and
+      direct vs driver board pending confirmation from Orange's camera config or Jeremy.
+  - name: light-array-2
+    pdu: pdu1
+    outlet: 8
+    wavelength_nm: 850
+    driver: null
+    strobe:
+      source: camera_gpio
+      camera_serial: "2010096"
+      gpio_line: null
+      via: unknown
+    note: >-
+      Jeremy confirmed 2026-10-19 that Cam2010096 drives the omnifin0 light arrays. GPIO line and
+      direct vs driver board pending confirmation from Orange's camera config or Jeremy.
+
 
 # Storage Devices
 storage_devices:

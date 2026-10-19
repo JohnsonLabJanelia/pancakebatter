@@ -320,6 +320,27 @@
           }
         }
       }
+    },
+    "daqs": {
+      "type": "array",
+      "description": "Data acquisition devices on this host and what is wired to each channel (docs/host_config_interface.md#instruments).",
+      "items": {
+        "$ref": "#/$defs/daq"
+      }
+    },
+    "photodetectors": {
+      "type": "array",
+      "description": "Photodetectors on this host: the fitted filter, the DAQ channel they feed, and their calibration.",
+      "items": {
+        "$ref": "#/$defs/photodetector"
+      }
+    },
+    "light_arrays": {
+      "type": "array",
+      "description": "Illumination arrays powered from a PDU outlet, and what strobes them.",
+      "items": {
+        "$ref": "#/$defs/lightArray"
+      }
     }
   },
   "$defs": {
@@ -544,6 +565,503 @@
           "description": "Thread or entry point that runs here, e.g. StimulusDisplayManager::Run."
         }
       }
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "ISO date, quoted in YAML (an unquoted 2026-10-19 loads as a date object, not a string)."
+    },
+    "serialNumber": {
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "calibration": {
+      "type": "object",
+      "required": [
+        "calibrated_at",
+        "due",
+        "performed_by"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "certificate_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Certificate or report id; null for an in-house calibration without one."
+        },
+        "calibrated_at": {
+          "$ref": "#/$defs/date"
+        },
+        "due": {
+          "$ref": "#/$defs/date",
+          "description": "Recalibration due date; a past date is reported as a warning."
+        },
+        "performed_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "filter": {
+          "$ref": "#/$defs/filterRef",
+          "description": "Photodetectors: the filter fitted when calibrated. A different fitted filter invalidates the calibration."
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "filterRef": {
+      "description": "A fitted filter, or the string none for an explicit bare detector.",
+      "oneOf": [
+        {
+          "const": "none"
+        },
+        {
+          "type": "object",
+          "required": [
+            "part_id",
+            "serial_or_lot"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "part_id": {
+              "type": "string",
+              "pattern": "^filter\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+              "description": "The filter's part design in hardware_library (category filter)."
+            },
+            "serial_or_lot": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Serial or lot of the filter; null when the vendor gives neither."
+            },
+            "fitted_at": {
+              "$ref": "#/$defs/date"
+            }
+          }
+        }
+      ]
+    },
+    "daqChannelRef": {
+      "type": "object",
+      "required": [
+        "daq",
+        "channel"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "daq": {
+          "type": "string",
+          "minLength": 1,
+          "description": "daqs.*.name on this host."
+        },
+        "channel": {
+          "type": "string",
+          "minLength": 1,
+          "description": "daqs.*.channels.*.id of that DAQ."
+        }
+      }
+    },
+    "sharedId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "id of an item in equipment/shared.yml. The item supplies part_id, serial_number and calibration, so the instance must not repeat them."
+    },
+    "daqChannelSource": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "enum": [
+            "camera_gpio",
+            "photodetector",
+            "light_array",
+            "host",
+            "other"
+          ],
+          "description": "camera_gpio = a camera GPIO line (camera_serial, gpio_line); photodetector / light_array = by name on this host; host = the computer itself; other = see note."
+        },
+        "camera_serial": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "gpio_line": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Camera GPIO line; null until confirmed."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "camera_gpio"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "camera_serial",
+              "gpio_line"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "photodetector",
+                  "light_array"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "name"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "other"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "note"
+            ]
+          }
+        }
+      ]
+    },
+    "daqChannel": {
+      "type": "object",
+      "required": [
+        "id",
+        "direction",
+        "kind",
+        "signal",
+        "source"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Channel as the device labels it, e.g. AI0, DIO3, CTR0."
+        },
+        "direction": {
+          "enum": [
+            "in",
+            "out"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "analog",
+            "digital",
+            "counter"
+          ]
+        },
+        "signal": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the channel carries, e.g. cam2010096_exposure."
+        },
+        "source": {
+          "$ref": "#/$defs/daqChannelSource"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "daq": {
+      "type": "object",
+      "required": [
+        "name",
+        "channels"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "serial_number"
+          ]
+        },
+        {
+          "required": [
+            "shared_id"
+          ]
+        }
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shared_id": {
+          "$ref": "#/$defs/sharedId"
+        },
+        "part_id": {
+          "type": "string",
+          "pattern": "^daq\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "description": "Optional link to the DAQ's part design in hardware_library (parts/daqs/<part_id>/part.yml). Omitted while unknown."
+        },
+        "serial_number": {
+          "$ref": "#/$defs/serialNumber"
+        },
+        "firmware": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "driver": {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Driver or library, e.g. uldaq."
+            },
+            "version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/daqChannel"
+          }
+        },
+        "calibration": {
+          "$ref": "#/$defs/calibration"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "photodetector": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "serial_number"
+          ]
+        },
+        {
+          "required": [
+            "shared_id"
+          ]
+        }
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shared_id": {
+          "$ref": "#/$defs/sharedId"
+        },
+        "part_id": {
+          "type": "string",
+          "pattern": "^photodetector\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "description": "Optional link to the photodetector's part design in hardware_library (parts/photodetectors/<part_id>/part.yml). Omitted while unknown."
+        },
+        "serial_number": {
+          "$ref": "#/$defs/serialNumber"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Front-panel settings for parts that have them, e.g. gain_db: 40."
+        },
+        "filter": {
+          "$ref": "#/$defs/filterRef"
+        },
+        "daq_channel": {
+          "$ref": "#/$defs/daqChannelRef"
+        },
+        "calibration": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/calibration"
+            },
+            {
+              "required": [
+                "filter"
+              ]
+            }
+          ],
+          "description": "Must record the filter fitted at calibration; it is compared with the fitted filter."
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "lightArray": {
+      "type": "object",
+      "required": [
+        "name",
+        "pdu",
+        "outlet",
+        "wavelength_nm",
+        "strobe"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Must equal the name of the PDU outlet that powers it."
+        },
+        "pdu": {
+          "type": "string",
+          "minLength": 1,
+          "description": "pdus.*.name."
+        },
+        "outlet": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Key of that PDU's outlets map."
+        },
+        "part_id": {
+          "type": "string",
+          "pattern": "^light_source\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "description": "Optional link to the array's part design in hardware_library (category light_source). Omitted while unknown."
+        },
+        "wavelength_nm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "driver": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Driver electronics, free text; null until known."
+        },
+        "strobe": {
+          "$ref": "#/$defs/strobe"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "strobe": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "source": {
+          "enum": [
+            "camera_gpio",
+            "daq",
+            "none",
+            "unknown"
+          ],
+          "description": "camera_gpio = a camera GPIO line (camera_serial, gpio_line); daq = a DAQ output (daq_channel); none = always on when powered; unknown = not recorded yet."
+        },
+        "camera_serial": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "gpio_line": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Camera GPIO line; null until confirmed."
+        },
+        "daq_channel": {
+          "$ref": "#/$defs/daqChannelRef"
+        },
+        "via": {
+          "enum": [
+            "direct",
+            "driver_board",
+            "unknown"
+          ],
+          "description": "Whether the line reaches the array directly or through a driver board."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "const": "camera_gpio"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "camera_serial",
+              "gpio_line",
+              "via"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "const": "daq"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "daq_channel",
+              "via"
+            ]
+          }
+        }
+      ]
     }
   }
 }

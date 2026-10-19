@@ -52,6 +52,8 @@ sys.path.insert(0, sys.argv[2])
 import configio
 errors = configio.validate(yaml.safe_load(open(sys.argv[1])) or {})
 for e in errors: print("  " + e, file=sys.stderr)
+if not errors:
+    for w in configio.warnings(yaml.safe_load(open(sys.argv[1])) or {}): print("  warning: " + w, file=sys.stderr)
 sys.exit(1 if errors else 0)
 PY
 
