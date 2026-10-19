@@ -42,8 +42,17 @@ items:
         source: null
         grating: null
         slit_um: null
-        input_optics: null           # attached fiber / cosine corrector
+      # Input optics (fiber, cosine corrector) are separate items below; which was attached is per run.
     note: >-
       Identified by Jeremy 2026-10-19 (relayed by citrus-specsail-integration). No calibration
       certificate known and no irradiance calibration stored on the device, so no calibration block
       until one exists. TEC read -9.76 C at the 2026-10-19 read.
+  - id: fiber-p50-vis-nir-1
+    # part_id omitted until rig-designer's fiber.ocean_insight.p50_1_vis_nir lands in hardware_library.
+    serial_number: EOS-A705799       # label ID
+    description: Ocean Insight P50-1-VIS-NIR optical fiber (QE Pro input; moves between instruments)
+    home_location: unknown
+    current_location: pancake0
+    note: >-
+      Identified by Jeremy 2026-10-19 from its label (relayed by citrus-specsail-integration). Which
+      instrument it was attached to is recorded per run in the Citrus capture record. No calibration block.
