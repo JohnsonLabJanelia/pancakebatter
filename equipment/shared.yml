@@ -22,8 +22,7 @@ schema:
 
 items:
   - id: spectrometer-qepro-1
-    # part_id omitted until rig-designer's spectrometer.ocean_insight.qe_pro lands in hardware_library
-    # (needs Jeremy's OK for the new spectrometer category).
+    part_id: spectrometer.ocean_insight.qe_pro
     serial_number: QEP04819
     description: Ocean Insight QE Pro spectrometer (rig display and light calibration)
     home_location: unknown
@@ -48,8 +47,7 @@ items:
       certificate known and no irradiance calibration stored on the device, so no calibration block
       until one exists. TEC read -9.76 C at the 2026-10-19 read.
   - id: fiber-p50-vis-nir-1
-    # part_id omitted until rig-designer's optic.ocean_insight.p50_1_vis_nir lands in hardware_library
-    # (branch part/spectrometer-qe-pro, unmerged).
+    part_id: optic.ocean_insight.p50_1_vis_nir
     serial_number: EOS-A705799       # label ID
     description: Ocean Insight P50-1-VIS-NIR optical fiber (QE Pro input; moves between instruments)
     home_location: unknown
