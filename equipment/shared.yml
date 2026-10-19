@@ -28,20 +28,21 @@ items:
     description: Ocean Insight QE Pro spectrometer (rig display and light calibration)
     home_location: unknown
     current_location: pancake0       # on USB there 2026-10-19 (usb3 via a hub, 12 Mb/s; move to usb7/usb8 for runs)
-    settings:
-      # From the purchase paperwork (the firmware doesn't expose these); null until found.
-      grating: null
-      slit_um: null
-      input_optics: null             # attached fiber / cosine corrector
-      # Device-reported: read over USB with seabreeze 2.11 (cseabreeze), read-only, 2026-10-19,
-      # by citrus-specsail-integration.
-      wavelength_range_nm: [346.9, 927.3]   # factory wavelength calibration, ~0.56 nm/px
-      pixels: 1044
-      dark_pixels: [[0, 3], [1040, 1043]]
-      integration_time_s: [0.008, 1600]
-      saturation_counts: 200000
-      nonlinearity_coefficients: stored on device
-      irradiance_calibration: none stored   # no collection area; irradiance-cal and stray-light reads fail
+    configuration:                   # fixed for this unit; per-run acquisition settings go in Citrus capture records
+      device_readout:
+        source: seabreeze 2.11 (cseabreeze), read-only, 2026-10-19, citrus-specsail-integration
+        wavelength_range_nm: [346.9, 927.3]   # factory wavelength calibration, ~0.56 nm/px
+        pixels: 1044
+        dark_pixels: [[0, 3], [1040, 1043]]
+        integration_time_limits_s: [0.008, 1600]
+        saturation_counts: 200000
+        nonlinearity_coefficients: stored on device
+        irradiance_calibration: none stored   # no collection area; irradiance-cal and stray-light reads fail
+      purchase_paperwork:            # the firmware doesn't expose these; null until the paperwork is found
+        source: null
+        grating: null
+        slit_um: null
+        input_optics: null           # attached fiber / cosine corrector
     note: >-
       Identified by Jeremy 2026-10-19 (relayed by citrus-specsail-integration). No calibration
       certificate known and no irradiance calibration stored on the device, so no calibration block
