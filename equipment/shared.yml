@@ -20,4 +20,19 @@ schema:
   name: shared_equipment
   version: 1
 
-items: []
+items:
+  - id: spectrometer-qepro-1
+    # part_id omitted until rig-designer's spectrometer.ocean_insight.qe_pro lands in hardware_library
+    # (needs Jeremy's OK for the new spectrometer category).
+    serial_number: QEP04819
+    description: Ocean Insight QE Pro spectrometer (rig display and light calibration)
+    home_location: unknown
+    current_location: unknown
+    settings:                        # configured to order; null until read off the unit or its paperwork
+      grating: null
+      slit_um: null
+      wavelength_range_nm: null
+      input_optics: null             # attached fiber / cosine corrector
+    note: >-
+      Identified by Jeremy 2026-10-19 (relayed by citrus-specsail-integration). No calibration
+      certificate known yet, so no calibration block until one exists.

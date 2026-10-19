@@ -249,10 +249,9 @@ class FilterAndCalibrationTests(unittest.TestCase):
 
 
 class SharedEquipmentTests(unittest.TestCase):
-    def test_repo_file_is_valid_and_empty(self):
+    def test_repo_file_is_valid(self):
         doc = instruments.load_shared()
         self.assertEqual(instruments.validate_shared(doc, today=TODAY), ([], []))
-        self.assertEqual(doc["items"], [])
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(instruments.main([]), 0)
 
