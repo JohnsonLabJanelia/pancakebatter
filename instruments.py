@@ -2,7 +2,7 @@
 
 The JSON Schema says what each entry looks like; this module checks what the schema cannot: that a
 reference names something that exists (a camera serial, a PDU outlet, a DAQ channel, a shared item),
-that a photodetector's fitted filter is the one it was calibrated with, and that no calibration is
+that a photodetector's fitted filter stack is the one it was calibrated with, and that no calibration is
 overdue. Findings are ``[(level, message)]`` with level ``fail`` or ``warn``, as in check_kernel_tuning;
 configio turns fails into validation errors and keeps warnings separate, so an overdue calibration
 never blocks saving or installing a config.
@@ -47,20 +47,43 @@ def _date(value: Any) -> date | None:
 
 
 def _filter_key(value: Any) -> Any:
-    """Comparable identity of a filterRef: 'none', (part_id, serial_or_lot), or None when not recorded."""
-    if value == "none":
-        return "none"
-    if isinstance(value, dict):
-        return (value.get("part_id"), value.get("serial_or_lot"))
-    return None
+    """Comparable identity of a filterStack: a list of (part_id, serial_or_lot), or None when not recorded."""
+    if not isinstance(value, list):
+        return None
+    return [(f.get("part_id"), f.get("serial_or_lot")) if isinstance(f, dict) else (None, None) for f in value]
 
 
 def _describe_filter(key: Any) -> str:
-    if key == "none":
-        return "no filter"
+    return f"{key[0]} ({key[1] or 'no serial/lot'})"
+
+
+def _describe_stack(key: Any) -> str:
     if key is None:
         return "nothing recorded"
-    return f"{key[0]} ({key[1] or 'no serial/lot'})"
+    return "[" + ", ".join(_describe_filter(f) for f in key) + "]" if key else "no filters"
+
+
+def _stack_difference(fitted: list, calibrated: list) -> str:
+    """Where the fitted stack first departs from the calibrated one, e.g. 'filters[1] is ... but was ...'."""
+    if sorted(fitted) == sorted(calibrated):
+        return "the same filters are fitted in a different order"
+    i = next((i for i, (f, c) in enumerate(zip(fitted, calibrated)) if f != c), min(len(fitted), len(calibrated)))
+    if i >= len(fitted):
+        return f"filters[{i}] {_describe_filter(calibrated[i])} is missing"
+    if i >= len(calibrated):
+        return f"filters[{i}] {_describe_filter(fitted[i])} was added"
+    return f"filters[{i}] is {_describe_filter(fitted[i])} but was {_describe_filter(calibrated[i])}"
+
+
+def _renamed_filter_findings(where: str, entry: dict[str, Any]) -> list[tuple[str, str]]:
+    """The single `filter` became the ordered `filters` list; extra keys are allowed, so flag the old one."""
+    out = []
+    calibration = entry.get("calibration") if isinstance(entry.get("calibration"), dict) else {}
+    for block, label in ((entry, where), (calibration, f"{where}.calibration")):
+        if "filter" in block:
+            out.append(("fail", f"{label}: 'filter' is now 'filters', an ordered list from the light side to the "
+                                f"detector ([] for none)"))
+    return out
 
 
 def load_shared(path: Path = SHARED_PATH) -> dict[str, Any]:
@@ -199,6 +222,7 @@ def findings(config: dict[str, Any], shared: dict[str, Any] | None = None,
     for name, pd in photodetectors.items():
         where = f"photodetectors.{name}"
         out += _shared_ref_findings(where, pd, items, hostname)
+        out += _renamed_filter_findings(where, pd)
         if "daq_channel" in pd:
             found, channel = _daq_channel_findings(f"{where}.daq_channel", pd["daq_channel"], daqs)
             out += found
@@ -210,12 +234,16 @@ def findings(config: dict[str, Any], shared: dict[str, Any] | None = None,
         calibration = resolved.get("calibration")
         if isinstance(calibration, dict):
             out += calibration_findings(where, calibration, today)
-            fitted, calibrated = _filter_key(pd.get("filter")), _filter_key(calibration.get("filter"))
+            fitted, calibrated = _filter_key(pd.get("filters")), _filter_key(calibration.get("filters"))
             if calibrated is None:
-                out.append(("fail", f"{where}: calibration does not record the filter it was calibrated with"))
+                out.append(("fail", f"{where}: calibration does not record the filters it was calibrated with"))
+            elif fitted is None:
+                out.append(("fail", f"{where}: fitted filters are not recorded (use [] for a bare detector) but it was "
+                                    f"calibrated with {_describe_stack(calibrated)}; the calibration no longer applies"))
             elif fitted != calibrated:
-                out.append(("fail", f"{where}: fitted filter is {_describe_filter(fitted)} but it was calibrated with "
-                                    f"{_describe_filter(calibrated)}; the calibration no longer applies (recalibrate or refit)"))
+                out.append(("fail", f"{where}: {_stack_difference(fitted, calibrated)}: fitted {_describe_stack(fitted)}, "
+                                    f"calibrated with {_describe_stack(calibrated)}; the calibration no longer applies "
+                                    f"(recalibrate or refit)"))
 
     for name, la in light_arrays.items():
         where = f"light_arrays.{name}"
@@ -267,7 +295,9 @@ def validate_shared(doc: dict[str, Any], today: date | None = None) -> tuple[lis
         for field in ("serial_number", "description", "home_location", "current_location"):
             if jsonschema is None and item.get(field) in (None, ""):
                 errors.append(f"items.{iid}: {field} is required")
-        for level, message in calibration_findings(f"items.{iid}", item.get("calibration"), today or date.today()):
+        found = calibration_findings(f"items.{iid}", item.get("calibration"), today or date.today())
+        found += _renamed_filter_findings(f"items.{iid}", {"calibration": item.get("calibration")})
+        for level, message in found:
             (errors if level == "fail" else warnings).append(message)
     return errors, warnings
 

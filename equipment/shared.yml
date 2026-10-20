@@ -14,7 +14,7 @@
 #     home_location: storage                          # host id, rig id, or storage[:<place>]
 #     current_location: pancake0
 #     calibration: {certificate_id: "...", calibrated_at: "YYYY-MM-DD", due: "YYYY-MM-DD", performed_by: "...",
-#                   filter: {part_id: filter.<maker>.<model>, serial_or_lot: "..."}}
+#                   filters: [{part_id: filter.<maker>.<model>, serial_or_lot: "..."}, ...]}   # light side first
 
 schema:
   name: shared_equipment

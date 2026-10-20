@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://orange.local/schemas/shared_equipment.v1.schema.json",
   "title": "shared_equipment v1",
-  "description": "Equipment that moves between hosts and rigs (equipment/shared.yml). Host configs reference an item by id (shared_id) instead of copying it; see docs/host_config_interface.md#shared-equipment. calibration, filterRef and date are copies of system_config v1's $defs (tests keep them equal).",
+  "description": "Equipment that moves between hosts and rigs (equipment/shared.yml). Host configs reference an item by id (shared_id) instead of copying it; see docs/host_config_interface.md#shared-equipment. calibration, filterRef, filterStack and date are copies of system_config v1's $defs (tests keep them equal).",
   "type": "object",
   "required": [
     "schema",
@@ -113,9 +113,9 @@
           "type": "string",
           "minLength": 1
         },
-        "filter": {
-          "$ref": "#/$defs/filterRef",
-          "description": "Photodetectors: the filter fitted when calibrated. A different fitted filter invalidates the calibration."
+        "filters": {
+          "$ref": "#/$defs/filterStack",
+          "description": "Photodetectors: the filter stack fitted when calibrated, in order. Any difference from the fitted stack invalidates the calibration."
         },
         "note": {
           "type": "string"
@@ -123,42 +123,42 @@
       }
     },
     "filterRef": {
-      "description": "A fitted filter, or the string none for an explicit bare detector.",
-      "oneOf": [
-        {
-          "const": "none"
+      "type": "object",
+      "description": "One filter element of a filterStack.",
+      "required": [
+        "part_id",
+        "serial_or_lot"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "part_id": {
+          "type": "string",
+          "pattern": "^filter\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "description": "The filter's part design in hardware_library (category filter)."
         },
-        {
-          "type": "object",
-          "required": [
-            "part_id",
-            "serial_or_lot"
+        "serial_or_lot": {
+          "type": [
+            "string",
+            "null"
           ],
-          "additionalProperties": true,
-          "properties": {
-            "part_id": {
-              "type": "string",
-              "pattern": "^filter\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
-              "description": "The filter's part design in hardware_library (category filter)."
-            },
-            "serial_or_lot": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "description": "Serial or lot of the filter; null when the vendor gives neither."
-            },
-            "fitted_at": {
-              "$ref": "#/$defs/date"
-            }
-          }
+          "description": "Serial or lot of the filter; null when the vendor gives neither."
+        },
+        "fitted_at": {
+          "$ref": "#/$defs/date"
         }
-      ]
+      }
     },
     "date": {
       "type": "string",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
       "description": "ISO date, quoted in YAML (an unquoted 2026-10-19 loads as a date object, not a string)."
+    },
+    "filterStack": {
+      "type": "array",
+      "description": "The fitted filter stack, ordered from the light side to the detector (e.g. shortpass, KG glass, optional ND). An empty list is an explicit bare detector.",
+      "items": {
+        "$ref": "#/$defs/filterRef"
+      }
     }
   }
 }

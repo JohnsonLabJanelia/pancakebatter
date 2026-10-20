@@ -65,7 +65,7 @@
     "photodetectors.*.shared_id",
     "photodetectors.*.part_id",
     "photodetectors.*.serial_number",
-    "photodetectors.*.filter",
+    "photodetectors.*.filters",
     "photodetectors.*.daq_channel",
     "photodetectors.*.calibration"
   ],
@@ -109,7 +109,7 @@
     "photodetectors.*.shared_id",
     "photodetectors.*.part_id",
     "photodetectors.*.serial_number",
-    "photodetectors.*.filter",
+    "photodetectors.*.filters",
     "photodetectors.*.daq_channel",
     "photodetectors.*.calibration"
   ]

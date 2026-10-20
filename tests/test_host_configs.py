@@ -29,11 +29,11 @@ def part_ids(config):
             where = f"{section}.{entry.get('name')}"
             if entry.get("part_id"):
                 yield where, category, entry["part_id"], None
-            for sub in ("filter", "calibration"):
-                block = entry.get(sub) or {}
-                flt = block.get("filter") if sub == "calibration" else block
-                if isinstance(flt, dict) and flt.get("part_id"):
-                    yield f"{where}.{sub}", "filter", flt["part_id"], None
+            for sub in ("filters", "calibration"):
+                stack = (entry.get("calibration") or {}).get("filters") if sub == "calibration" else entry.get("filters")
+                for i, flt in enumerate(stack if isinstance(stack, list) else []):
+                    if isinstance(flt, dict) and flt.get("part_id"):
+                        yield f"{where}.{sub}[{i}]", "filter", flt["part_id"], None
 
 
 def shared_part_ids(doc):
@@ -41,9 +41,10 @@ def shared_part_ids(doc):
     for item in doc.get("items") or []:
         if item.get("part_id"):
             yield f"items.{item.get('id')}", item["part_id"].split(".")[0], item["part_id"], None
-        flt = (item.get("calibration") or {}).get("filter")
-        if isinstance(flt, dict) and flt.get("part_id"):
-            yield f"items.{item.get('id')}.calibration", "filter", flt["part_id"], None
+        stack = (item.get("calibration") or {}).get("filters")
+        for i, flt in enumerate(stack if isinstance(stack, list) else []):
+            if isinstance(flt, dict) and flt.get("part_id"):
+                yield f"items.{item.get('id')}.calibration[{i}]", "filter", flt["part_id"], None
 
 
 class HostConfigTests(unittest.TestCase):
@@ -90,12 +91,16 @@ class PartIdTests(unittest.TestCase):
 
     def test_instrument_part_ids_are_collected(self):
         config = {"photodetectors": [{"name": "pd", "part_id": "photodetector.thorlabs.pda36a2",
-                                      "filter": {"part_id": "filter.thorlabs.fesh0750", "serial_or_lot": "L1"},
-                                      "calibration": {"filter": "none"}}],
+                                      "filters": [{"part_id": "filter.thorlabs.fesh0750", "serial_or_lot": "L1"},
+                                                  {"part_id": "filter.thorlabs.fgs900", "serial_or_lot": "K1"}],
+                                      "calibration": {"filters": [{"part_id": "filter.thorlabs.fesh0750",
+                                                                   "serial_or_lot": "L1"}]}}],
                   "light_arrays": [{"name": "la"}]}
         self.assertEqual([(w, c, p) for w, c, p, _ in part_ids(config)],
                          [("photodetectors.pd", "photodetector", "photodetector.thorlabs.pda36a2"),
-                          ("photodetectors.pd.filter", "filter", "filter.thorlabs.fesh0750")])
+                          ("photodetectors.pd.filters[0]", "filter", "filter.thorlabs.fesh0750"),
+                          ("photodetectors.pd.filters[1]", "filter", "filter.thorlabs.fgs900"),
+                          ("photodetectors.pd.calibration[0]", "filter", "filter.thorlabs.fesh0750")])
 
 
 if __name__ == "__main__":

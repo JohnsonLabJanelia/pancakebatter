@@ -21,9 +21,13 @@ try:
 except ImportError:
     HAVE_JSONSCHEMA = False
 
-FILTER = {"part_id": "filter.thorlabs.fesh0750", "serial_or_lot": "LOT-1", "fitted_at": "2026-10-01"}
+# Ordered from the light side to the detector: shortpass, then KG glass.
+FILTERS = [{"part_id": "filter.thorlabs.fesh0750", "serial_or_lot": "LOT-1", "fitted_at": "2026-10-01"},
+           {"part_id": "filter.thorlabs.fgs900", "serial_or_lot": "KG-7", "fitted_at": "2026-10-01"}]
+ND = {"part_id": "filter.thorlabs.ne10a", "serial_or_lot": None}
 CALIBRATION = {"certificate_id": "C-1", "calibrated_at": "2026-10-02", "due": "2027-10-02",
-               "performed_by": "Jeremy", "filter": {"part_id": "filter.thorlabs.fesh0750", "serial_or_lot": "LOT-1"}}
+               "performed_by": "Jeremy", "filters": [{"part_id": "filter.thorlabs.fesh0750", "serial_or_lot": "LOT-1"},
+                                                     {"part_id": "filter.thorlabs.fgs900", "serial_or_lot": "KG-7"}]}
 
 
 def good():
@@ -58,7 +62,7 @@ def good():
         }],
         "photodetectors": [{
             "name": "pd-tl", "part_id": "photodetector.thorlabs.pda36a2", "serial_number": "P1",
-            "settings": {"gain_db": 40}, "filter": dict(FILTER), "daq_channel": {"daq": "daq0", "channel": "AI0"},
+            "settings": {"gain_db": 40}, "filters": [dict(f) for f in FILTERS], "daq_channel": {"daq": "daq0", "channel": "AI0"},
             "calibration": copy.deepcopy(CALIBRATION),
         }],
         "light_arrays": [{
@@ -101,9 +105,21 @@ class SchemaTests(unittest.TestCase):
 
     def test_explicit_no_filter_is_accepted(self):
         cfg = good()
-        cfg["photodetectors"][0]["filter"] = "none"
-        cfg["photodetectors"][0]["calibration"]["filter"] = "none"
+        cfg["photodetectors"][0]["filters"] = []
+        cfg["photodetectors"][0]["calibration"]["filters"] = []
         self.assertEqual(configio.validate(cfg), [])
+
+    def test_the_old_single_filter_key_is_an_error(self):
+        for block in ("detector", "calibration"):
+            cfg = good()
+            pd = cfg["photodetectors"][0]
+            target = pd if block == "detector" else pd["calibration"]
+            target["filter"] = target.pop("filters")[0]
+            with self.subTest(block=block):
+                # With jsonschema, a calibration without filters fails the schema first and the repo checks never run.
+                errors = configio.validate(cfg)
+                self.assertTrue(any("'filter' is now 'filters'" in e or "'filters' is a required property" in e
+                                    for e in errors), errors)
 
     @unittest.skipUnless(HAVE_JSONSCHEMA, "jsonschema not installed")
     def test_schema_rejects_bad_enums_and_missing_fields(self):
@@ -111,7 +127,8 @@ class SchemaTests(unittest.TestCase):
             (lambda c: c["daqs"][0]["channels"][0].update(direction="sideways"), "direction"),
             (lambda c: c["light_arrays"][0]["strobe"].update(via="telepathy"), "via"),
             (lambda c: c["light_arrays"][0]["strobe"].pop("camera_serial"), "camera_serial"),
-            (lambda c: c["photodetectors"][0]["calibration"].pop("filter"), "filter"),
+            (lambda c: c["photodetectors"][0]["calibration"].pop("filters"), "filters"),
+            (lambda c: c["photodetectors"][0].update(filters="none"), "filters"),
             (lambda c: c["photodetectors"][0]["calibration"].update(due=date(2027, 1, 1)), "due"),
             (lambda c: c["photodetectors"][0].update(part_id="camera.thorlabs.pda36a2"), "part_id"),
             (lambda c: c["photodetectors"][0].pop("serial_number"), "photodetectors"),
@@ -204,26 +221,53 @@ class CrossCheckTests(unittest.TestCase):
 
 
 class FilterAndCalibrationTests(unittest.TestCase):
-    def test_a_different_fitted_filter_invalidates_the_calibration(self):
+    def test_a_different_element_invalidates_the_calibration_and_names_its_index(self):
         cfg = good()
-        cfg["photodetectors"][0]["filter"]["serial_or_lot"] = "LOT-2"
+        cfg["photodetectors"][0]["filters"][1]["serial_or_lot"] = "KG-8"
         found = fails(cfg)
-        self.assertTrue(any("no longer applies" in m and "LOT-2" in m and "LOT-1" in m for m in found), found)
+        self.assertTrue(any("no longer applies" in m and "filters[1] is" in m and "KG-8" in m and "KG-7" in m
+                            for m in found), found)
         self.assertTrue(configio.validate(cfg))
 
-    def test_removing_the_filter_or_not_recording_it_is_a_mismatch(self):
-        for fitted in ("none", None):
+    def test_a_different_part_id_is_a_mismatch(self):
+        cfg = good()
+        cfg["photodetectors"][0]["filters"][0]["part_id"] = "filter.thorlabs.fesh0700"
+        self.assertTrue(any("filters[0] is filter.thorlabs.fesh0700" in m for m in fails(cfg)))
+
+    def test_an_added_or_removed_element_is_a_mismatch(self):
+        for change, needle in ((lambda s: s.append(dict(ND)), "filters[2] filter.thorlabs.ne10a (no serial/lot) was added"),
+                               (lambda s: s.pop(), "filters[1] filter.thorlabs.fgs900 (KG-7) is missing"),
+                               (lambda s: s.insert(1, dict(ND)), "filters[1] is filter.thorlabs.ne10a")):
+            cfg = good()
+            change(cfg["photodetectors"][0]["filters"])
+            with self.subTest(needle=needle):
+                found = fails(cfg)
+                self.assertTrue(any(needle in m and "no longer applies" in m for m in found), found)
+
+    def test_a_different_order_is_a_mismatch(self):
+        cfg = good()
+        cfg["photodetectors"][0]["filters"].reverse()
+        self.assertTrue(any("different order" in m for m in fails(cfg)))
+
+    def test_removing_the_filters_or_not_recording_them_is_a_mismatch(self):
+        for fitted in ([], None):
             cfg = good()
             if fitted is None:
-                del cfg["photodetectors"][0]["filter"]
+                del cfg["photodetectors"][0]["filters"]
             else:
-                cfg["photodetectors"][0]["filter"] = fitted
+                cfg["photodetectors"][0]["filters"] = fitted
             with self.subTest(fitted=fitted):
                 self.assertTrue(any("no longer applies" in m for m in fails(cfg)))
 
+    def test_calibrating_with_a_stack_and_matching_it_with_the_nd_passes(self):
+        cfg = good()
+        cfg["photodetectors"][0]["filters"].append(dict(ND, fitted_at="2026-10-03"))
+        cfg["photodetectors"][0]["calibration"]["filters"].append(dict(ND))
+        self.assertEqual(fails(cfg), [])
+
     def test_fitted_at_does_not_take_part_in_the_comparison(self):
         cfg = good()
-        cfg["photodetectors"][0]["filter"]["fitted_at"] = "2026-09-01"
+        cfg["photodetectors"][0]["filters"][0]["fitted_at"] = "2026-09-01"
         self.assertEqual(fails(cfg), [])
 
     def test_overdue_calibration_is_a_warning_not_an_error(self):
@@ -281,7 +325,7 @@ class SharedEquipmentTests(unittest.TestCase):
     def test_schema_copies_match_system_config(self):
         system = json.loads((REPO / "schemas" / "system_config.v1.schema.json").read_text())["$defs"]
         shared = json.loads((REPO / "schemas" / "shared_equipment.v1.schema.json").read_text())["$defs"]
-        for name in ("calibration", "filterRef", "date"):
+        for name in ("calibration", "filterRef", "filterStack", "date"):
             with self.subTest(name=name):
                 self.assertEqual(shared[name], system[name])
 
@@ -324,7 +368,7 @@ class SharedIdTests(unittest.TestCase):
 
     def test_filter_is_compared_with_the_shared_calibration(self):
         cfg = self.config_with_shared_pd()
-        cfg["photodetectors"][0]["filter"]["part_id"] = "filter.thorlabs.fesh0700"
+        cfg["photodetectors"][0]["filters"][0]["part_id"] = "filter.thorlabs.fesh0700"
         self.assertTrue(any("no longer applies" in m for m in fails(cfg, shared=shared_doc(shared_pd()))))
 
     def test_shared_id_on_a_daq(self):

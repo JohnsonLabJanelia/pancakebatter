@@ -62,7 +62,7 @@ copy or a test file.
 | paths | `data_root`, `orange_run_dir`, `shared_config_root` |
 | light_arrays | `name`, `pdu`, `outlet`, `wavelength_nm`, `strobe.source`; optional `part_id`, `strobe.{camera_serial, gpio_line, daq_channel, via}` |
 | daqs | `name`, `channels.*.{id, direction, kind, signal, source.kind}`; optional `shared_id`, `part_id`, `serial_number`, `channels.*.source.{camera_serial, gpio_line, name}`, `calibration` |
-| photodetectors | `name`; optional `shared_id`, `part_id`, `serial_number`, `filter`, `daq_channel`, `calibration` |
+| photodetectors | `name`; optional `shared_id`, `part_id`, `serial_number`, `filters`, `daq_channel`, `calibration` |
 
 Everything else is internal and may change without notice: the version
 snapshot fields in `system_info`, `storage_devices`, `gpus`, transceiver
@@ -188,9 +188,12 @@ photodetectors:
     part_id: photodetector.thorlabs.pda36a2
     serial_number: "..."                    # or shared_id
     settings: {gain_db: 40}                 # parts with front-panel settings
-    filter: {part_id: filter.<maker>.<model>, serial_or_lot: "...", fitted_at: "2026-10-20"}   # or: none
+    filters:                                # ordered from the light side to the detector; [] for none
+      - {part_id: filter.<maker>.<shortpass>, serial_or_lot: "...", fitted_at: "2026-10-20"}
+      - {part_id: filter.<maker>.<kg_glass>, serial_or_lot: "...", fitted_at: "2026-10-20"}
+      # - {part_id: filter.<maker>.<nd>, serial_or_lot: null}   (optional ND)
     daq_channel: {daq: daq0, channel: AI0}  # that channel's source must name this photodetector
-    calibration: {...}                      # must include filter
+    calibration: {...}                      # must include filters
 ```
 
 A calibration block (DAQs, photodetectors, shared items):
@@ -201,7 +204,7 @@ calibration:
   calibrated_at: "2026-10-02"
   due: "2027-10-02"
   performed_by: Thorlabs
-  filter: {part_id: filter.<maker>.<model>, serial_or_lot: "..."}   # photodetectors: required; or none
+  filters: [{part_id: filter.<maker>.<model>, serial_or_lot: "..."}, ...]   # photodetectors: required, in order; [] for none
 ```
 
 Quote dates: YAML loads an unquoted `2026-10-02` as a date object, which the
@@ -215,11 +218,16 @@ Rules beyond the schema (errors unless noted):
   channel's `source` names the photodetector back.
 - A light array's `pdu`/`outlet` exists and the outlet's `name` is the array's
   `name`. `strobe.camera_serial` is in `cameras`; `strobe.daq_channel` exists.
-- **Filter vs calibration.** A photodetector's response is calibrated through its
-  filter, so the fitted `filter` must be the calibration's `filter` (same
-  `part_id` and `serial_or_lot`; `none` matches only `none`; `fitted_at` is not
-  compared). Swapping, removing or not recording the filter is an error: the
-  calibration no longer applies. Recalibrate, or refit the calibrated filter.
+- **Filters vs calibration.** A photodetector's response is calibrated through its
+  filter stack, so the fitted `filters` must equal the calibration's `filters`
+  element by element: same length, same order, and each element the same
+  `part_id` and `serial_or_lot` (`fitted_at` is not compared; `[]` matches only
+  `[]`). Each element is an ordinary `filter.*` part, so a swap is recorded one
+  element at a time. Adding, removing, reordering or swapping an element, or not
+  recording `filters`, is an error naming the first differing index
+  (`filters[1] is ... but was ...`): the calibration no longer applies.
+  Recalibrate, or refit the calibrated stack. The old single `filter` key is
+  reported as renamed.
 - **Overdue.** A `due` date before today is a *warning*: `configio.validate()`
   still passes and `configio.warnings()` returns it; `install_host_config.sh`
   prints it.
@@ -250,7 +258,7 @@ items:
 A DAQ or photodetector on a host uses an item with `shared_id: pd-cal-1` in
 place of `part_id`, `serial_number` and `calibration`, which come from the item
 (repeating any of them is an error). It keeps its own `name`, wiring and fitted
-`filter`, so the filter rule compares the host's fitted filter with the item's
+`filters`, so the filter rule compares the host's fitted stack with the item's
 calibration. An unknown `shared_id` is an error; an item whose
 `current_location` is not the referencing host is a warning (update the file
 when it moves). Check the file, and optionally a host, with

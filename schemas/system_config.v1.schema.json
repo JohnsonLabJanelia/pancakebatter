@@ -330,7 +330,7 @@
     },
     "photodetectors": {
       "type": "array",
-      "description": "Photodetectors on this host: the fitted filter, the DAQ channel they feed, and their calibration.",
+      "description": "Photodetectors on this host: the fitted filter stack, the DAQ channel they feed, and their calibration.",
       "items": {
         "$ref": "#/$defs/photodetector"
       }
@@ -604,9 +604,9 @@
           "type": "string",
           "minLength": 1
         },
-        "filter": {
-          "$ref": "#/$defs/filterRef",
-          "description": "Photodetectors: the filter fitted when calibrated. A different fitted filter invalidates the calibration."
+        "filters": {
+          "$ref": "#/$defs/filterStack",
+          "description": "Photodetectors: the filter stack fitted when calibrated, in order. Any difference from the fitted stack invalidates the calibration."
         },
         "note": {
           "type": "string"
@@ -614,37 +614,30 @@
       }
     },
     "filterRef": {
-      "description": "A fitted filter, or the string none for an explicit bare detector.",
-      "oneOf": [
-        {
-          "const": "none"
+      "type": "object",
+      "description": "One filter element of a filterStack.",
+      "required": [
+        "part_id",
+        "serial_or_lot"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "part_id": {
+          "type": "string",
+          "pattern": "^filter\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "description": "The filter's part design in hardware_library (category filter)."
         },
-        {
-          "type": "object",
-          "required": [
-            "part_id",
-            "serial_or_lot"
+        "serial_or_lot": {
+          "type": [
+            "string",
+            "null"
           ],
-          "additionalProperties": true,
-          "properties": {
-            "part_id": {
-              "type": "string",
-              "pattern": "^filter\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
-              "description": "The filter's part design in hardware_library (category filter)."
-            },
-            "serial_or_lot": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "description": "Serial or lot of the filter; null when the vendor gives neither."
-            },
-            "fitted_at": {
-              "$ref": "#/$defs/date"
-            }
-          }
+          "description": "Serial or lot of the filter; null when the vendor gives neither."
+        },
+        "fitted_at": {
+          "$ref": "#/$defs/date"
         }
-      ]
+      }
     },
     "daqChannelRef": {
       "type": "object",
@@ -913,8 +906,8 @@
           "additionalProperties": true,
           "description": "Front-panel settings for parts that have them, e.g. gain_db: 40."
         },
-        "filter": {
-          "$ref": "#/$defs/filterRef"
+        "filters": {
+          "$ref": "#/$defs/filterStack"
         },
         "daq_channel": {
           "$ref": "#/$defs/daqChannelRef"
@@ -926,11 +919,11 @@
             },
             {
               "required": [
-                "filter"
+                "filters"
               ]
             }
           ],
-          "description": "Must record the filter fitted at calibration; it is compared with the fitted filter."
+          "description": "Must record the filter stack fitted at calibration; it is compared with the fitted stack."
         },
         "note": {
           "type": "string"
@@ -1062,6 +1055,13 @@
           }
         }
       ]
+    },
+    "filterStack": {
+      "type": "array",
+      "description": "The fitted filter stack, ordered from the light side to the detector (e.g. shortpass, KG glass, optional ND). An empty list is an explicit bare detector.",
+      "items": {
+        "$ref": "#/$defs/filterRef"
+      }
     }
   }
 }

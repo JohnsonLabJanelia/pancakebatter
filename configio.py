@@ -46,7 +46,7 @@ def warnings(config: dict[str, Any]) -> list[str]:
 def validate_with_repo_checker(config: dict[str, Any]) -> list[str]:
     """Fallback when jsonschema is missing: reuse check_network_settings' v1 checks, quietly.
 
-    Also the instrument cross-checks (instruments.findings: daq wiring, photodetector filter vs
+    Also the instrument cross-checks (instruments.findings: daq wiring, photodetector filter stack vs
     calibration, light-array outlets); their warnings are dropped here and returned by warnings().
     """
     import check_network_settings as cns
