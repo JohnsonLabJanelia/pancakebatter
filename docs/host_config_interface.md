@@ -252,8 +252,9 @@ place of `part_id`, `serial_number` and `calibration`, which come from the item
 (repeating any of them is an error). It keeps its own `name`, wiring and fitted
 `filter`, so the filter rule compares the host's fitted filter with the item's
 calibration. An unknown `shared_id` is an error; an item whose
-`current_location` is not the referencing host is a warning (update the file
-when it moves). Check the file, and optionally a host, with
+`current_location` is not the referencing host is a warning. When an item moves,
+append an event to its `events` list and set `current_location` to match; the
+events are its dated, never-edited history ([equipment_events.md](equipment_events.md)). Check the file, and optionally a host, with
 `python3 instruments.py [--host <hostname>]`.
 
 Open: `install_host_config.sh` publishes only `host.yml`, not the shared file,

@@ -1,0 +1,32 @@
+# pancake0 component events: append-only history of host parts (drives, cameras, lenses, ...), keyed
+# by serial. Never edit or delete an event; fix a mistake with a correction event. `at` is when the
+# hardware changed, `recorded_at` when it was written down. The host config (config.yml) stays the
+# current inventory; equipment_events.py warns when the two disagree.
+# Schema: schemas/host_events.v1.schema.json. Docs: docs/equipment_events.md.
+# Check: python3 equipment_events.py; history: python3 equipment_events.py --history <serial>
+
+schema:
+  name: host_events
+  version: 1
+
+host: pancake0
+
+components:
+  - serial_number: "48804572201297"
+    component: storage_device
+    description: Sabrent SB-RKT4P-8TB (Data1, /mnt/Data1); 2498 media errors by 2026-10-18, pull for RMA pending
+    events:
+      - event_id: e1
+        kind: installed
+        at: "2026-10-02"
+        at_precision: on_or_before
+        to: pancake0
+        position: NVMe on CPU lanes, PCIe 20:01.3 -> 2a:00.0; physical slot not yet recorded
+        recorded_at: "2026-10-24"
+        evidence: >-
+          Listed in hosts/pancake0/config.yml storage_devices since 8de7639 (2026-10-02); the install
+          date itself is unknown.
+      # Append the pull here when it happens, e.g.
+      # - {event_id: e2, kind: removed, at: "YYYY-MM-DD", at_precision: exact, from: pancake0,
+      #    to: "owner:<RMA recipient>", by: Jeremy, reason: RMA (media errors), recorded_at: "YYYY-MM-DD"}
+      # and remove the drive from config.yml storage_devices in the same commit.

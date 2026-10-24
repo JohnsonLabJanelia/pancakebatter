@@ -25,6 +25,7 @@ from typing import Any
 
 import yaml
 
+import equipment_events
 import hostconfig
 
 SHARED_PATH = hostconfig.REPO_ROOT / "equipment" / "shared.yml"
@@ -241,7 +242,7 @@ def findings(config: dict[str, Any], shared: dict[str, Any] | None = None,
 
 
 def validate_shared(doc: dict[str, Any], today: date | None = None) -> tuple[list[str], list[str]]:
-    """(errors, warnings) for an equipment/shared.yml document: schema, unique ids, calibration dates."""
+    """(errors, warnings) for an equipment/shared.yml document: schema, unique ids, calibration dates, events."""
     errors: list[str] = []
     try:
         import jsonschema
@@ -268,6 +269,10 @@ def validate_shared(doc: dict[str, Any], today: date | None = None) -> tuple[lis
             if jsonschema is None and item.get(field) in (None, ""):
                 errors.append(f"items.{iid}: {field} is required")
         for level, message in calibration_findings(f"items.{iid}", item.get("calibration"), today or date.today()):
+            (errors if level == "fail" else warnings).append(message)
+    known = {item.get("id") for item in _list(doc.get("items"))}
+    for item in _list(doc.get("items")):
+        for level, message in equipment_events.shared_item_findings(item, known):
             (errors if level == "fail" else warnings).append(message)
     return errors, warnings
 

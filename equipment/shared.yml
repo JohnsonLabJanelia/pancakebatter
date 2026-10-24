@@ -3,16 +3,22 @@
 # Schema: schemas/shared_equipment.v1.schema.json. Docs: docs/host_config_interface.md#shared-equipment.
 #
 # A host config refers to an item by id (daqs.*.shared_id or photodetectors.*.shared_id); the item
-# supplies part_id, serial_number and calibration. Update current_location when an item moves.
-# Check with: python3 instruments.py [--host <hostname>]
+# supplies part_id, serial_number and calibration.
+#
+# When an item moves, append an event and set current_location to match; never edit or delete an
+# event (fix a mistake with a correction event). `at` is when the hardware moved, `recorded_at` when
+# it was written down. Docs: docs/equipment_events.md.
+# Check with: python3 instruments.py [--host <hostname>]; history: python3 equipment_events.py --history <id>
 #
 # items:
 #   - id: pd-cal-1                                    # stable handle, never reused
 #     part_id: photodetector.thorlabs.pda36a2         # optional hardware_library link
 #     serial_number: "..."
 #     description: "..."
-#     home_location: storage                          # host id, rig id, or storage[:<place>]
-#     current_location: pancake0
+#     home_location: storage                          # host id, rig id, storage[:<place>] or owner:<who>
+#     current_location: pancake0                      # with events: must equal the derived location
+#     events:
+#       - {event_id: e1, kind: installed, at: "YYYY-MM-DD", at_precision: exact, to: pancake0, recorded_at: "YYYY-MM-DD"}
 #     calibration: {certificate_id: "...", calibrated_at: "YYYY-MM-DD", due: "YYYY-MM-DD", performed_by: "...",
 #                   filter: {part_id: filter.<maker>.<model>, serial_or_lot: "..."}}
 
@@ -26,7 +32,7 @@ items:
     serial_number: QEP04819
     description: Ocean Insight QE Pro spectrometer (rig display and light calibration)
     home_location: unknown
-    current_location: pancake0       # on USB there 2026-10-19 (usb3 via a hub, 12 Mb/s; move to usb7/usb8 for runs)
+    current_location: storage
     configuration:                   # fixed for this unit; per-run acquisition settings go in Citrus capture records
       device_readout:
         source: seabreeze 2.11 (cseabreeze), read-only, 2026-10-19, citrus-specsail-integration
@@ -45,13 +51,69 @@ items:
     note: >-
       Identified by Jeremy 2026-10-19 (relayed by citrus-specsail-integration). No calibration
       certificate known and no irradiance calibration stored on the device, so no calibration block
-      until one exists. TEC read -9.76 C at the 2026-10-19 read.
+      until one exists. TEC read -9.76 C at the 2026-10-19 read. On pancake0 it was on USB usb3 via
+      a hub at 12 Mb/s (2026-10-19).
+    events:
+      - event_id: e1
+        kind: installed
+        at: "2026-10-19"
+        at_precision: on_or_before
+        to: pancake0
+        rig: omnifin0
+        recorded_at: "2026-10-24"
+        evidence: >-
+          First evidence on the rig: the per-arena SpecSail runs and the seabreeze readout on pancake0,
+          2026-10-19. No earlier evidence known (Jeremy, 2026-10-24).
+      - event_id: e2
+        kind: removed
+        at: "2026-10-24"
+        at_precision: exact
+        from: pancake0
+        to: storage
+        by: Jeremy
+        reason: >-
+          unplugged after the last SpecSail run (ended about 19:05Z); held in the lab until it goes back to
+          its owner, Frank Loesche (Janelia MCN NET), expected 2026-10-26
+        recorded_at: "2026-10-24"
+        evidence: >-
+          Jeremy, 2026-10-24, relayed by specsail-calibration-protocol: unplugged from pancake0 at about
+          19:09Z by Jeremy. Storage place not recorded.
   - id: fiber-p50-vis-nir-1
     part_id: optic.ocean_insight.p50_1_vis_nir
     serial_number: EOS-A705799       # label ID
     description: Ocean Insight P50-1-VIS-NIR optical fiber (QE Pro input; moves between instruments)
     home_location: unknown
-    current_location: pancake0
+    current_location: storage
     note: >-
       Identified by Jeremy 2026-10-19 from its label (relayed by citrus-specsail-integration). Which
       instrument it was attached to is recorded per run in the Citrus capture record. No calibration block.
+    events:
+      - event_id: e1
+        kind: installed
+        at: "2026-10-19"
+        at_precision: on_or_before
+        to: pancake0
+        rig: omnifin0
+        recorded_at: "2026-10-24"
+        evidence: >-
+          First evidence on the rig: the per-arena SpecSail runs, 2026-10-19. No earlier evidence known
+          (Jeremy, 2026-10-24).
+      - event_id: e2
+        kind: attached
+        at: "2026-10-19"
+        at_precision: on_or_before
+        with: spectrometer-qepro-1
+        recorded_at: "2026-10-24"
+        evidence: attached to the QE Pro the whole time it was on the rig (Jeremy, 2026-10-24)
+      - event_id: e3
+        kind: removed
+        at: "2026-10-24"
+        at_precision: exact
+        from: pancake0
+        to: storage
+        by: Jeremy
+        reason: went to storage with the QE Pro, still screwed onto it; its far end was taken out of the rig's holder
+        recorded_at: "2026-10-24"
+        evidence: >-
+          Jeremy, 2026-10-24, relayed by specsail-calibration-protocol: removed with the QE Pro at about
+          19:09Z. Storage place not recorded.
