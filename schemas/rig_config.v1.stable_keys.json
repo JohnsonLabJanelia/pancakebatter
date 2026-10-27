@@ -3,7 +3,7 @@
     "name": "rig_config",
     "version": 1
   },
-  "description": "Key paths in rigs/<rig_id>/rig.yml (installed as /etc/pancakebatter/rigs/<rig_id>.yml) other programs may rely on. Same rules as system_config.v1.stable_keys.json: '*' fans out over map values; additive changes stay in version 1; renaming or removing a key, or changing a derived rule, bumps schema.version. Every key here exists in every rig document; any physical value may be the string 'unknown', which a consumer must treat as undeclared, never as a default. Free text (description, mount_notes, evidence) is for people and may change. media_stack is optional: its keys are listed under optional_keys and exist only in rigs that declare a stack.",
+  "description": "Key paths in rigs/<rig_id>/rig.yml (installed as /etc/pancakebatter/rigs/<rig_id>.yml) other programs may rely on. Same rules as system_config.v1.stable_keys.json: '*' fans out over map values; additive changes stay in version 1; renaming or removing a key, or changing a derived rule, bumps schema.version. Every key here exists in every rig document; any physical value may be the string 'unknown', which a consumer must treat as undeclared, never as a default. Free text (description, mount_notes, evidence) is for people and may change. Optional keys (media_stack, room_orientation, projector picture settings, projection nominal_geometry) are listed under optional_keys and exist only in rigs that declare them.",
   "keys": [
     "schema.name",
     "schema.version",
@@ -41,10 +41,20 @@
     "media_stack.arenas.*",
     "media_stack.assumptions.fish_eye_height_above_dish_floor_mm",
     "media_stack.derived.*.eye_to_film_mm",
-    "media_stack.derived.*.eye_to_film_paraxial_mm"
+    "media_stack.derived.*.eye_to_film_paraxial_mm",
+    "projection_paths.*.projector_settings.brightness",
+    "projection_paths.*.projector_settings.contrast",
+    "projection_paths.*.projector_settings.sharpness",
+    "projection_paths.*.nominal_geometry.lens_nadir_canvas_px",
+    "projection_paths.*.nominal_geometry.lens_nadir_uncertainty_px",
+    "projection_paths.*.nominal_geometry.lens_glass_to_film_mm",
+    "room_orientation.canvas_minus_x",
+    "room_orientation.canvas_minus_y",
+    "room_orientation.projector_offset_toward"
   ],
   "optional_sections": [
-    "media_stack"
+    "media_stack",
+    "room_orientation"
   ],
   "optional_keys": [
     "media_stack.air_between_film_and_fish",
@@ -56,6 +66,15 @@
     "media_stack.arenas.*",
     "media_stack.assumptions.fish_eye_height_above_dish_floor_mm",
     "media_stack.derived.*.eye_to_film_mm",
-    "media_stack.derived.*.eye_to_film_paraxial_mm"
+    "media_stack.derived.*.eye_to_film_paraxial_mm",
+    "projection_paths.*.projector_settings.brightness",
+    "projection_paths.*.projector_settings.contrast",
+    "projection_paths.*.projector_settings.sharpness",
+    "projection_paths.*.nominal_geometry.lens_nadir_canvas_px",
+    "projection_paths.*.nominal_geometry.lens_nadir_uncertainty_px",
+    "projection_paths.*.nominal_geometry.lens_glass_to_film_mm",
+    "room_orientation.canvas_minus_x",
+    "room_orientation.canvas_minus_y",
+    "room_orientation.projector_offset_toward"
   ]
 }

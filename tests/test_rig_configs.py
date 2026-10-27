@@ -121,11 +121,85 @@ class ProjectorSettingsTests(unittest.TestCase):
         self.assertEqual(rc.validate(self.doc("horizontal", position_menu="auto", position_effective="rear")[0]), [])
         self.assertTrue(rc.validate(self.doc("both", position_menu="rear", position_effective="front_ceiling")[0]))
 
+    def test_picture_settings_are_optional_and_physical_when_present(self):
+        doc, p = self.doc()
+        for k in rc.PROJECTOR_PICTURE_RANGES:
+            p["projector_settings"].pop(k, None)
+        base = rc.physical_digest(doc)
+        self.assertEqual(rc.validate(doc), [])
+        p["projector_settings"]["brightness"] = 50
+        self.assertEqual(rc.validate(doc), [])
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        for bad in (101, -1, "50", True):
+            with self.subTest(brightness=bad):
+                p["projector_settings"]["brightness"] = bad
+                self.assertTrue(any("brightness" in e for e in rc.validate(doc)))
+        p["projector_settings"]["brightness"] = 50
+        p["projector_settings"]["sharpness"] = 500  # no upper bound stated
+        self.assertEqual(rc.validate(doc), [])
+
+    def test_lens_nadir_is_optional_and_physical(self):
+        doc, p = self.doc()
+        p.pop("nominal_geometry", None)
+        base = rc.physical_digest(doc)
+        p["nominal_geometry"] = {"lens_nadir_canvas_px": {"x": 958, "y": 1152},
+                                 "lens_nadir_uncertainty_px": {"x": 12, "y": 45}, "lens_glass_to_film_mm": 672}
+        self.assertEqual(rc.validate(doc), [])
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        for bad in ({"lens_nadir_canvas_px": {"x": 958}}, {"lens_glass_to_film_mm": -1}, {"principal_point": 1}):
+            with self.subTest(bad=bad):
+                p["nominal_geometry"] = bad
+                self.assertTrue(rc.validate(doc))
+
     def test_bad_values_are_refused(self):
         for key, bad in (("keystone_h", 31), ("keystone_v", None), ("digital_zoom_percent", 79),
                          ("digital_zoom_percent", True), ("position_menu", "Front Table"), ("aspect_ratio", "21:9")):
             with self.subTest(key=key, value=bad):
                 self.assertTrue(rc.validate(self.doc(**{key: bad})[0]))
+
+
+class RoomOrientationTests(unittest.TestCase):
+    def room(self, **kw):
+        r = {"canvas_minus_x": "operator_left", "canvas_minus_y": "toward_operator",
+             "projector_offset_toward": "canvas_plus_y",
+             "evidence": {"note": "n", "declared_by": "Jeremy", "declared_at": "2026-10-27"}}
+        r.update(kw)
+        doc = copy.deepcopy(next(iter(RIGS.values())))
+        doc["room_orientation"] = r
+        return doc
+
+    def test_valid_and_physical(self):
+        doc = self.room()
+        self.assertEqual(rc.validate(doc), [])
+        bare = copy.deepcopy(doc)
+        del bare["room_orientation"]
+        self.assertNotEqual(rc.physical_digest(doc), rc.physical_digest(bare))
+        edited = copy.deepcopy(doc)
+        edited["room_orientation"]["evidence"]["note"] = "edited"
+        self.assertEqual(rc.physical_digest(edited), rc.physical_digest(doc))
+
+    def test_bad_orientation_is_refused(self):
+        cases = ((dict(canvas_minus_x="toward_operator"), "same room axis"),
+                 (dict(canvas_minus_y="door"), "canvas_minus_y"),
+                 (dict(projector_offset_toward="back"), "projector_offset_toward"),
+                 (dict(colour="red"), "no others"))
+        for kw, needle in cases:
+            with self.subTest(kw=kw):
+                self.assertTrue(any(needle in e for e in rc.validate(self.room(**kw))))
+
+    @unittest.skipUnless(__import__("importlib").util.find_spec("jsonschema"), "jsonschema not installed")
+    def test_json_schema_accepts_it(self):
+        import jsonschema
+        jsonschema.Draft202012Validator(SCHEMA).validate(self.room())
+
+
+class LocationTests(unittest.TestCase):
+    def test_rig_id_must_match_its_directory(self):
+        for p in RIG_FILES:
+            with self.subTest(rig=p.parent.name):
+                self.assertEqual(rc.location_errors(p, RIGS[p.parent.name]), [])
+        doc = copy.deepcopy(next(iter(RIGS.values())))
+        self.assertTrue(rc.location_errors(REPO / "rigs" / "elsewhere" / "rig.yml", doc))
 
 
 class ParityRuleTests(unittest.TestCase):

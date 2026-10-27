@@ -50,10 +50,23 @@ PROJECTOR_SETTINGS_ENUMS = {
 }
 PROJECTOR_SETTINGS_RANGES = {"keystone_h": (-30, 30), "keystone_v": (-30, 30), "digital_zoom_percent": (80, 100)}
 PROJECTOR_SETTINGS = tuple(PROJECTOR_SETTINGS_ENUMS) + tuple(PROJECTOR_SETTINGS_RANGES)
+# Optional picture settings (Picture menu): they change how bright the canvas is, not where it lands.
+# Physical when present; a rig that omits them keeps its digest. None = no upper bound stated.
+PROJECTOR_PICTURE_RANGES = {"brightness": (0, 100), "contrast": (0, 100), "sharpness": (0, None)}
 # BenQ Projector Position -> net firmware mirroring (BenQ convention; the manual does not state it).
 POSITION_FLIP = {"front": "none", "rear": "horizontal", "front_ceiling": "both", "rear_ceiling": "vertical"}
 # Optional; recorded for the deferred parallax model, consumed by no runtime today.
 CAMERA_NOMINAL = ("height_above_gel_mm", "optical_axis_tilt_from_nadir_deg")
+# Optional, per projection path: the canvas point straight above the lens front glass (not where the
+# optical axis lands) and the lens-glass-to-film height. Physical when present; consumed by nothing yet.
+PROJECTION_NOMINAL = ("lens_nadir_canvas_px", "lens_nadir_uncertainty_px", "lens_glass_to_film_mm")
+# Optional room_orientation (README "Room orientation"): canvas axes in the operator's frame, standing at
+# the door looking at the rig from above.
+ROOM_DIRECTIONS = ("toward_operator", "away_from_operator", "operator_left", "operator_right")
+ROOM_AXES = {"toward_operator": "depth", "away_from_operator": "depth", "operator_left": "width",
+             "operator_right": "width"}
+CANVAS_DIRECTIONS = ("canvas_plus_x", "canvas_minus_x", "canvas_plus_y", "canvas_minus_y")
+ROOM_KEYS = ("canvas_minus_x", "canvas_minus_y", "projector_offset_toward", "evidence")
 # Optional media_stack (README "Media stack"): the layers light crosses from the projector to the fish.
 MEDIA = ("air", "water", "acrylic", "polystyrene", "glass", "film", "other")
 LAYER_PHYSICAL = ("medium", "part_id", "thickness_mm", "refractive_index")
@@ -156,7 +169,10 @@ def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
     return {
         "rig_id": doc["rig_id"],
         "projection_paths": {pid: {**{k: p[k] for k in PROJECTION_PHYSICAL},
-                                   "projector_settings": {k: p["projector_settings"][k] for k in PROJECTOR_SETTINGS}}
+                                   "projector_settings": {k: p["projector_settings"][k]
+                                                          for k in PROJECTOR_SETTINGS + tuple(PROJECTOR_PICTURE_RANGES)
+                                                          if k in p["projector_settings"]},
+                                   **({"nominal_geometry": p["nominal_geometry"]} if "nominal_geometry" in p else {})}
                              for pid, p in doc["projection_paths"].items()},
         "cameras": {s: {**{k: c[k] for k in CAMERA_PHYSICAL},
                         **({"nominal_geometry": c["nominal_geometry"]} if "nominal_geometry" in c else {})}
@@ -169,6 +185,8 @@ def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
             "arenas": doc["media_stack"]["arenas"],
             "assumptions": doc["media_stack"].get("assumptions", {}),
         }} if "media_stack" in doc else {}),
+        **({"room_orientation": {k: doc["room_orientation"][k] for k in ROOM_KEYS[:3]}}
+           if "room_orientation" in doc else {}),
     }
 
 
@@ -195,7 +213,7 @@ def _projector_settings_errors(where: str, p: dict[str, Any]) -> list[str]:
     where = f"{where}.projector_settings"
     if not isinstance(ps, dict):
         return [f"{where}: required (every key, unknown allowed)"]
-    extra = sorted(set(ps) - set(PROJECTOR_SETTINGS))
+    extra = sorted(set(ps) - set(PROJECTOR_SETTINGS) - set(PROJECTOR_PICTURE_RANGES))
     errs = [f"{where}: unexpected keys {extra}"] if extra else []
     for k, allowed in PROJECTOR_SETTINGS_ENUMS.items():
         if ps.get(k) not in allowed + (UNKNOWN,):
@@ -204,6 +222,12 @@ def _projector_settings_errors(where: str, p: dict[str, Any]) -> list[str]:
         v = ps.get(k)
         if not (v == UNKNOWN or (isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi)):
             errs.append(f"{where}.{k}: integer {lo}..{hi} or unknown")
+    for k, (lo, hi) in PROJECTOR_PICTURE_RANGES.items():
+        v = ps.get(k, UNKNOWN)
+        if not (v == UNKNOWN or (isinstance(v, int) and not isinstance(v, bool) and lo <= v
+                                 and (hi is None or v <= hi))):
+            bound = f"{lo}..{hi}" if hi is not None else f">= {lo}"
+            errs.append(f"{where}.{k}: optional; integer {bound} or unknown")
     menu, eff = ps.get("position_menu"), ps.get("position_effective")
     if menu in POSITION_FLIP and eff != menu:
         errs.append(f"{where}.position_effective: must equal position_menu ({menu!r}) unless the menu is auto")
@@ -227,6 +251,45 @@ def _layer_value_errors(where: str, values: dict[str, Any]) -> list[str]:
     if "refractive_index" in values and not _number_or_unknown(values["refractive_index"], 1):
         errs.append(f"{where}.refractive_index: number >= 1 or unknown")
     return errs
+
+
+def _xy_errors(where: str, v: Any) -> list[str]:
+    if v == UNKNOWN:
+        return []
+    if not (isinstance(v, dict) and set(v) == {"x", "y"} and all(_number_or_unknown(v[a], 0) for a in "xy")):
+        return [f"{where}: {{x, y}} numbers >= 0 (or unknown), or unknown"]
+    return []
+
+
+def _projection_nominal_errors(where: str, p: dict[str, Any]) -> list[str]:
+    if "nominal_geometry" not in p:
+        return []
+    nominal, where = p["nominal_geometry"], f"{where}.nominal_geometry"
+    if not isinstance(nominal, dict) or set(nominal) - set(PROJECTION_NOMINAL):
+        return [f"{where}: only {PROJECTION_NOMINAL}"]
+    errs = []
+    for k in ("lens_nadir_canvas_px", "lens_nadir_uncertainty_px"):
+        if k in nominal:
+            errs += _xy_errors(f"{where}.{k}", nominal[k])
+    if "lens_glass_to_film_mm" in nominal and not _number_or_unknown(nominal["lens_glass_to_film_mm"], 0):
+        errs.append(f"{where}.lens_glass_to_film_mm: number >= 0 or unknown")
+    return errs
+
+
+def _room_orientation_errors(room: Any) -> list[str]:
+    where = "room_orientation"
+    if not isinstance(room, dict):
+        return [f"{where}: not a mapping"]
+    errs = [f"{where}: required keys {list(ROOM_KEYS)}, no others"] if set(room) != set(ROOM_KEYS) else []
+    for k in ("canvas_minus_x", "canvas_minus_y"):
+        if room.get(k) not in ROOM_DIRECTIONS + (UNKNOWN,):
+            errs.append(f"{where}.{k}: one of {ROOM_DIRECTIONS + (UNKNOWN,)}")
+    mx, my = room.get("canvas_minus_x"), room.get("canvas_minus_y")
+    if mx in ROOM_AXES and my in ROOM_AXES and ROOM_AXES[mx] == ROOM_AXES[my]:
+        errs.append(f"{where}: canvas_minus_x {mx!r} and canvas_minus_y {my!r} are the same room axis")
+    if room.get("projector_offset_toward") not in CANVAS_DIRECTIONS + ("none", UNKNOWN):
+        errs.append(f"{where}.projector_offset_toward: one of {CANVAS_DIRECTIONS + ('none', UNKNOWN)}")
+    return errs + _evidence_errors(where, room.get("evidence"))
 
 
 def _media_stack_errors(stack: Any) -> list[str]:
@@ -332,6 +395,7 @@ def validate(doc: Any) -> list[str]:
         if not _count_ok(p.get("optical_mirror_count")):
             errs.append(f"{where}.optical_mirror_count: integer >= 0 or unknown")
         errs += _projector_settings_errors(where, p)
+        errs += _projection_nominal_errors(where, p)
         errs += _evidence_errors(where, p.get("evidence"))
 
     cams = doc.get("cameras")
@@ -364,6 +428,8 @@ def validate(doc: Any) -> list[str]:
         errs += _evidence_errors(where, c.get("evidence"))
     if "media_stack" in doc:
         errs += _media_stack_errors(doc["media_stack"])
+    if "room_orientation" in doc:
+        errs += _room_orientation_errors(doc["room_orientation"])
     if errs:
         return errs
 
@@ -416,6 +482,14 @@ def validate_binding(host: str, host_cfg: dict[str, Any], rig_docs: dict[str, di
     return errs
 
 
+def location_errors(path: Path, doc: dict[str, Any]) -> list[str]:
+    """A rig document's rig_id must name the directory it lives in (rigs/<rig_id>/rig.yml)."""
+    path = Path(path)
+    if path.name == "rig.yml" and isinstance(doc, dict) and doc.get("rig_id") != path.parent.name:
+        return [f"rig_id {doc.get('rig_id')!r} does not match its directory rigs/{path.parent.name}/"]
+    return []
+
+
 def load(path: Path) -> dict[str, Any]:
     return yaml.safe_load(Path(path).read_text())
 
@@ -425,7 +499,7 @@ def main(argv: list[str]) -> int:
         print(__doc__.strip().splitlines()[3], file=sys.stderr)
         return 2
     doc = load(Path(argv[0]))
-    errs = validate(doc)
+    errs = validate(doc) + location_errors(Path(argv[0]), doc)
     for e in errs:
         print(f"  {e}", file=sys.stderr)
     if isinstance(doc, dict) and "projection_paths" in doc and "cameras" in doc:

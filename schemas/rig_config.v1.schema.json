@@ -99,6 +99,9 @@
     },
     "media_stack": {
       "$ref": "#/$defs/mediaStack"
+    },
+    "room_orientation": {
+      "$ref": "#/$defs/roomOrientation"
     }
   },
   "$defs": {
@@ -261,6 +264,44 @@
                 }
               ],
               "description": "Game Settings > Digital Zoom, 100 = off. No RS-232 read command."
+            },
+            "brightness": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Brightness (0-100). Optional: changes how bright the canvas is, not where it lands. Physical when present."
+            },
+            "contrast": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Contrast (0-100). Optional; physical when present."
+            },
+            "sharpness": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Sharpness. Optional; physical when present. The manual states no range."
             }
           }
         },
@@ -298,6 +339,105 @@
             "canvas_space_parity": {
               "$ref": "#/$defs/parity",
               "description": "projection_mode x projector_firmware_flip x (-1)^optical_mirror_count: citrus.display_canvas_px (as scanned out, xrandr output unreflected) relative to the canvas as it lands on the dish seen from above. Excludes Citrus's OpenGL presentation reflection and the session's xrandr reflection; Citrus composes those."
+            }
+          }
+        },
+        "nominal_geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional. Nominal projector geometry; consumed by no runtime today. Physical: a change bumps rig_geometry_revision.",
+          "properties": {
+            "lens_nadir_canvas_px": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "properties": {
+                    "x": {
+                      "oneOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "y": {
+                      "oneOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Canvas pixel straight above the lens front glass. NOT where the optical axis lands; not a principal point."
+            },
+            "lens_nadir_uncertainty_px": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "properties": {
+                    "x": {
+                      "oneOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "y": {
+                      "oneOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Uncertainty of lens_nadir_canvas_px per axis."
+            },
+            "lens_glass_to_film_mm": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Vertical distance from the lens front glass to the film."
             }
           }
         }
@@ -695,6 +835,74 @@
               }
             }
           }
+        }
+      }
+    },
+    "roomOrientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canvas_minus_x",
+        "canvas_minus_y",
+        "projector_offset_toward",
+        "evidence"
+      ],
+      "description": "Optional. Canvas axes in the operator's frame: standing at the door, looking at the rig from above. Physical except evidence. rigconfig checks the two axes are different room axes.",
+      "properties": {
+        "canvas_minus_x": {
+          "enum": [
+            "toward_operator",
+            "away_from_operator",
+            "operator_left",
+            "operator_right",
+            "unknown"
+          ],
+          "description": "Room direction of canvas -x."
+        },
+        "canvas_minus_y": {
+          "enum": [
+            "toward_operator",
+            "away_from_operator",
+            "operator_left",
+            "operator_right",
+            "unknown"
+          ],
+          "description": "Room direction of canvas -y."
+        },
+        "projector_offset_toward": {
+          "enum": [
+            "canvas_plus_x",
+            "canvas_minus_x",
+            "canvas_plus_y",
+            "canvas_minus_y",
+            "none",
+            "unknown"
+          ],
+          "description": "Horizontal side of the canvas the projector body sits toward."
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "note",
+            "declared_by",
+            "declared_at"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "note": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_at": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          "description": "Who declared this field group, when, and on what evidence (menu wording, photo, measurement, document)."
         }
       }
     }

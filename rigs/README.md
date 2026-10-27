@@ -107,6 +107,18 @@ its own values.
 | `aspect_ratio` | auto, 4:3, 16:9 | Display > Aspect Ratio | `*asp=?#` |
 | `upscaling_4k` | on, off | Display > 4K Upscaling | none |
 
+**Picture settings (optional).** `brightness` and `contrast` (0 to 100) and `sharpness` (integer
+≥ 0; the manual states no range) are the Picture menu values. They change how bright the canvas
+is, not where it lands, so they are optional: a rig that omits them keeps its digest. Once present
+they are physical, so a menu change is a revision bump. The SpecSail record of the change
+(time window, evidence) goes in the rig's events ledger; rig.yml holds the current value.
+
+**`projection_paths.<id>.nominal_geometry` (optional)** mirrors the cameras' block: consumed by no
+runtime today, physical when present. `lens_nadir_canvas_px` `{x, y}` is the canvas pixel
+straight above the lens front glass, **not** where the optical axis lands and not a principal
+point; `lens_nadir_uncertainty_px` `{x, y}` is its uncertainty; `lens_glass_to_film_mm` is the
+vertical distance from the lens front glass to the film.
+
 The projector's serial number and firmware are instance facts and go in the host binding
 (`projector.serial_number`, `projector.firmware_version`): menu Information > Service Code and
 Firmware Version, or RS-232 `*serialnumber=?#` and `*sysfwversion=?#` (also `*scalerfwversion=?#`,
@@ -198,12 +210,22 @@ Layers, arena overrides, assumptions and the no-air flag are physical, so changi
 revision bump. The assumed eye height counts too, because it feeds a derived value.
 `evidence`, `refractive_index_source` and `derived` do not.
 
+## Room orientation
+
+Optional `room_orientation` says which way the canvas axes point in the room, in the operator's
+frame: standing at the door, looking at the rig from above. `canvas_minus_x` and `canvas_minus_y`
+are each one of `toward_operator`, `away_from_operator`, `operator_left`, `operator_right` or
+`unknown`, and must be different room axes. `projector_offset_toward` is the canvas side the
+projector body sits toward (`canvas_plus_x` … `canvas_minus_y`, `none`, `unknown`). Physical
+except `evidence`.
+
 ## Revisions
 
 `rig_geometry_revision` is bumped whenever a physical field changes, including
 `unknown` → declared, since a recording pins what was declared. The physical fields are
 everything in `projection_paths.*` and `cameras.*` except `evidence`, `mount_notes` and
-`derived`, plus `rig_id` and, when present, `media_stack` (see Media stack). That includes the optional `nominal_geometry`, so editing a
+`derived`, plus `rig_id` and, when present, `media_stack` (see Media stack) and `room_orientation`
+(except its evidence). That includes the optional `nominal_geometry`, so editing a
 nominal height bumps the revision even though nothing consumes it yet. Free text
 (description, provenance, evidence, notes) does not bump.
 
