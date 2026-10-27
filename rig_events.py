@@ -9,6 +9,9 @@ Kinds:
   condition_observed   a condition of a part (scratches, a crack, residue) that recordings must carry
                        until it is cleared. Opens `condition_id`.
   condition_cleared    closes `condition_id` (e.g. the part was replaced, which is also a rig revision).
+  attested             someone checked a declared rig.yml section on the rig (e.g. room_orientation with a
+                       projected crosshair). It pins rigconfig.orientation_digest and is current only while
+                       rig.yml's digest still equals it, so a remount ends it without anyone remembering.
   correction           as for equipment events: void an event or replace some of its fields.
 
 When it happened: `at` with at_precision exact / on_or_before / on_or_after, or at_precision `window`
@@ -39,7 +42,8 @@ import equipment_events as ee
 REPO = ee.REPO
 SCHEMA_PATH = REPO / "schemas" / "rig_events.v1.schema.json"
 
-KINDS = ("setting_changed", "condition_observed", "condition_cleared", "correction")
+KINDS = ("setting_changed", "condition_observed", "condition_cleared", "attested", "correction")
+ATTESTABLE = ("room_orientation",)
 PRECISIONS = ee.PRECISIONS + ("window",)
 COMMON = ("event_id", "kind", "at", "at_precision", "not_before", "not_after", "recorded_at", "by", "reason",
           "evidence", "evidence_files")
@@ -48,6 +52,7 @@ KIND_KEYS = {
     "condition_observed": (("condition_id", "arenas", "layer", "condition", "extent"),
                            ("locations", "effect", "remedy")),
     "condition_cleared": (("condition_id",), ()),
+    "attested": (("fields", "rig_geometry_revision", "orientation_sha256", "method"), ("scene_id",)),
     "correction": (("corrects",), ("void",)),
 }
 # What a correction may replace. Ids (condition_id, item, setting) are not correctable: void and re-append.
@@ -162,7 +167,16 @@ def _evidence_file_findings(ew: str, files: Any, check_files: bool) -> list[Find
     return out
 
 
-def _value_findings(ew: str, ev: dict[str, Any], stack: dict[str, Any] | None, check_files: bool) -> list[Finding]:
+def current_attestations(events: list[dict[str, Any]], rig_doc: dict[str, Any], field: str) -> list[dict[str, Any]]:
+    """`attested` events for this rig.yml field whose orientation_sha256 still equals rig.yml's."""
+    import rigconfig
+    digest = rigconfig.orientation_digest(rig_doc)
+    return [ev for ev in _timeline(events) if ev.get("kind") == "attested" and field in (ev.get("fields") or [])
+            and ev.get("orientation_sha256") == digest]
+
+
+def _value_findings(ew: str, ev: dict[str, Any], stack: dict[str, Any] | None, check_files: bool,
+                    rig_doc: dict[str, Any] | None = None) -> list[Finding]:
     kind = ev.get("kind")
     out = _when_findings(ew, ev)
     required, optional = KIND_KEYS[kind]
@@ -184,6 +198,19 @@ def _value_findings(ew: str, ev: dict[str, Any], stack: dict[str, Any] | None, c
     if kind in ("condition_observed", "condition_cleared") and not (
             isinstance(ev.get("condition_id"), str) and CONDITION_ID.match(ev["condition_id"])):
         out.append(("fail", f"{ew}: condition_id c1, c2, ... required"))
+    if kind == "attested" and not missing:
+        fields = ev["fields"]
+        if not (isinstance(fields, list) and fields and set(fields) <= set(ATTESTABLE)):
+            out.append(("fail", f"{ew}: fields must be a non-empty list from {ATTESTABLE}"))
+        rev = ev["rig_geometry_revision"]
+        if not (isinstance(rev, int) and not isinstance(rev, bool) and rev >= 1):
+            out.append(("fail", f"{ew}: rig_geometry_revision must be an integer >= 1"))
+        elif rig_doc is not None and rev > rig_doc.get("rig_geometry_revision", 0):
+            out.append(("fail", f"{ew}: rig_geometry_revision {rev} is newer than rig.yml's"))
+        if not (isinstance(ev["orientation_sha256"], str) and SHA256.match(ev["orientation_sha256"])):
+            out.append(("fail", f"{ew}: orientation_sha256 must be 64 lowercase hex (rigconfig.py prints it)"))
+        if not (isinstance(ev["method"], str) and ev["method"]):
+            out.append(("fail", f"{ew}: method must be a non-empty string"))
     if kind == "condition_observed" and not missing:
         arenas = ev["arenas"]
         if not (isinstance(arenas, list) and arenas and all(isinstance(a, str) for a in arenas)):
@@ -253,15 +280,20 @@ def findings(doc: Any, rig_id: str, rig_doc: dict[str, Any] | None = None, check
             if "evidence_files" in ev:
                 out += _evidence_file_findings(ew, ev["evidence_files"], check_files)
         else:
-            out += _value_findings(ew, ev, stack, check_files)
+            out += _value_findings(ew, ev, stack, check_files, rig_doc)
         if isinstance(eid, str):
             seen.setdefault(eid, ev)
     if any(level == "fail" for level, _ in out):
         return out
     for _, ev in effective(events):  # corrected values must be valid too
-        out += _value_findings(f"events.{ev['event_id']}", ev, stack, check_files)
+        out += _value_findings(f"events.{ev['event_id']}", ev, stack, check_files, rig_doc)
     if out:
         return out
+    if rig_doc is not None and isinstance(rig_doc.get("room_orientation"), dict) and any(
+            ev.get("kind") == "attested" for _, ev in effective(events)) and not current_attestations(
+            events, rig_doc, "room_orientation"):
+        out.append(("warn", "room_orientation has no current attestation: rig.yml's orientation fields changed "
+                            "since the last one (re-check on the rig and append a new attested event)"))
     opened: set[str] = set()
     open_now: set[str] = set()
     for ev in _timeline(events):

@@ -54,3 +54,25 @@ events:
     evidence: >-
       Jeremy in the pancakebatter session 2026-10-27 (the shelf acrylic is the shared base; the whole part
       must be replaced); extent and locations relayed by rig-designer and Orange 2026-10-27.
+  - event_id: e3
+    kind: attested
+    fields: [room_orientation]
+    rig_geometry_revision: 10
+    orientation_sha256: 5266d56288ab95c92f0fbe0e93b98c0775ff2ef430b2519322f6e7791eef63c1   # rigconfig.orientation_digest, rev 10
+    method: >-
+      Citrus projected a bold crosshair at arena 1 offset (0, -30) mm; Jeremy saw it on the door side, with
+      arena 1 on his left from the door: canvas -y toward the operator, canvas -x the operator's left.
+    scene_id: orientation_crosshair_20261027T222450Z
+    at_precision: window                 # scene on the projector from Citrus presenting to the stop file
+    not_before: "2026-10-27T22:24:50Z"
+    not_after: "2026-10-27T22:29:43Z"
+    recorded_at: "2026-10-27"
+    by: Jeremy Delahanty
+    evidence: >-
+      Jeremy's observation and the photo from the door both show the crosshair scene (times and photo hash
+      checked by specsail-calibration-protocol, 2026-10-27; "arena 1 is on my left from the door", Jeremy to
+      rig-designer). A remount of the projector, cameras or shelf changes rig.yml's orientation fields and
+      ends this attestation; check again and append a new one.
+    evidence_files:
+      - path: /home/jeremy/SpecSail/runs/pm_20261024/photos/orientation_crosshair_20261027T222450Z_from_door.jpg
+        sha256: 08d38bdcffe885698bcf94e7b0cb9ad6b753c55e0727a69af11f8e0cce417f0e

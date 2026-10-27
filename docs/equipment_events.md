@@ -118,3 +118,10 @@ events:
   so a rig.yml pin alone would miss it. `install_host_config.sh` installs it as
   `/etc/pancakebatter/rigs/<rig_id>.events.yml`, with `events_sha256` in the rig sidecar.
 - Replacing a part is a physical change: bump rig.yml's revision and append `condition_cleared`.
+- **`attested`** records that someone checked a declared rig.yml section on the rig (today only
+  `room_orientation`, e.g. with a projected crosshair seen from the door). It pins
+  `rigconfig.orientation_digest` (how the projector and cameras are mounted and set, plus
+  `room_orientation`; `python3 rigconfig.py rigs/<rig>/rig.yml` prints it) and `rig_geometry_revision`.
+  It is current only while rig.yml's digest still equals it: a remount that changes those fields
+  ends it, and `rig_events.py` warns until a new check is appended. Picture settings and the media
+  stack do not end it.

@@ -85,6 +85,38 @@ class DerivationTests(unittest.TestCase):
         self.assertEqual(re_.active_conditions([observed(), void]), [])
 
 
+def attested(**kw):
+    import rigconfig
+    ev = {"event_id": "e3", "kind": "attested", "fields": ["room_orientation"],
+          "rig_geometry_revision": RIG["rig_geometry_revision"], "orientation_sha256": rigconfig.orientation_digest(RIG),
+          "method": "crosshair", "at_precision": "window", "not_before": "2026-10-27T22:24:50Z",
+          "not_after": "2026-10-27T22:29:43Z", "recorded_at": "2026-10-27"}
+    ev.update(kw)
+    return ev
+
+
+class AttestationTests(unittest.TestCase):
+    def test_current_until_the_orientation_fields_change(self):
+        self.assertEqual(fails(attested()), [])
+        self.assertEqual(len(re_.current_attestations([attested()], RIG, "room_orientation")), 1)
+        moved = copy.deepcopy(RIG)
+        next(iter(moved["cameras"].values()))["rotation_deg"] = 90
+        self.assertEqual(re_.current_attestations([attested()], moved, "room_orientation"), [])
+        warns = [m for lvl, m in re_.findings(doc(attested()), "omnifin0", moved, check_files=False) if lvl == "warn"]
+        self.assertTrue(any("no current attestation" in m for m in warns))
+        picture = copy.deepcopy(RIG)
+        next(iter(picture["projection_paths"].values()))["projector_settings"]["brightness"] = 7
+        self.assertEqual(len(re_.current_attestations([attested()], picture, "room_orientation")), 1)
+
+    def test_bad_attestations_are_refused(self):
+        for kw, needle in ((dict(fields=["media_stack"]), "fields must be"),
+                           (dict(orientation_sha256="abc"), "64 lowercase hex"),
+                           (dict(rig_geometry_revision=99), "newer than rig.yml"),
+                           (dict(method=""), "method")):
+            with self.subTest(kw=kw):
+                self.assertTrue(any(needle in m for m in fails(attested(**kw))))
+
+
 class CheckTests(unittest.TestCase):
     def test_bad_events_are_refused(self):
         cases = (
