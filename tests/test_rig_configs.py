@@ -76,7 +76,8 @@ class RigDocumentTests(unittest.TestCase):
     def test_stored_derived_value_that_disagrees_is_refused(self):
         doc = copy.deepcopy(next(iter(RIGS.values())))
         pid = next(iter(doc["projection_paths"]))
-        doc["projection_paths"][pid]["derived"]["canvas_space_parity"] = 1
+        stored = doc["projection_paths"][pid]["derived"]["canvas_space_parity"]
+        doc["projection_paths"][pid]["derived"]["canvas_space_parity"] = -1 if stored == 1 else 1
         self.assertTrue(any("canvas_space_parity" in e for e in rc.validate(doc)))
 
     def test_unknown_is_not_a_default_and_bad_values_are_refused(self):
@@ -95,6 +96,7 @@ class ProjectorSettingsTests(unittest.TestCase):
         doc = copy.deepcopy(next(iter(RIGS.values())))
         p = next(iter(doc["projection_paths"].values()))
         p["projector_firmware_flip"] = flip
+        p["projector_settings"].update(position_menu="unknown", position_effective="unknown")
         p["projector_settings"].update(settings)
         p["derived"]["canvas_space_parity"] = rc.canvas_space_parity(p)
         for serial, want in rc.derived(doc)["cameras"].items():
@@ -104,7 +106,7 @@ class ProjectorSettingsTests(unittest.TestCase):
     def test_required_and_in_the_digest(self):
         doc, p = self.doc()
         base = rc.physical_digest(doc)
-        p["projector_settings"]["keystone_v"] = 0
+        p["projector_settings"]["keystone_v"] = 5
         self.assertNotEqual(rc.physical_digest(doc), base)
         del p["projector_settings"]
         self.assertTrue(any("projector_settings: required" in e for e in rc.validate(doc)))
@@ -191,6 +193,23 @@ class RoomOrientationTests(unittest.TestCase):
     def test_json_schema_accepts_it(self):
         import jsonschema
         jsonschema.Draft202012Validator(SCHEMA).validate(self.room())
+
+
+class OrientationDigestTests(unittest.TestCase):
+    def test_tracks_mounting_and_room_frame_not_picture_or_stack(self):
+        doc = copy.deepcopy(next(iter(RIGS.values())))
+        base = rc.orientation_digest(doc)
+        p = next(iter(doc["projection_paths"].values()))
+        same = copy.deepcopy(doc)
+        next(iter(same["projection_paths"].values()))["projector_settings"]["brightness"] = 7
+        same.pop("media_stack", None)
+        self.assertEqual(rc.orientation_digest(same), base)
+        for mutate in (lambda d: next(iter(d["projection_paths"].values())).update(projection_mode="front"),
+                       lambda d: next(iter(d["cameras"].values())).update(optical_mirror_count=1),
+                       lambda d: d.setdefault("room_orientation", {}).update(canvas_minus_x="operator_right")):
+            d = copy.deepcopy(doc)
+            mutate(d)
+            self.assertNotEqual(rc.orientation_digest(d), base)
 
 
 class LocationTests(unittest.TestCase):

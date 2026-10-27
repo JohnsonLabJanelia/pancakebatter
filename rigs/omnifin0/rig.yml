@@ -14,7 +14,7 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 9
+rig_geometry_revision: 10
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
 last_physical_change: "2026-10-24"   # projector Brightness 11 -> 50 (rigs/omnifin0/events.yml)
 
@@ -30,15 +30,15 @@ projection_paths:
     projection_mode: rear
     projector_mount: unknown
     projector_mount_rotation_deg_about_optical_axis: 180
-    projector_firmware_flip: unknown
+    projector_firmware_flip: vertical   # rev 10: BenQ Rear Ceiling (rear + 180 deg rotation) = one reflection
     optical_mirror_count: 0
     projector_settings:          # BenQ menu state; read it on the rig or over RS-232 (README)
-      position_menu: unknown
-      position_effective: unknown
+      position_menu: rear_ceiling
+      position_effective: rear_ceiling
       aspect_ratio: unknown
       upscaling_4k: "off"
-      keystone_h: unknown
-      keystone_v: unknown
+      keystone_h: 0
+      keystone_v: 0
       digital_zoom_percent: 100
       brightness: 50             # Picture menu (rev 9); changed from 11 on 2026-10-24, see events.yml
       contrast: 30
@@ -59,13 +59,18 @@ projection_paths:
         optical_mirror_count 0 (Jeremy, 2026-10-19, relayed by photodiode-integrator). Jeremy never
         uses Digital Zoom or 4K Upscaling, so both are declared off (2026-10-18, same relay); confirm
         both once in the menu at commissioning.
-        Mount and menu flip not yet read off the rig:
-        record the BenQ "Projector Position" menu wording in projector_settings when it is (README maps
-        it to a flip). If the menu says Auto, position_effective must come from RS-232 *pp=?# or a test
-        pattern, not from the menu.
-        Citrus measured a y reflection in arena_1's active camera->canvas homography; that is a
-        measurement to check against, not a declaration. With rear projection, the GL
-        presentation flip and no mirror, it predicts the Rear menu mode.
+        Projector Position and keystone (rev 10): the 2026-10-19 OSD record
+        ~/SpecSail/runs/projector_settings_20261019/settings_as_found.json shows Installation >
+        Projector Position "Rear Ceiling" (photo 08_installation.jpg, sha256
+        9244b85a68939dcd428259c9c5d4ed5c6cb0c593fd6251231797ace5a2da2a4f) and 2D Keystone V 0, H 0
+        (10_2d_keystone.jpg). Rear Ceiling maps to a vertical firmware flip by BenQ convention (the
+        manual does not state it); either axis is one reflection, so the parity does not depend on it.
+        An RS-232 *pp=?# readback would confirm it once there is a serial adapter. Mount (table vs
+        ceiling) is still unknown and is a rotation only.
+        Check: canvas_space_parity +1 and preserved camera handedness, composed with Citrus's
+        presentation reflection (-1), predict det < 0 for camera_native_px -> final_display_canvas_px,
+        which is what Citrus measured on all four omnifin0 cameras (joint derivation with citrus-agent,
+        2026-10-27).
         Picture settings (rev 9): Brightness 50, Contrast 30, Sharpness 5. Jeremy changed Brightness
         from 11 to 50 with the remote between 2026-10-24T20:17:50Z and 22:04:44Z and kept it at 50;
         contrast and sharpness checked unchanged in the photo
@@ -74,15 +79,15 @@ projection_paths:
         12.7 + 363 + shelf base 6.35 = 672 mm lens glass to film) plus CAD for the across-row placement.
         It is the film point directly above the lens front glass, not where the optical axis lands;
         do not use it as a principal point.
-      declared_by: pancakebatter session (draft); rev 5 approved by Jeremy; rev 8 from Jeremy via photodiode-integrator; rev 9 approved by Jeremy
+      declared_by: pancakebatter session (draft); rev 5 approved by Jeremy; rev 8 from Jeremy via photodiode-integrator; revs 9-10 approved by Jeremy
       declared_at: "2026-10-27"
     derived:
-      canvas_space_parity: unknown
+      canvas_space_parity: 1
 
 cameras:
   "2010093":
-    viewing_side: unknown
-    optical_mirror_count: unknown
+    viewing_side: dorsal
+    optical_mirror_count: 0
     reverse_x: not_supported_by_firmware
     reverse_y: not_supported_by_firmware
     rotation_deg: 0
@@ -94,20 +99,22 @@ cameras:
       note: >-
         reverse_x/y not_supported_by_firmware: the camera's GenICam XML (~/orange_data/calibrations/rig_characterization/
         sensor_pipeline/genicam_<serial>_20260724_235450.xml) has no ReverseX/ReverseY node, so the
-        camera cannot flip. Viewing side and mirrors: Orange docs say "top-down camera" in prose only;
-        Citrus's camera_view_assumed "dorsal_unmirrored" is an assumption. Rotation 0: Orange's
+        camera cannot flip. Viewing side and mirrors (rev 10): each camera is above the dish looking down
+        (dorsal) with no mirror between dish and camera; Jeremy confirmed "No mirrors on any camera"
+        2026-10-27 in the pancakebatter session. Orange saves the sensor raster with no software flip
+        (Orange, 2026-10-27). Rotation 0: Orange's
         2026-10-13 answer on palette #377 says no software rotation is applied before recording, and
         Jeremy confirmed 2026-10-14 there is no rotation of the camera's view down to the fish. Camera->arena
         assignment is Citrus registered geometry and deliberately not here.
-      declared_by: pancakebatter session (draft)
-      declared_at: "2026-10-14"
+      declared_by: pancakebatter session (draft); rev 10 viewing side and mirrors from Jeremy
+      declared_at: "2026-10-27"
     derived:
-      recorded_space_parity: unknown
+      recorded_space_parity: 1
       expected_camera_to_canvas_handedness:
-        main: unknown
+        main: preserved
   "2010094":
-    viewing_side: unknown
-    optical_mirror_count: unknown
+    viewing_side: dorsal
+    optical_mirror_count: 0
     reverse_x: not_supported_by_firmware
     reverse_y: not_supported_by_firmware
     rotation_deg: 0
@@ -117,12 +124,12 @@ cameras:
       optical_axis_tilt_from_nadir_deg: unknown
     evidence: *camera_evidence
     derived:
-      recorded_space_parity: unknown
+      recorded_space_parity: 1
       expected_camera_to_canvas_handedness:
-        main: unknown
+        main: preserved
   "2010095":
-    viewing_side: unknown
-    optical_mirror_count: unknown
+    viewing_side: dorsal
+    optical_mirror_count: 0
     reverse_x: not_supported_by_firmware
     reverse_y: not_supported_by_firmware
     rotation_deg: 0
@@ -132,12 +139,12 @@ cameras:
       optical_axis_tilt_from_nadir_deg: unknown
     evidence: *camera_evidence
     derived:
-      recorded_space_parity: unknown
+      recorded_space_parity: 1
       expected_camera_to_canvas_handedness:
-        main: unknown
+        main: preserved
   "2010096":
-    viewing_side: unknown
-    optical_mirror_count: unknown
+    viewing_side: dorsal
+    optical_mirror_count: 0
     reverse_x: not_supported_by_firmware
     reverse_y: not_supported_by_firmware
     rotation_deg: 0
@@ -147,9 +154,9 @@ cameras:
       optical_axis_tilt_from_nadir_deg: unknown
     evidence: *camera_evidence
     derived:
-      recorded_space_parity: unknown
+      recorded_space_parity: 1
       expected_camera_to_canvas_handedness:
-        main: unknown
+        main: preserved
 
 # Optional (rev 9; rules in rigs/README.md "Room orientation"): canvas axes as seen by the operator
 # standing at the door, looking at the rig from above.

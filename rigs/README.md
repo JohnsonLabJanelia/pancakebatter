@@ -159,7 +159,15 @@ sign(det H) = recorded_space_parity × canvas_space_parity × (−1, GL presenta
 | `rotation_deg` | always (rotation) | — |
 
 **`cameras.<serial>.derived.expected_camera_to_canvas_handedness.<path>`** = `preserved` when
-`recorded_space_parity` × that path's `canvas_space_parity` = +1, `reflected` when −1. It is
+`recorded_space_parity` × that path's `canvas_space_parity` = +1, `reflected` when −1.
+Definition (agreed with Citrus, 2026-10-27): the sign of det of the Jacobian of camera.recorded_px →
+stimulus output raster px (the scanned-out raster of an unreflected xrandr output), at the arena
+centre; both rasters top-left origin, +x right, +y down; +1 preserved, −1 reflected. It excludes
+Citrus's presentation reflection between its composition canvas and that raster, and any xrandr
+reflection; Citrus composes both per session. Citrus's promotion check expects sign det(camera_native_px
+→ final_display_canvas_px) = this × presentation parity (from the session's /presentation_mapping) ×
+xrandr reflection parity × Orange's raster factor (+1: Orange saves the sensor raster unflipped), and
+refuses on a mismatch or an `unknown`. It is
 keyed by projection path, not arena, and assumes an unreflected xrandr output; Citrus composes
 the session's xrandr reflection before comparing with a homography's determinant sign.
 
