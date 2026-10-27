@@ -6,6 +6,8 @@ Two files use the same event list:
   equipment/shared.yml      items[].events      (equipment that moves between hosts and rigs)
   hosts/<host>/events.yml   components[].events (parts of one host: drives, cameras, lenses, ...)
 
+Rig events (setting changes, part conditions) live in rigs/<rig_id>/events.yml; see rig_events.py.
+
 An event is never edited or deleted. A mistake is fixed by appending a `correction` that names the
 event it corrects (`void: true`, or replacement fields). `at` is when the hardware changed, with
 `at_precision` exact / on_or_before / on_or_after. `recorded_at` is when someone wrote it down.
@@ -15,7 +17,7 @@ checks that the events on origin/main are still a prefix of each list (nothing e
 inserted before them). Run records (SpecSail bundles, Citrus captures) remain the ground truth
 for which serial was used in which run.
 
-    python3 equipment_events.py                    # validate shared.yml events and every hosts/*/events.yml
+    python3 equipment_events.py                    # validate shared.yml events, every hosts/*/events.yml and rigs/*/events.yml
     python3 equipment_events.py --history ID       # presence intervals of a shared item id or a host component serial
 
 See docs/equipment_events.md.
@@ -331,13 +333,15 @@ def main(argv: list[str] | None = None) -> int:
     import instruments
     errors, warnings = instruments.validate_shared(instruments.load_shared())
     host_errors, host_warnings = check_all()
-    errors, warnings = errors + host_errors, warnings + host_warnings
+    import rig_events
+    rig_errors, rig_warnings = rig_events.check_all()
+    errors, warnings = errors + host_errors + rig_errors, warnings + host_warnings + rig_warnings
     for w in warnings:
         print(f"WARN: {w}", file=sys.stderr)
     for e in errors:
         print(f"ERROR: {e}", file=sys.stderr)
     if not errors:
-        print("OK: equipment/shared.yml and hosts/*/events.yml events")
+        print("OK: equipment/shared.yml, hosts/*/events.yml and rigs/*/events.yml events")
     return 1 if errors else 0
 
 

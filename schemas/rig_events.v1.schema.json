@@ -1,0 +1,209 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "rig_events.v1.schema.json",
+ "title": "rig_events v1",
+ "description": "rigs/<rig_id>/events.yml: append-only dated rig events (setting changes, part conditions). docs/equipment_events.md \"Rig events\"; rig_events.py adds the checks a schema cannot (kind-specific keys, windows, condition open/close, arenas and layer against rig.yml, evidence file hashes).",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "schema",
+  "rig",
+  "events"
+ ],
+ "properties": {
+  "schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "name",
+    "version"
+   ],
+   "properties": {
+    "name": {
+     "const": "rig_events"
+    },
+    "version": {
+     "const": 1
+    }
+   }
+  },
+  "rig": {
+   "type": "string",
+   "pattern": "^[a-z0-9_]+$",
+   "description": "The directory name."
+  },
+  "events": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/event"
+   }
+  }
+ },
+ "$defs": {
+  "date": {
+   "type": "string",
+   "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+   "description": "ISO date, quoted in YAML."
+  },
+  "at": {
+   "type": "string",
+   "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2})?(Z|[+-]\\d{2}:\\d{2})?)?$"
+  },
+  "evidenceFile": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "path",
+    "sha256"
+   ],
+   "properties": {
+    "path": {
+     "type": "string",
+     "minLength": 1
+    },
+    "sha256": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    }
+   }
+  },
+  "event": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "event_id",
+    "kind",
+    "recorded_at"
+   ],
+   "description": "One append-only rig event. Never edited or deleted; a correction event fixes a mistake.",
+   "properties": {
+    "event_id": {
+     "type": "string",
+     "pattern": "^e[1-9][0-9]*$"
+    },
+    "kind": {
+     "enum": [
+      "setting_changed",
+      "condition_observed",
+      "condition_cleared",
+      "correction"
+     ]
+    },
+    "at": {
+     "$ref": "#/$defs/at",
+     "description": "When it happened (not when recorded). Absent with at_precision window."
+    },
+    "at_precision": {
+     "enum": [
+      "exact",
+      "on_or_before",
+      "on_or_after",
+      "window"
+     ]
+    },
+    "not_before": {
+     "$ref": "#/$defs/at",
+     "description": "window: earliest time it can have happened; the old state is valid up to here."
+    },
+    "not_after": {
+     "$ref": "#/$defs/at",
+     "description": "window: latest time it can have happened; the new state is valid from here."
+    },
+    "recorded_at": {
+     "$ref": "#/$defs/date"
+    },
+    "by": {
+     "type": "string",
+     "minLength": 1
+    },
+    "reason": {
+     "type": "string",
+     "minLength": 1
+    },
+    "evidence": {
+     "type": "string",
+     "minLength": 1
+    },
+    "evidence_files": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "$ref": "#/$defs/evidenceFile"
+     },
+     "description": "Files the event rests on, by path and sha256; checked when the file is reachable."
+    },
+    "item": {
+     "type": "string",
+     "minLength": 1,
+     "description": "setting_changed: the device (a hardware_library part id or equipment id)."
+    },
+    "setting": {
+     "type": "string",
+     "minLength": 1,
+     "description": "setting_changed: the setting's path, e.g. game_and_pic.brightness."
+    },
+    "old": {
+     "description": "setting_changed: value before."
+    },
+    "new": {
+     "description": "setting_changed: value after."
+    },
+    "method": {
+     "type": "string",
+     "minLength": 1
+    },
+    "baseline": {
+     "type": "string",
+     "minLength": 1,
+     "description": "setting_changed: record of every other setting at the time."
+    },
+    "condition_id": {
+     "type": "string",
+     "pattern": "^c[1-9][0-9]*$",
+     "description": "condition_observed opens it; condition_cleared closes it. Never reused."
+    },
+    "arenas": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+     },
+     "description": "condition_observed: arenas affected (rig.yml media_stack.arenas ids)."
+    },
+    "layer": {
+     "type": "string",
+     "pattern": "^[a-z0-9_]+$",
+     "description": "condition_observed: rig.yml media_stack layer id of the affected part."
+    },
+    "condition": {
+     "type": "string",
+     "minLength": 1
+    },
+    "extent": {
+     "type": "string",
+     "minLength": 1
+    },
+    "locations": {
+     "type": "string",
+     "minLength": 1
+    },
+    "effect": {
+     "type": "string",
+     "minLength": 1
+    },
+    "remedy": {
+     "type": "string",
+     "minLength": 1
+    },
+    "corrects": {
+     "type": "string",
+     "pattern": "^e[1-9][0-9]*$"
+    },
+    "void": {
+     "const": true
+    }
+   }
+  }
+ }
+}

@@ -62,6 +62,11 @@ def plan(host: str, host_cfg: dict[str, Any], repo: Path = REPO, allow_dirty: bo
         errors += [f"rig {rid}: {e}" for e in errs]
         docs[rid] = doc
         events = src.parent / "events.yml"
+        if events.is_file():
+            import rig_events
+            errs += [f"events.yml: {m}" for level, m in
+                     rig_events.findings(yaml.safe_load(events.read_text()), rid, doc, check_files=False)
+                     if level == "fail"]
         if not errs:
             items.append({"rig_id": rid, "source": src, "events": events if events.is_file() else None,
                           "rig_geometry_revision": doc["rig_geometry_revision"]})

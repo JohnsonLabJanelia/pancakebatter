@@ -72,3 +72,49 @@ python3 equipment_events.py                       # validate shared.yml events a
 python3 equipment_events.py --history fiber-p50-vis-nir-1
 python3 equipment_events.py --history 48804572201297
 ```
+
+## Rig events
+
+`rigs/<rig_id>/events.yml` (`schemas/rig_events.v1.schema.json`, checked by `rig_events.py`) holds
+dated changes to a rig that are not about where hardware is. rig.yml keeps current values; this file
+says when they changed, and which part conditions recordings must carry. Same rules as above: never
+edit or delete, append at the end, fix with a correction (`void: true` or replacement fields; ids such
+as `condition_id`, `item` and `setting` are not correctable, so void and re-append).
+
+```yaml
+schema: {name: rig_events, version: 1}
+rig: omnifin0
+events:
+  - event_id: e1
+    kind: setting_changed            # setting_changed | condition_observed | condition_cleared | correction
+    item: projector.benq.x3100i
+    setting: game_and_pic.brightness
+    old: 11
+    new: 50
+    at_precision: window             # exact time unknown: no `at`, two bounds instead
+    not_before: "2026-10-24T20:17:50Z"   # old value valid up to here
+    not_after: "2026-10-24T22:04:44Z"    # new value valid from here
+    recorded_at: "2026-10-27"
+    evidence_files:                  # path + sha256; the hash is checked whenever the file is reachable
+      - {path: ~/SpecSail/runs/.../settings_change.json, sha256: 6747f0b3...}
+  - event_id: e2
+    kind: condition_observed         # opens condition_id; condition_cleared closes it
+    condition_id: c1
+    layer: shelf                     # a rig.yml media_stack layer id
+    arenas: [arena_2, arena_3]       # rig.yml media_stack.arenas ids
+    condition: scratches
+    extent: "..."
+    at: "2026-10-27"
+    at_precision: on_or_before
+    recorded_at: "2026-10-27"
+```
+
+- `at_precision: window` is allowed on rig events only. A recording that starts inside a window has
+  that setting or condition unknown.
+- **Active conditions** are derived: condition_observed minus condition_cleared, in physical time.
+  `python3 rig_events.py --active omnifin0 arena_2` lists them.
+- **Recordings pin this file** (sha256, plus the commit) next to rig.yml, and copy the active
+  conditions for their arenas into the start snapshot. Appending an event does not change rig.yml,
+  so a rig.yml pin alone would miss it. `install_host_config.sh` installs it as
+  `/etc/pancakebatter/rigs/<rig_id>.events.yml`, with `events_sha256` in the rig sidecar.
+- Replacing a part is a physical change: bump rig.yml's revision and append `condition_cleared`.
