@@ -195,6 +195,25 @@ def physical_digest(doc: dict[str, Any]) -> str:
     return hashlib.sha256(canon.encode()).hexdigest()
 
 
+def orientation_fields(doc: dict[str, Any]) -> dict[str, Any]:
+    """The physical fields an orientation attestation rests on: how the projector and cameras are
+    mounted and set (not picture settings, nominal geometry or the media stack) and room_orientation."""
+    return {
+        "rig_id": doc["rig_id"],
+        "projection_paths": {pid: {**{k: p[k] for k in PROJECTION_PHYSICAL},
+                                   "projector_settings": {k: p["projector_settings"][k] for k in PROJECTOR_SETTINGS}}
+                             for pid, p in doc["projection_paths"].items()},
+        "cameras": {s: {k: c[k] for k in CAMERA_PHYSICAL} for s, c in doc["cameras"].items()},
+        "room_orientation": {k: (doc.get("room_orientation") or {}).get(k, UNKNOWN) for k in ROOM_KEYS[:3]},
+    }
+
+
+def orientation_digest(doc: dict[str, Any]) -> str:
+    """sha256 of orientation_fields; a rig event `attested` pins it, and lapses when it changes."""
+    canon = json.dumps(orientation_fields(doc), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canon.encode()).hexdigest()
+
+
 def _count_ok(v: Any) -> bool:
     return v == UNKNOWN or (isinstance(v, int) and not isinstance(v, bool) and v >= 0)
 
@@ -506,6 +525,7 @@ def main(argv: list[str]) -> int:
         try:
             print(json.dumps(derived(doc), indent=2))
             print(f"physical_sha256: {physical_digest(doc)}")
+            print(f"orientation_sha256: {orientation_digest(doc)}")
         except (KeyError, TypeError) as e:
             print(f"cannot derive: {e!r}", file=sys.stderr)
     return 1 if errs else 0
