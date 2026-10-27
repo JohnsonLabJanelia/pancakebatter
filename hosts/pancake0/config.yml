@@ -419,6 +419,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010093
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010093_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
@@ -492,6 +500,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010094
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010094_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
@@ -564,6 +580,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010095
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010095_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
@@ -636,6 +660,14 @@ cameras:
     model: HB-20000-SB-M-E2
     part_id: camera.emergent.hb_20000_sb_m_e2   # hardware_library part design
     serial_number: 2010096
+    genicam:                     # device GenICam XML as captured; Orange seals the same sha256 per recording
+      xml_sha256: "sha256:ed0e93a3c734322bad0d12a035677d56621cb20d5ec9ee25482b7fff777ffbcc"
+      byte_count: 107776
+      captured_at: "2026-07-24"
+      evidence_path: orange_data/calibrations/rig_characterization/sensor_pipeline/genicam_2010096_20260724_235450.xml
+      device_firmware: "1.0"
+      nodes_present: [Width, Height, OffsetX, OffsetY, PixelFormat, Bin]
+      nodes_absent: [ReverseX, ReverseY, BinningHorizontal, BinningVertical, DecimationHorizontal, DecimationVertical, SensorWidth, SensorHeight]
     lens:
       manufacturer: Canon
       model: Canon EF 100mm f/2.8L Macro IS USM
@@ -709,14 +741,26 @@ cameras:
 # | - | ----------------- | ------------------------- | ------------------------- | ---------- | ---------- |
 # |   | Display,Projector | 25Gbps, 4 Ports           |  25 Gbps, 4 Ports         | 4 GPUs     | 4 GPUs     |
 
-# Kernel-side tuning the Orange rig depends on (recorded by check_kernel_tuning.py --record).
-# Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
   E0-55-97-1E-B6-B8:
     model: HB-2800SC
     part_id: camera.emergent.hb_2800_s_c
     serial_number: 2012856
     ip_address: 192.168.130.2
     nic_port: mlnx1_p3_25g
+
+# Rigs this host drives (schema: rigs; layout in rigs/<rig_id>/rig.yml, rules in rigs/README.md).
+# Ids and host-side hardware only; the rig document joins to `cameras` by serial_number.
+rigs:
+  - rig_id: omnifin0
+    display_outputs:
+      - output_name: DP-3
+        projection_path: main
+        projector:
+          manufacturer: BenQ
+          model: X3100i
+          part_id: projector.benq.x3100i
+          serial_number:
+          firmware_version:
 
 # Machine-level paths other programs need (schema: paths). data_root still embeds a username until the
 # shared-machine migration (docs/shared_machine_setup_todo.md) moves data to shared storage; change it here only.
@@ -726,6 +770,8 @@ paths:
   shared_config_root: /etc/pancakebatter
   recording_transfer_root: /opt/recording-transfer   # per-version sealer installs (install_recording_transfer.sh)
 
+# Kernel-side tuning the Orange rig depends on (recorded by check_kernel_tuning.py --record).
+# Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
 kernel_tuning:
   cmdline:
     isolcpus: "1,2,6,8,10,12,33,34,38,40,42,44"

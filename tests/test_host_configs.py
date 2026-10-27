@@ -17,13 +17,19 @@ INSTRUMENT_SECTIONS = (("daqs", "daq"), ("photodetectors", "photodetector"), ("l
 
 
 def part_ids(config):
-    """(where, category, part_id, model) for every part_id on cameras, lenses, instruments and filters."""
+    """(where, category, part_id, model) for every part_id on cameras, lenses, bound projectors, instruments
+    and filters."""
     for key, cam in (config.get("cameras") or {}).items():
         if cam.get("part_id"):
             yield f"cameras.{key}", "camera", cam["part_id"], cam.get("model")
         lens = cam.get("lens") or {}
         if lens.get("part_id"):
             yield f"cameras.{key}.lens", "lens", lens["part_id"], lens.get("model")
+    for i, rig in enumerate(config.get("rigs") or []):
+        for j, out in enumerate(rig.get("display_outputs") or []):
+            proj = out.get("projector") or {}
+            if proj.get("part_id"):
+                yield f"rigs[{i}].display_outputs[{j}].projector", "projector", proj["part_id"], proj.get("model")
     for section, category in INSTRUMENT_SECTIONS:
         for entry in config.get(section) or []:
             where = f"{section}.{entry.get('name')}"

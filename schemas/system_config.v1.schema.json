@@ -321,6 +321,78 @@
         }
       }
     },
+    "rigs": {
+      "type": "array",
+      "description": "Rigs this host drives (rigs/<rig_id>/rig.yml) and which display output drives each projection path. Ids and host-side hardware only; physical layout lives in the rig document. Optional section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "rig_id",
+          "display_outputs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "rig_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "display_outputs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "output_name",
+                "projection_path"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "output_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "xrandr output name (e.g. DP-3)."
+                },
+                "projection_path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Key in the rig document's projection_paths."
+                },
+                "projector": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "manufacturer": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "serial_number": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "firmware_version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "part_id": {
+                      "type": "string",
+                      "pattern": "^projector\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+                      "description": "Optional link to the projector's part design in hardware_library (parts/projectors/<part_id>/part.yml)."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "daqs": {
       "type": "array",
       "description": "Data acquisition devices on this host and what is wired to each channel (docs/host_config_interface.md#instruments).",
@@ -513,6 +585,49 @@
               "type": "string",
               "pattern": "^lens\\.[a-z0-9_]+(\\.[a-z0-9_]+)+$",
               "description": "Optional link to the lens's part design in hardware_library (parts/lenses/<part_id>/part.yml)."
+            }
+          }
+        },
+        "genicam": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "The camera's GenICam XML as captured (optional). xml_sha256 uses Orange's 'sha256:<hex>' form so it compares directly with the sensor_pipeline.genicam_xml.sha256 Orange seals per recording. nodes_present/nodes_absent list the geometry-relevant feature nodes checked, so 'cannot flip' (ReverseX absent) is a recorded fact.",
+          "required": [
+            "xml_sha256",
+            "captured_at",
+            "nodes_present",
+            "nodes_absent"
+          ],
+          "properties": {
+            "xml_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "byte_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "captured_at": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            },
+            "evidence_path": {
+              "type": "string"
+            },
+            "device_firmware": {
+              "type": "string"
+            },
+            "nodes_present": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "nodes_absent": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         }

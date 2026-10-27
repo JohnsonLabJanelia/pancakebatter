@@ -8,7 +8,30 @@
     "cameras.*.sensor.y_resolution",
     "kernel_tuning.core_roles.*.role",
     "kernel_tuning.core_roles.*.consumer",
-    "paths.data_root"
+    "paths.data_root",
+    "rigs.*.rig_id",
+    "rigs.*.display_outputs.*.output_name",
+    "rigs.*.display_outputs.*.projection_path",
+    "rigs.*.display_outputs.*.projector"
   ],
-  "notes": "src/core/HardwareManager.cpp (cameras: serial_number, sensor.x_resolution/y_resolution for arena camera selection); src/utils/host_config.cpp CheckCoreRoles (kernel_tuning.core_roles, startup warning only); scripts/transfer_sessions_gui.py (paths.data_root/exp/unsorted default). Lookup order per docs/host_config_interface.md. Declared 2026-10-06 from citrus branch agent/citrus/host-config-cutover-20261006 @ 42f1a3d."
+  "notes": "src/core/HardwareManager.cpp (cameras: serial_number, sensor.x_resolution/y_resolution for arena camera selection); src/utils/host_config.cpp CheckCoreRoles (kernel_tuning.core_roles, startup warning only); scripts/transfer_sessions_gui.py (paths.data_root/exp/unsorted default). Lookup order per docs/host_config_interface.md. Declared 2026-10-06 from citrus branch agent/citrus/host-config-cutover-20261006 @ 42f1a3d. DRAFT (branch draft/rig-config-v1, 2026-10-12): rigs.* binding and documents.rig_config proposed for Palette PR #377 (session geometry: pin rig_id + rig_geometry_revision + installed sha256/commit; check homography handedness against derived.expected_camera_to_canvas_handedness composed with the session's xrandr reflection). Not yet implemented in Citrus.",
+  "documents": {
+    "rig_config": {
+      "schema_version": 1,
+      "keys": [
+        "rig_id",
+        "rig_geometry_revision",
+        "projection_paths.*.projection_mode",
+        "projection_paths.*.projector_mount",
+        "projection_paths.*.projector_mount_rotation_deg_about_optical_axis",
+        "projection_paths.*.projector_firmware_flip",
+        "projection_paths.*.optical_mirror_count",
+        "projection_paths.*.derived.canvas_space_parity",
+        "cameras.*.viewing_side",
+        "cameras.*.reverse_x",
+        "cameras.*.reverse_y",
+        "cameras.*.derived.expected_camera_to_canvas_handedness.*"
+      ]
+    }
+  }
 }

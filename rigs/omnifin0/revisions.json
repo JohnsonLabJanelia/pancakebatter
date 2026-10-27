@@ -1,0 +1,12 @@
+{
+  "rig_id": "omnifin0",
+  "note": "One entry per rig_geometry_revision: the sha256 of the physical fields (rigconfig.physical_digest). tests/test_rig_configs.py fails when rig.yml's physical fields no longer match the entry for its revision. Never edit an existing entry; add the next revision. Revisions 1-3 live in Citrus's untracked rig_config_v1 file and are not recorded here.",
+  "revisions": {
+    "4": {"physical_sha256": "16572d60acec6d0d12b615d71bb38902ed5e8b8ab9e2b9969acef9a382cb73e0", "declared_at": "2026-10-12", "change": "first pancakebatter declaration (draft): Citrus rev 3's projector rotation; reverse_x/y not_supported_by_firmware from the GenICam XML; rest unknown"},
+    "5": {"physical_sha256": "8be581f566c19a8e99fe0609cc7bd1efbd963af5bf6be9e1f109a1b2bb5c17c5", "declared_at": "2026-10-12", "change": "projection_mode rear (projector below the gel film, camera above; Citrus media order), approved by Jeremy"},
+    "6": {"physical_sha256": "5f7dde25bf0e03bb6c8ac96294da1e1aa8d8a46332da9738ff0e5f64658bc99d", "declared_at": "2026-10-13", "change": "projector_settings added to the digest (BenQ Projector Position, aspect, 4K upscaling, keystone, digital zoom), all unknown; no physical change"},
+    "7": {"physical_sha256": "49d18446a1c5eca501e8203af52861032bcf987720f2247b6dc9db76c4106a72", "declared_at": "2026-10-14", "change": "rotation_deg 0 on all four cameras: no software rotation before recording (Orange, palette #377), approved by Jeremy"},
+    "8": {"physical_sha256": "25e78c0691d53c7c0c0957013ab711ffe2cb696ba05bb9a5b5172a955a228653", "declared_at": "2026-10-19", "change": "optical_mirror_count 0 (no fold mirror; projector shines straight up into the film), digital_zoom_percent 100 and upscaling_4k off: Jeremy, relayed by photodiode-integrator"},
+    "9": {"physical_sha256": "90d545f49a48009a7eeb671099a40e374f6012b03653a0bc7215afa9cb1f8f1a", "declared_at": "2026-10-27", "change": "projector picture settings (Brightness 50, changed from 11 on 2026-10-24; Contrast 30; Sharpness 5), projector lens nadir and lens-glass-to-film height, room_orientation (canvas -y door side, -x operator's left, projector toward +y), and the experiment media_stack (shelf acrylic 6.35 mm CAD; other thicknesses unknown): approved by Jeremy"}
+  }
+}

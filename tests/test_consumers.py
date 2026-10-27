@@ -10,6 +10,11 @@ STABLE = json.loads((REPO / "schemas" / "system_config.v1.stable_keys.json").rea
 SCHEMA = json.loads((REPO / "schemas" / "system_config.v1.schema.json").read_text())
 CONSUMERS = sorted((REPO / "schemas" / "consumers").glob("*.json"))
 HOST_CONFIGS = {p.parent.name: yaml.safe_load(p.read_text()) for p in sorted((REPO / "hosts").glob("*/config.yml"))}
+# Other documents a consumer may declare under "documents": schema name -> (stable keys, instances).
+DOCUMENTS = {
+    "rig_config": (json.loads((REPO / "schemas" / "rig_config.v1.stable_keys.json").read_text()),
+                   {p.parent.name: yaml.safe_load(p.read_text()) for p in sorted((REPO / "rigs").glob("*/rig.yml"))}),
+}
 
 
 def resolve(doc, path):
@@ -114,6 +119,31 @@ class ConsumerTests(unittest.TestCase):
                         continue
                     with self.subTest(consumer=path.name, host=host, key=key):
                         self.assertTrue(resolve(cfg, key)[0])
+
+
+class DocumentConsumerTests(unittest.TestCase):
+    def test_document_declarations_use_stable_keys_and_resolve_in_every_instance(self):
+        for path in CONSUMERS:
+            for name, decl in json.loads(path.read_text()).get("documents", {}).items():
+                with self.subTest(consumer=path.name, document=name):
+                    self.assertIn(name, DOCUMENTS, f"{path.name} declares unknown document {name}")
+                    stable, instances = DOCUMENTS[name]
+                    self.assertEqual(decl["schema_version"], stable["schema"]["version"])
+                    self.assertTrue(decl["keys"])
+                    unstable = sorted(set(decl["keys"]) - set(stable["keys"]))
+                    self.assertEqual(unstable, [], f"{path.name} relies on {name} keys that are not promised: {unstable}")
+                    for inst, doc in instances.items():
+                        for key in decl["keys"]:
+                            if key not in stable["optional_keys"]:
+                                self.assertTrue(resolve(doc, key)[0], f"{key} missing in {name} {inst}")
+
+    def test_document_stable_keys_resolve_in_every_instance(self):
+        for name, (stable, instances) in DOCUMENTS.items():
+            self.assertTrue(instances, f"no {name} documents")
+            for inst, doc in instances.items():
+                for key in set(stable["keys"]) - set(stable["optional_keys"]):
+                    with self.subTest(document=name, instance=inst, key=key):
+                        self.assertTrue(resolve(doc, key)[0])
 
 
 class ResolveHelperTests(unittest.TestCase):

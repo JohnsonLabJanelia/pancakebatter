@@ -27,8 +27,14 @@ user). It is published from the checkout:
 
 ```bash
 sudo ./install_host_config.sh        # validates, installs /etc/pancakebatter/host.yml + host.yml.source (commit, time, sha256)
-./install_host_config.sh --check     # is the installed copy current?
+./install_host_config.sh --check     # are the installed copies current?
 ```
+
+The same run installs the rig documents the host's `rigs:` block names, as
+`/etc/pancakebatter/rigs/<rig_id>.yml` (+ `<rig_id>.events.yml` when the rig has an events ledger)
+with a `.yml.source` sidecar, and removes rig files the host no longer binds; see
+[rigs/README.md "Install"](../rigs/README.md#install). Consumers resolve
+`$PANCAKEBATTER_RIG_CONFIG` > that path.
 
 To run the installers without typing a password, `sudo ./install_admin_helper.sh` installs a
 root-owned helper and a `sudoers.d` rule for it; afterwards `./install_host_config.sh`,
@@ -130,10 +136,10 @@ don't copy it:
 
 ### Part ids
 
-`cameras.*.part_id` and `cameras.*.lens.part_id` are optional links from an instance
+`cameras.*.part_id`, `cameras.*.lens.part_id` and `rigs.*.display_outputs.*.projector.part_id` are optional links from an instance
 (this serial, on this host) to its part design in `~/hardware_library`
-(`parts/<category>/<part_id>/part.yml`: CAD, datum frame, dimensions). The camera's
-id starts `camera.`, the lens's `lens.`. `tests/test_host_configs.py` checks the
+(`parts/<category>/<part_id>/part.yml`: CAD, datum frame, dimensions). The id starts
+with its category (`camera.`, `lens.`, `projector.`). `tests/test_host_configs.py` checks the
 prefix always and, when a hardware_library checkout exists
 (`$PANCAKEBATTER_HARDWARE_LIBRARY`, default `~/hardware_library`), that the part
 exists and that the camera's `model` is one of the part's `links.pancakebatter_models`.
