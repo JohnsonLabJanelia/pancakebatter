@@ -3,7 +3,7 @@
     "name": "rig_config",
     "version": 1
   },
-  "description": "Key paths in rigs/<rig_id>/rig.yml (installed as /etc/pancakebatter/rigs/<rig_id>.yml) other programs may rely on. Same rules as system_config.v1.stable_keys.json: '*' fans out over map values; additive changes stay in version 1; renaming or removing a key, or changing a derived rule, bumps schema.version. Every key here exists in every rig document; any physical value may be the string 'unknown', which a consumer must treat as undeclared, never as a default. Free text (description, mount_notes, evidence) is for people and may change.",
+  "description": "Key paths in rigs/<rig_id>/rig.yml (installed as /etc/pancakebatter/rigs/<rig_id>.yml) other programs may rely on. Same rules as system_config.v1.stable_keys.json: '*' fans out over map values; additive changes stay in version 1; renaming or removing a key, or changing a derived rule, bumps schema.version. Every key here exists in every rig document; any physical value may be the string 'unknown', which a consumer must treat as undeclared, never as a default. Free text (description, mount_notes, evidence) is for people and may change. media_stack is optional: its keys are listed under optional_keys and exist only in rigs that declare a stack.",
   "keys": [
     "schema.name",
     "schema.version",
@@ -31,8 +31,31 @@
     "cameras.*.reverse_y",
     "cameras.*.rotation_deg",
     "cameras.*.derived.recorded_space_parity",
-    "cameras.*.derived.expected_camera_to_canvas_handedness.*"
+    "cameras.*.derived.expected_camera_to_canvas_handedness.*",
+    "media_stack.air_between_film_and_fish",
+    "media_stack.layers.*.id",
+    "media_stack.layers.*.medium",
+    "media_stack.layers.*.part_id",
+    "media_stack.layers.*.thickness_mm",
+    "media_stack.layers.*.refractive_index",
+    "media_stack.arenas.*",
+    "media_stack.assumptions.fish_eye_height_above_dish_floor_mm",
+    "media_stack.derived.*.eye_to_film_mm",
+    "media_stack.derived.*.eye_to_film_paraxial_mm"
   ],
-  "optional_sections": [],
-  "optional_keys": []
+  "optional_sections": [
+    "media_stack"
+  ],
+  "optional_keys": [
+    "media_stack.air_between_film_and_fish",
+    "media_stack.layers.*.id",
+    "media_stack.layers.*.medium",
+    "media_stack.layers.*.part_id",
+    "media_stack.layers.*.thickness_mm",
+    "media_stack.layers.*.refractive_index",
+    "media_stack.arenas.*",
+    "media_stack.assumptions.fish_eye_height_above_dish_floor_mm",
+    "media_stack.derived.*.eye_to_film_mm",
+    "media_stack.derived.*.eye_to_film_paraxial_mm"
+  ]
 }

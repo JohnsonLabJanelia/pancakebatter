@@ -180,3 +180,99 @@ class HostBindingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def media_stack(**kw):
+    """A small production-like stack: shelf, water, film, water gap, dish base, the fish's water."""
+    water = {"medium": "water", "refractive_index": 1.333}
+    s = {"air_between_film_and_fish": False,
+         "layers": [{"id": "shelf", "medium": "acrylic", "thickness_mm": 6.0, "refractive_index": 1.49},
+                    {"id": "water_under_film", **water, "thickness_mm": 0.5},
+                    {"id": "film", "medium": "film", "part_id": "optic.fish_imaging.arena_diffuser_disc",
+                     "thickness_mm": 0.1, "refractive_index": "unknown"},
+                    {"id": "water_film_to_dish", **water, "thickness_mm": 1.0},
+                    {"id": "dish_base", "medium": "acrylic", "thickness_mm": 3.0, "refractive_index": 1.49},
+                    {"id": "dish_water", **water, "thickness_mm": 5.0}],
+         "arenas": {"arena_1": {}, "arena_3": {"dish_base": {"thickness_mm": 5.0}}},
+         "assumptions": {"fish_eye_height_above_dish_floor_mm": 2.0},
+         "evidence": {"note": "test", "declared_by": "test", "declared_at": "2026-10-20"}}
+    s.update(kw)
+    s["derived"] = rc.derived_media_stack(s)
+    return s
+
+
+def with_stack(stack):
+    doc = copy.deepcopy(next(iter(RIGS.values())))
+    doc["media_stack"] = stack
+    return doc
+
+
+class MediaStackTests(unittest.TestCase):
+    def test_valid_stack_and_per_arena_eye_to_film(self):
+        s = media_stack()
+        self.assertEqual(rc.validate(with_stack(s)), [])
+        # arena_1: 1.0 water gap + 3.0 dish base + 2.0 eye height; film and the layers below it do not count.
+        self.assertEqual(s["derived"]["arena_1"]["eye_to_film_mm"], 6.0)
+        self.assertEqual(s["derived"]["arena_3"]["eye_to_film_mm"], 8.0)
+        # paraxial: n_eye * sum(t/n) over the gap and the dish base, plus the eye height already in water.
+        want = round(1.333 * (1.0 / 1.333 + 3.0 / 1.49) + 2.0, 3)
+        self.assertEqual(s["derived"]["arena_1"]["eye_to_film_paraxial_mm"], want)
+        self.assertLess(want, 6.0)
+
+    def test_unknown_propagates(self):
+        s = media_stack(assumptions={"fish_eye_height_above_dish_floor_mm": "unknown"})
+        self.assertEqual(s["derived"]["arena_1"], {"eye_to_film_mm": "unknown", "eye_to_film_paraxial_mm": "unknown"})
+        s = media_stack()
+        s["layers"][4]["refractive_index"] = "unknown"
+        d = rc.derived_media_stack(s)["arena_1"]
+        self.assertEqual((d["eye_to_film_mm"], d["eye_to_film_paraxial_mm"]), (6.0, "unknown"))
+
+    def test_stored_derived_must_match(self):
+        s = media_stack()
+        s["derived"]["arena_1"]["eye_to_film_mm"] = 7.0
+        self.assertTrue(any("media_stack.derived" in e for e in rc.validate(with_stack(s))))
+
+    def test_no_air_rule_and_structure_errors(self):
+        for mutate, needle in (
+            (lambda s: s["layers"].insert(4, {"id": "gap", "medium": "air", "thickness_mm": 1, "refractive_index": 1}),
+             "a layer after the film is air"),
+            (lambda s: s["layers"].pop(2), "exactly one film layer"),
+            (lambda s: s["arenas"]["arena_1"].update(lid_typo={"thickness_mm": 1}), "not a layer id"),
+            (lambda s: s["arenas"]["arena_1"].update(dish_base={"medium": "glass"}), "only"),
+            (lambda s: s["layers"][1].update(thickness_mm=-1), "thickness_mm"),
+            (lambda s: s["layers"][1].update(refractive_index=0.9), "refractive_index"),
+            (lambda s: s["layers"][1].pop("thickness_mm"), "required"),
+            (lambda s: s["assumptions"].update(fish_eye_height_above_dish_floor_mm=9.0), "above its water depth"),
+            (lambda s: s.pop("evidence"), "evidence"),
+        ):
+            s = media_stack()
+            mutate(s)
+            with self.subTest(needle=needle):
+                errs = rc.validate(with_stack(s))
+                self.assertTrue(any(needle in e for e in errs), errs)
+
+    def test_air_before_the_film_is_allowed(self):
+        s = media_stack()
+        s["layers"].insert(0, {"id": "projector_air", "medium": "air", "thickness_mm": "unknown", "refractive_index": 1.0})
+        s["derived"] = rc.derived_media_stack(s)
+        self.assertEqual(rc.validate(with_stack(s)), [])
+
+    def test_digest_tracks_layers_and_assumptions_not_free_text(self):
+        doc = with_stack(media_stack())
+        base = rc.physical_digest(doc)
+        self.assertNotEqual(base, rc.physical_digest(next(iter(RIGS.values()))))
+        d = copy.deepcopy(doc)
+        d["media_stack"]["evidence"]["note"] = "edited"
+        d["media_stack"]["layers"][1]["refractive_index_source"] = "edited"
+        self.assertEqual(rc.physical_digest(d), base)
+        for mutate in (lambda s: s["layers"][3].update(thickness_mm=2.0),
+                       lambda s: s["assumptions"].update(fish_eye_height_above_dish_floor_mm=1.0),
+                       lambda s: s["arenas"]["arena_1"].update(dish_base={"thickness_mm": 4.0})):
+            d = copy.deepcopy(doc)
+            mutate(d["media_stack"])
+            self.assertNotEqual(rc.physical_digest(d), base)
+
+    @unittest.skipUnless(__import__("importlib").util.find_spec("jsonschema"), "jsonschema not installed")
+    def test_json_schema_accepts_the_stack(self):
+        import jsonschema
+        jsonschema.Draft202012Validator(SCHEMA).validate(with_stack(media_stack()))

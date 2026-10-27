@@ -96,6 +96,9 @@
         "$ref": "#/$defs/camera"
       },
       "description": "Keyed by camera serial_number as a string, the only join key to host inventory."
+    },
+    "media_stack": {
+      "$ref": "#/$defs/mediaStack"
     }
   },
   "$defs": {
@@ -453,6 +456,243 @@
                 }
               ],
               "description": "Nominal angle between the optical axis and the vertical (0 = looking straight down/up)."
+            }
+          }
+        }
+      }
+    },
+    "mediaLayer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "medium",
+        "thickness_mm",
+        "refractive_index"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Stable handle; arena overrides name it."
+        },
+        "medium": {
+          "enum": [
+            "air",
+            "water",
+            "acrylic",
+            "polystyrene",
+            "glass",
+            "film",
+            "other",
+            "unknown"
+          ]
+        },
+        "part_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+          "description": "hardware_library part id; omitted while there is none."
+        },
+        "thickness_mm": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "const": "unknown"
+            }
+          ],
+          "description": "Along the vertical. For the last layer (the water the fish swims in) this is the nominal water depth; the per-recording fill goes in session metadata."
+        },
+        "refractive_index": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 1
+            },
+            {
+              "const": "unknown"
+            }
+          ]
+        },
+        "refractive_index_source": {
+          "type": "string",
+          "description": "Where a declared index comes from (free text, not in the digest)."
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "note",
+            "declared_by",
+            "declared_at"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "note": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_at": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          "description": "Who declared this field group, when, and on what evidence (menu wording, photo, measurement, document)."
+        }
+      }
+    },
+    "mediaStack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "air_between_film_and_fish",
+        "layers",
+        "arenas",
+        "evidence",
+        "derived"
+      ],
+      "description": "Optional. Layers light crosses from the projector to the fish, in order; exactly one film layer (the projected surface); the last layer is the water the fish swims in. Physical: a change bumps rig_geometry_revision (evidence, refractive_index_source and derived do not). rigs/README.md#media-stack.",
+      "properties": {
+        "air_between_film_and_fish": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "unknown"
+            }
+          ],
+          "description": "false: no layer after the film may be air (checked)."
+        },
+        "layers": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/mediaLayer"
+          }
+        },
+        "arenas": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Arena id -> {layer id -> overrides}; {} when the arena uses the shared stack.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "part_id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+                  "description": "hardware_library part id; omitted while there is none."
+                },
+                "thickness_mm": {
+                  "oneOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "const": "unknown"
+                    }
+                  ]
+                },
+                "refractive_index": {
+                  "oneOf": [
+                    {
+                      "type": "number",
+                      "minimum": 1
+                    },
+                    {
+                      "const": "unknown"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "assumptions": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Not built facts, but they feed derived, so they are in the digest.",
+          "properties": {
+            "fish_eye_height_above_dish_floor_mm": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "ASSUMED height of the fish eye above the floor of the last layer."
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "note",
+            "declared_by",
+            "declared_at"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "note": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declared_at": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          "description": "Who declared this field group, when, and on what evidence (menu wording, photo, measurement, document)."
+        },
+        "derived": {
+          "type": "object",
+          "description": "Per arena, computed by rigconfig.py: eye_to_film_mm (geometric) and eye_to_film_paraxial_mm (n_eye * sum(t_i/n_i)).",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "eye_to_film_mm",
+              "eye_to_film_paraxial_mm"
+            ],
+            "properties": {
+              "eye_to_film_mm": {
+                "oneOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "const": "unknown"
+                  }
+                ]
+              },
+              "eye_to_film_paraxial_mm": {
+                "oneOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "const": "unknown"
+                  }
+                ]
+              }
             }
           }
         }

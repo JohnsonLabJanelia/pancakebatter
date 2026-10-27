@@ -54,6 +54,14 @@ PROJECTOR_SETTINGS = tuple(PROJECTOR_SETTINGS_ENUMS) + tuple(PROJECTOR_SETTINGS_
 POSITION_FLIP = {"front": "none", "rear": "horizontal", "front_ceiling": "both", "rear_ceiling": "vertical"}
 # Optional; recorded for the deferred parallax model, consumed by no runtime today.
 CAMERA_NOMINAL = ("height_above_gel_mm", "optical_axis_tilt_from_nadir_deg")
+# Optional media_stack (README "Media stack"): the layers light crosses from the projector to the fish.
+MEDIA = ("air", "water", "acrylic", "polystyrene", "glass", "film", "other")
+LAYER_PHYSICAL = ("medium", "part_id", "thickness_mm", "refractive_index")
+LAYER_KEYS = ("id",) + LAYER_PHYSICAL + ("refractive_index_source", "evidence")
+ARENA_OVERRIDES = ("part_id", "thickness_mm", "refractive_index")
+STACK_ASSUMPTIONS = ("fish_eye_height_above_dish_floor_mm",)
+STACK_KEYS = ("air_between_film_and_fish", "layers", "arenas", "assumptions", "evidence", "derived")
+LAYER_ID = re.compile(r"^[a-z0-9_]+$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -97,6 +105,38 @@ def handedness(recorded: int | str, canvas: int | str) -> str:
     return p if p == UNKNOWN else ("preserved" if p == 1 else "reflected")
 
 
+def arena_layers(stack: dict[str, Any], arena: str) -> list[dict[str, Any]]:
+    """The stack's layers with one arena's overrides applied."""
+    overrides = (stack.get("arenas") or {}).get(arena) or {}
+    return [{**layer, **(overrides.get(layer["id"]) or {})} for layer in stack["layers"]]
+
+
+def eye_to_film(layers: list[dict[str, Any]], eye_height: Any) -> dict[str, Any]:
+    """Distance from the film's fish-side face to the fish eye, which sits eye_height above the floor of
+    the last layer (the water it swims in). Layers between film and that water count whole.
+
+    eye_to_film_mm is the geometric sum. eye_to_film_paraxial_mm is the distance a film feature would
+    have if every layer were the eye's medium, n_eye * sum(t_i / n_i): with flat parallel layers and
+    small angles, the visual angle at the eye of a feature at lateral offset x is x / that distance."""
+    film = next(i for i, layer in enumerate(layers) if layer["medium"] == "film")
+    between, eye_medium = layers[film + 1:-1], layers[-1]
+    thicknesses = [layer["thickness_mm"] for layer in between] + [eye_height]
+    if UNKNOWN in thicknesses:
+        return {"eye_to_film_mm": UNKNOWN, "eye_to_film_paraxial_mm": UNKNOWN}
+    geometric = round(sum(thicknesses), 3)
+    indices = [layer["refractive_index"] for layer in between] + [eye_medium["refractive_index"]]
+    if UNKNOWN in indices:
+        return {"eye_to_film_mm": geometric, "eye_to_film_paraxial_mm": UNKNOWN}
+    n_eye = eye_medium["refractive_index"]
+    paraxial = n_eye * sum(layer["thickness_mm"] / layer["refractive_index"] for layer in between) + eye_height
+    return {"eye_to_film_mm": geometric, "eye_to_film_paraxial_mm": round(paraxial, 3)}
+
+
+def derived_media_stack(stack: dict[str, Any]) -> dict[str, Any]:
+    eye = (stack.get("assumptions") or {}).get("fish_eye_height_above_dish_floor_mm", UNKNOWN)
+    return {arena: eye_to_film(arena_layers(stack, arena), eye) for arena in stack["arenas"]}
+
+
 def derived(doc: dict[str, Any]) -> dict[str, Any]:
     paths = {pid: canvas_space_parity(p) for pid, p in doc["projection_paths"].items()}
     cams = {}
@@ -106,7 +146,10 @@ def derived(doc: dict[str, Any]) -> dict[str, Any]:
         # registered geometry, not a rig fact.
         cams[serial] = {"recorded_space_parity": rec,
                         "expected_camera_to_canvas_handedness": {pid: handedness(rec, v) for pid, v in paths.items()}}
-    return {"projection_paths": {pid: {"canvas_space_parity": v} for pid, v in paths.items()}, "cameras": cams}
+    out = {"projection_paths": {pid: {"canvas_space_parity": v} for pid, v in paths.items()}, "cameras": cams}
+    if "media_stack" in doc:
+        out["media_stack"] = derived_media_stack(doc["media_stack"])
+    return out
 
 
 def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
@@ -118,6 +161,14 @@ def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
         "cameras": {s: {**{k: c[k] for k in CAMERA_PHYSICAL},
                         **({"nominal_geometry": c["nominal_geometry"]} if "nominal_geometry" in c else {})}
                     for s, c in doc["cameras"].items()},
+        # Optional, so a rig without one keeps its digest. Evidence, sources and derived do not bump.
+        **({"media_stack": {
+            "air_between_film_and_fish": doc["media_stack"]["air_between_film_and_fish"],
+            "layers": [{k: layer[k] for k in ("id",) + LAYER_PHYSICAL if k in layer}
+                       for layer in doc["media_stack"]["layers"]],
+            "arenas": doc["media_stack"]["arenas"],
+            "assumptions": doc["media_stack"].get("assumptions", {}),
+        }} if "media_stack" in doc else {}),
     }
 
 
@@ -159,6 +210,88 @@ def _projector_settings_errors(where: str, p: dict[str, Any]) -> list[str]:
     if eff in POSITION_FLIP and p.get("projector_firmware_flip") != POSITION_FLIP[eff]:
         errs.append(f"{where}: position_effective {eff!r} means projector_firmware_flip {POSITION_FLIP[eff]!r}, "
                     f"not {p.get('projector_firmware_flip')!r}")
+    return errs
+
+
+def _number_or_unknown(v: Any, minimum: float) -> bool:
+    return v == UNKNOWN or (isinstance(v, (int, float)) and not isinstance(v, bool) and v >= minimum)
+
+
+def _layer_value_errors(where: str, values: dict[str, Any]) -> list[str]:
+    errs = []
+    if "part_id" in values and not (isinstance(values["part_id"], str) and
+                                    re.match(r"^[a-z0-9_]+(\.[a-z0-9_]+)+$", values["part_id"])):
+        errs.append(f"{where}.part_id: a hardware_library part id (omit while there is none)")
+    if "thickness_mm" in values and not _number_or_unknown(values["thickness_mm"], 0):
+        errs.append(f"{where}.thickness_mm: number >= 0 or unknown")
+    if "refractive_index" in values and not _number_or_unknown(values["refractive_index"], 1):
+        errs.append(f"{where}.refractive_index: number >= 1 or unknown")
+    return errs
+
+
+def _media_stack_errors(stack: Any) -> list[str]:
+    where = "media_stack"
+    if not isinstance(stack, dict):
+        return [f"{where}: not a mapping"]
+    errs = [f"{where}: unexpected keys {sorted(set(stack) - set(STACK_KEYS))}"] if set(stack) - set(STACK_KEYS) else []
+    air = stack.get("air_between_film_and_fish")
+    if not (isinstance(air, bool) or air == UNKNOWN):
+        errs.append(f"{where}.air_between_film_and_fish: true, false or unknown")
+    layers = stack.get("layers")
+    if not isinstance(layers, list) or len(layers) < 2 or not all(isinstance(x, dict) for x in layers):
+        return errs + [f"{where}.layers: a list of at least two layers, projector side first, the fish's water last"]
+    ids = [layer.get("id") for layer in layers]
+    for i, layer in enumerate(layers):
+        lw = f"{where}.layers[{i}]"
+        if not (isinstance(layer.get("id"), str) and LAYER_ID.match(layer["id"])):
+            errs.append(f"{lw}.id: lowercase [a-z0-9_]+ required")
+        extra = sorted(set(layer) - set(LAYER_KEYS))
+        if extra:
+            errs.append(f"{lw}: unexpected keys {extra}")
+        if layer.get("medium") not in MEDIA + (UNKNOWN,):
+            errs.append(f"{lw}.medium: one of {MEDIA + (UNKNOWN,)}")
+        for k in ("thickness_mm", "refractive_index"):
+            if k not in layer:
+                errs.append(f"{lw}.{k}: required (unknown allowed)")
+        errs += _layer_value_errors(lw, layer)
+        if "evidence" in layer:
+            errs += _evidence_errors(lw, layer["evidence"])
+    if len(set(ids)) != len(ids):
+        errs.append(f"{where}.layers: ids must be unique")
+    films = [i for i, layer in enumerate(layers) if layer.get("medium") == "film"]
+    if len(films) != 1 or films[0] == len(layers) - 1:
+        errs.append(f"{where}.layers: exactly one film layer (the projected surface), not the last")
+    elif air is False and any(layer.get("medium") == "air" for layer in layers[films[0] + 1:]):
+        errs.append(f"{where}: air_between_film_and_fish is false but a layer after the film is air")
+    arenas = stack.get("arenas")
+    if not isinstance(arenas, dict) or not arenas:
+        errs.append(f"{where}.arenas: at least one arena id (overrides may be empty)")
+    else:
+        for arena, overrides in arenas.items():
+            aw = f"{where}.arenas.{arena}"
+            if not isinstance(overrides, dict):
+                errs.append(f"{aw}: a mapping of layer id -> overrides ({{}} for none)")
+                continue
+            for lid, values in overrides.items():
+                if lid not in ids:
+                    errs.append(f"{aw}.{lid}: not a layer id")
+                elif not isinstance(values, dict) or set(values) - set(ARENA_OVERRIDES):
+                    errs.append(f"{aw}.{lid}: only {ARENA_OVERRIDES}")
+                else:
+                    errs += _layer_value_errors(f"{aw}.{lid}", values)
+    assumptions = stack.get("assumptions", {})
+    if not isinstance(assumptions, dict) or set(assumptions) - set(STACK_ASSUMPTIONS):
+        errs.append(f"{where}.assumptions: only {STACK_ASSUMPTIONS}")
+    else:
+        eye = assumptions.get("fish_eye_height_above_dish_floor_mm", UNKNOWN)
+        if not _number_or_unknown(eye, 0):
+            errs.append(f"{where}.assumptions.fish_eye_height_above_dish_floor_mm: number >= 0 or unknown")
+        elif eye != UNKNOWN and not errs:
+            for arena in arenas:
+                depth = arena_layers(stack, arena)[-1].get("thickness_mm")
+                if depth != UNKNOWN and eye > depth:
+                    errs.append(f"{where}: {arena} eye height {eye} mm is above its water depth {depth} mm")
+    errs += _evidence_errors(where, stack.get("evidence"))
     return errs
 
 
@@ -229,6 +362,8 @@ def validate(doc: Any) -> list[str]:
                 if not (v == UNKNOWN or (isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0)):
                     errs.append(f"{where}.nominal_geometry.{k}: number >= 0 or unknown")
         errs += _evidence_errors(where, c.get("evidence"))
+    if "media_stack" in doc:
+        errs += _media_stack_errors(doc["media_stack"])
     if errs:
         return errs
 
@@ -243,6 +378,10 @@ def validate(doc: Any) -> list[str]:
             got = (c.get("derived") or {}).get(k)
             if got != v:
                 errs.append(f"cameras.{serial}.derived.{k}: {got!r}, computed {v!r}")
+    if "media_stack" in doc:
+        got = doc["media_stack"].get("derived")
+        if got != want["media_stack"]:
+            errs.append(f"media_stack.derived: {got!r}, computed {want['media_stack']!r}")
     return errs
 
 

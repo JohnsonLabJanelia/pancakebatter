@@ -151,12 +151,59 @@ sign(det H) = recorded_space_parity × canvas_space_parity × (−1, GL presenta
 keyed by projection path, not arena, and assumes an unreflected xrandr output; Citrus composes
 the session's xrandr reflection before comparing with a homography's determinant sign.
 
+## Media stack
+
+`media_stack` (optional) lists the layers light crosses on its way from the projector to the fish.
+The eye-to-film distance comes from it, and that distance sets stimulus visual angles. Stack facts
+describe the assembled rig, so they live here, not in a hardware_library part record.
+
+```yaml
+media_stack:
+  air_between_film_and_fish: false      # true / false / unknown; false is checked against the layers
+  layers:                               # projector side first; the last layer is the fish's water
+    - {id: shelf, medium: acrylic, thickness_mm: unknown, refractive_index: unknown}
+    - {id: water_under_film, medium: water, thickness_mm: unknown, refractive_index: 1.333,
+       refractive_index_source: "..."}  # free text, not in the digest
+    - {id: film, medium: film, part_id: optic.fish_imaging.arena_diffuser_disc, thickness_mm: unknown,
+       refractive_index: unknown}
+    - ...
+    - {id: dish_water, medium: water, thickness_mm: unknown, refractive_index: 1.333}   # nominal depth
+  arenas:                               # arena id -> {layer id -> overrides}; {} uses the shared stack
+    arena_3: {dish_base: {thickness_mm: unknown}}
+  assumptions:
+    fish_eye_height_above_dish_floor_mm: unknown   # assumed, not built
+  evidence: {note, declared_by, declared_at}       # layers may carry their own evidence too
+  derived:                              # per arena, computed by rigconfig.py
+    arena_3: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+```
+
+- `medium` is one of `air`, `water`, `acrylic`, `polystyrene`, `glass`, `film`, `other`, `unknown`.
+  The stack has exactly one `film` layer (the projected surface), and it is not the last layer.
+- `air_between_film_and_fish: false` means no layer after the film is `air`. Air before the film
+  (projector side) is allowed; it can be omitted, since it changes neither where the image forms
+  nor the eye-to-film distance.
+- Arena overrides take `part_id`, `thickness_mm` and `refractive_index`, for things that differ
+  per arena, such as the dish base.
+- The last layer's `thickness_mm` is the nominal water depth. The per-recording fill volume goes
+  in session metadata. An assumed eye height above that water's floor must not exceed the depth.
+- `eye_to_film_mm` = the thicknesses of the layers strictly between the film and the fish's water,
+  plus the assumed eye height. It is measured from the film's fish-side face, so the film's own
+  thickness is not counted.
+- `eye_to_film_paraxial_mm` = n_eye × Σ tᵢ/nᵢ over the same layers, with the eye height counted
+  in the eye's own medium. For flat parallel layers and small angles, a film feature at lateral
+  offset x subtends x / that distance at the eye. A product with any `unknown` is `unknown`, as
+  with parities. The values are stored, and tests check them against `rigconfig.py`.
+
+Layers, arena overrides, assumptions and the no-air flag are physical, so changing them needs a
+revision bump. The assumed eye height counts too, because it feeds a derived value.
+`evidence`, `refractive_index_source` and `derived` do not.
+
 ## Revisions
 
 `rig_geometry_revision` is bumped whenever a physical field changes, including
 `unknown` → declared, since a recording pins what was declared. The physical fields are
 everything in `projection_paths.*` and `cameras.*` except `evidence`, `mount_notes` and
-`derived`, plus `rig_id`. That includes the optional `nominal_geometry`, so editing a
+`derived`, plus `rig_id` and, when present, `media_stack` (see Media stack). That includes the optional `nominal_geometry`, so editing a
 nominal height bumps the revision even though nothing consumes it yet. Free text
 (description, provenance, evidence, notes) does not bump.
 
