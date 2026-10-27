@@ -6,6 +6,10 @@
   ./rig_health_check.py --color always   force colour (default: only on a terminal; rich if installed, else ANSI)
   ./rig_health_check.py --state-dir DIR  remember the last result there; level changes are what get mailed
   ./rig_health_check.py --print-affinity the non-isolated CPU list (install_rig_health_timer.sh uses it)
+  ./rig_health_check.py --preflight --recording-root DIR [--expected-gb N] [--state-dir /var/lib/rig-health]
+                                         pre-recording gate for the drive under DIR; exit 2 = do not record
+  ./rig_health_check.py --state-dir /var/lib/rig-health --acknowledge-drive SERIAL [--note TEXT]
+                                         mark a drive's current media/kernel errors as known
 
 Checks (reads of sysfs, /proc and the journal, plus one nvidia-smi query):
   camera_nics   every mlnx netdev in hosts/<host>/config.yml exists (crit); expected_link ports have carrier (warn)
@@ -20,6 +24,12 @@ Checks (reads of sysfs, /proc and the journal, plus one nvidia-smi query):
   time_sync     an NTP service is enabled and synchronized (timedatectl); system clock offset from one SNTP
                 query (warn 1 s, crit 300 s; --no-ntp-query skips the packet)
   pcie_aer      new PCIe AER messages since the last run (warn)
+  storage_errors  kernel "critical medium error", I/O errors, nvme timeouts/resets per drive since the last run;
+                crit, and stays crit until the drive is acknowledged
+  nvme_smart    SMART from the root snapshot (install_nvme_smart_snapshot.sh): critical_warning, media errors above
+                the acknowledged baseline, spare at threshold (crit); new error-log entries, unsafe shutdowns,
+                over-temperature minutes, endurance used (warn); a stale snapshot warns
+  nvme_firmware same-model drives on different firmware, or firmware that differs from the host config (warn)
   acquisition   whether Orange is recording (info only)
   host_config   the installed copy other programs read (/etc/pancakebatter/host.yml) matches the checkout (warn if stale)
   recording_transfer  every sealer version under paths.recording_transfer_root matches releases.json, file by file
@@ -64,6 +74,9 @@ THRESHOLDS = {  # degrees C unless noted; override with --threshold name=value
     "disk_warn_pct": 10, "disk_crit_pct": 3, # free space
     "ptp_warn_ns": 100_000, "ptp_crit_ns": 10_000_000,
     "time_warn_s": 1, "time_crit_s": 300,     # system clock vs NTP
+    "nvme_used_warn_pct": 80,                 # SMART percent_used (rated endurance)
+    "smart_stale_s": 900,                     # SMART snapshot older than this: warn
+    "preflight_margin_pct": 10,               # --preflight: free space must exceed --expected-gb by this much
 }
 NTP_SERVER = "pool.ntp.org"
 HWMON = Path("/sys/class/hwmon")
@@ -104,6 +117,10 @@ class Host(rcn.System):
 
     def cpu_count(self) -> int:
         return os.cpu_count() or 1
+
+    def stat_dev(self, path) -> tuple[int, int]:
+        st = os.stat(path)
+        return os.major(st.st_dev), os.minor(st.st_dev)
 
 
 # --- cpu lists ----------------------------------------------------------------------------------
@@ -358,6 +375,293 @@ def check_pcie_aer(host: Host, since: str) -> list[Finding]:
     return [Finding("pcie_aer", "warn", f"{len(hits)} PCIe AER messages since {since} on {', '.join(devices) or 'unknown'}", len(hits))]
 
 
+# --- storage health ------------------------------------------------------------------------------
+#
+# Why (2026-10-16): /mnt/Data1 (nvme1n1) threw 217 "critical medium error" reads during Orange's
+# finalize of a 95-minute run, after SMART had already counted 1,495 media errors. The 00:00 and 00:05
+# runs said ok: nothing here read SMART or looked for storage errors in the kernel log.
+
+SYS_NVME = Path("/sys/class/nvme")
+SMART_SNAPSHOT = Path("/var/lib/pancakebatter-nvme/smart.json")   # written as root by install_nvme_smart_snapshot.sh
+DRIVE_ACKS = "drive_acks.json"                                      # in --state-dir, written by --acknowledge-drive
+CTRL_RE = re.compile(r"^nvme\d+$")
+NS_RE = re.compile(r"^nvme\d+n\d+$")
+STORAGE_PATTERNS = [   # (kind, regex with the block device or controller as group 1)
+    ("critical medium error", re.compile(r"critical medium error, dev (\w+)")),
+    ("nvme I/O error", re.compile(r"\b(nvme\d+n\d+): I/O Cmd\(.*I/O Error")),
+    ("I/O error", re.compile(r"\bI/O error, dev (\w+)")),
+    ("buffer I/O error", re.compile(r"Buffer I/O error on dev (\w+)")),
+    ("nvme timeout", re.compile(r"\bnvme (nvme\d+): I/O \d+ QID \d+ timeout")),
+    ("nvme reset", re.compile(r"\bnvme (nvme\d+): (?:resetting controller|controller is down|Removing after probe failure)")),
+]
+# SMART field names differ between nvme-cli 1.x (Ubuntu 22.04) and 2.x; first match wins.
+SMART_FIELDS = {
+    "critical_warning": ("critical_warning",),
+    "media_errors": ("media_errors",),
+    "num_err_log_entries": ("num_err_log_entries",),
+    "percent_used": ("percent_used", "percentage_used"),
+    "avail_spare": ("avail_spare", "available_spare"),
+    "spare_thresh": ("spare_thresh", "available_spare_threshold"),
+    "unsafe_shutdowns": ("unsafe_shutdowns",),
+    "warning_temp_time": ("warning_temp_time",),
+    "critical_comp_time": ("critical_comp_time",),
+    "temperature": ("temperature",),
+}
+CRITICAL_WARNING_BITS = {0: "spare below threshold", 1: "temperature", 2: "reliability degraded",
+                         3: "read-only", 4: "volatile backup failed", 5: "persistent memory read-only"}
+
+
+def controller_of(device: str) -> str:
+    """nvme1n1p1 / nvme1n1 / nvme1 -> nvme1; anything else (sda1) is returned unchanged."""
+    m = re.match(r"^(nvme\d+)(?:n\d+(?:p\d+)?)?$", device)
+    return m.group(1) if m else device
+
+
+def nvme_controllers(host: Host) -> dict[str, dict]:
+    """{nvme1: {model, serial, firmware_rev, namespaces}} from sysfs (readable without root)."""
+    out = {}
+    for name in host.listdir(SYS_NVME):
+        if not CTRL_RE.match(name):
+            continue
+        base = SYS_NVME / name
+        out[name] = {"model": host.read(base / "model") or "", "serial": host.read(base / "serial") or "",
+                     "firmware_rev": host.read(base / "firmware_rev") or "",
+                     "namespaces": [n for n in host.listdir(base) if NS_RE.match(n)]}
+    return out
+
+
+def drive_key(ctrl: str, controllers: dict) -> str:
+    """Serial when known (stable across renumbering), else the controller name."""
+    return (controllers.get(ctrl) or {}).get("serial") or ctrl
+
+
+def drive_label(ctrl: str, controllers: dict) -> str:
+    c = controllers.get(ctrl) or {}
+    return f"{ctrl} ({c['model']} SN {c['serial']})" if c.get("serial") else ctrl
+
+
+def load_drive_acks(state_dir: Path | None) -> dict:
+    if not state_dir:
+        return {}
+    try:
+        data = json.loads((state_dir / DRIVE_ACKS).read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def load_smart_snapshot(host: Host) -> tuple[dict | None, str | None]:
+    raw = host.read(SMART_SNAPSHOT)
+    if raw is None:
+        return None, None
+    try:
+        doc = json.loads(raw)
+    except ValueError as exc:
+        return None, f"{SMART_SNAPSHOT} unparseable: {exc}"
+    return (doc, None) if isinstance(doc, dict) and isinstance(doc.get("controllers"), dict) else (None, f"{SMART_SNAPSHOT} has no controllers")
+
+
+def smart_value(smart: dict, field: str):
+    for name in SMART_FIELDS[field]:
+        v = smart.get(name)
+        if isinstance(v, (int, float)):
+            return int(v)
+        if isinstance(v, str) and v.strip().rstrip("%").isdigit():   # some builds print "3%"
+            return int(v.strip().rstrip("%"))
+    return None
+
+
+def storage_error_counts(lines: list[str]) -> dict[str, dict[str, int]]:
+    """{controller or block device: {kind: count}} from kernel log lines."""
+    out: dict[str, dict[str, int]] = {}
+    for line in lines:
+        for kind, rx in STORAGE_PATTERNS:
+            m = rx.search(line)
+            if m:
+                dev = controller_of(m.group(1))
+                out.setdefault(dev, {})
+                out[dev][kind] = out[dev].get(kind, 0) + 1
+                break
+    return out
+
+
+def check_storage_errors(host: Host, since: str, now: str, previous: dict, acks: dict, memo: dict,
+                         controllers: dict | None = None, only: set[str] | None = None) -> list[Finding]:
+    """Kernel storage errors since the last run, kept (crit) per drive until --acknowledge-drive.
+
+    memo["storage_errors"] carries {drive key: {"kinds": {...}, "first": t, "last": t}} into the next run's state."""
+    controllers = nvme_controllers(host) if controllers is None else controllers
+    ok, lines = rcn.kernel_journal(host, since)
+    carried = {k: dict(v, kinds=dict(v.get("kinds") or {}))
+               for k, v in ((previous.get("storage") or {}).get("storage_errors") or {}).items()}
+    if ok:
+        for dev, kinds in storage_error_counts(lines).items():
+            entry = carried.setdefault(drive_key(dev, controllers), {"device": dev, "kinds": {}, "first": now})
+            entry["device"], entry["last"] = dev, now
+            for kind, n in kinds.items():
+                entry["kinds"][kind] = entry["kinds"].get(kind, 0) + n
+    for key in list(carried):   # an acknowledgement after the last error clears the drive
+        acked_at = (acks.get(key) or {}).get("acknowledged_at")
+        if acked_at and acked_at >= carried[key].get("last", carried[key].get("first", "")):
+            del carried[key]
+    memo["storage_errors"] = carried
+    findings = []
+    if not ok:
+        findings.append(Finding("storage_errors", "warn", f"could not read the kernel log: {' '.join(lines)[:120]}"))
+    for key, entry in sorted(carried.items()):
+        ctrl = controller_of(entry.get("device", key))
+        if only is not None and ctrl not in only:
+            continue
+        kinds = ", ".join(f"{n} {k}" for k, n in sorted(entry["kinds"].items()))
+        findings.append(Finding("storage_errors", "crit",
+                                f"{drive_label(ctrl, controllers)}: {kinds} since {entry.get('first')} "
+                                f"(stays crit until ./rig_health_check.py --state-dir DIR --acknowledge-drive {key})",
+                                sum(entry["kinds"].values())))
+    return findings or [Finding("storage_errors", "ok", f"no kernel storage errors since {since}")]
+
+
+def check_nvme_firmware(host: Host, config: dict, controllers: dict | None = None) -> list[Finding]:
+    """Same-model drives on different firmware, and drives whose firmware differs from the host config."""
+    controllers = nvme_controllers(host) if controllers is None else controllers
+    findings = []
+    by_model: dict[str, dict[str, list[str]]] = {}
+    for ctrl, c in sorted(controllers.items()):
+        by_model.setdefault(c["model"], {}).setdefault(c["firmware_rev"], []).append(ctrl)
+    for model, revs in sorted(by_model.items()):
+        if len(revs) > 1:
+            detail = "; ".join(f"{rev}: {', '.join(ctrls)}" for rev, ctrls in sorted(revs.items()))
+            findings.append(Finding("nvme_firmware", "warn", f"{model} drives on different firmware ({detail})"))
+    declared = {str(d.get("serial_number")): d for d in config.get("storage_devices") or [] if d.get("serial_number")}
+    for ctrl, c in sorted(controllers.items()):
+        d = declared.get(c["serial"])
+        if d and d.get("firmware_version") and str(d["firmware_version"]) != c["firmware_rev"]:
+            findings.append(Finding("nvme_firmware", "warn", f"{drive_label(ctrl, controllers)}: firmware {c['firmware_rev']}, "
+                                                             f"host config says {d['firmware_version']}"))
+    if findings:
+        return findings
+    return [Finding("nvme_firmware", "ok", ", ".join(f"{ctrl} {c['firmware_rev']}" for ctrl, c in sorted(controllers.items())) or "no NVMe controllers")]
+
+
+def check_nvme_smart(host: Host, th: dict, now_ts: float, previous: dict, acks: dict, memo: dict,
+                     only: set[str] | None = None) -> list[Finding]:
+    """SMART from the root snapshot: health flags, media errors against the acknowledged baseline, and
+    increases since the last run. memo["smart"] carries {drive key: counters} into the next run's state."""
+    doc, error = load_smart_snapshot(host)
+    if error:
+        return [Finding("nvme_smart", "warn", error)]
+    if doc is None:
+        return [Finding("nvme_smart", "info", f"no SMART snapshot at {SMART_SNAPSHOT} (sudo ./install_nvme_smart_snapshot.sh)")]
+    findings = []
+    try:
+        age = now_ts - datetime.fromisoformat(doc["time"]).timestamp()
+    except (KeyError, TypeError, ValueError):
+        age = None
+    if age is None or age > th["smart_stale_s"]:
+        findings.append(Finding("nvme_smart", "warn", f"SMART snapshot is stale (taken {doc.get('time')}); "
+                                                      "systemctl status nvme-smart-snapshot.timer"))
+    before = (previous.get("storage") or {}).get("smart") or {}
+    counters: dict[str, dict] = {}
+    controllers = {c: {"model": v.get("model") or "", "serial": v.get("serial") or ""} for c, v in doc["controllers"].items()}
+    for ctrl, entry in sorted(doc["controllers"].items()):
+        if only is not None and ctrl not in only:
+            continue
+        label = drive_label(ctrl, controllers)
+        if entry.get("error") or not isinstance(entry.get("smart"), dict):
+            findings.append(Finding("nvme_smart", "warn", f"{label}: smart-log failed: {entry.get('error')}"))
+            continue
+        smart = entry["smart"]
+        key = drive_key(ctrl, controllers)
+        v = {f: smart_value(smart, f) for f in SMART_FIELDS}
+        counters[key] = v
+        prev = before.get(key) or {}
+        rose = lambda f: v[f] is not None and prev.get(f) is not None and v[f] > prev[f]
+
+        cw = v["critical_warning"] or 0
+        if cw:
+            bits = [name for bit, name in CRITICAL_WARNING_BITS.items() if cw & (1 << bit)]
+            findings.append(Finding("nvme_smart", "crit", f"{label}: critical_warning 0x{cw:02x} ({', '.join(bits) or 'unknown bits'})", cw))
+        baseline = (acks.get(key) or {}).get("media_errors", 0)
+        if v["media_errors"] is not None and v["media_errors"] > baseline:
+            since_ack = f"{v['media_errors'] - baseline} new since the acknowledgement of {baseline}" if key in acks else "never acknowledged"
+            findings.append(Finding("nvme_smart", "crit",
+                                    f"{label}: {v['media_errors']} media errors ({since_ack}; "
+                                    f"./rig_health_check.py --state-dir DIR --acknowledge-drive {key} once handled)", v["media_errors"]))
+        if v["avail_spare"] is not None and v["spare_thresh"] is not None and v["avail_spare"] <= v["spare_thresh"]:
+            findings.append(Finding("nvme_smart", "crit", f"{label}: available spare {v['avail_spare']}% at or below its threshold {v['spare_thresh']}%", v["avail_spare"]))
+        if v["percent_used"] is not None and v["percent_used"] >= th["nvme_used_warn_pct"]:
+            findings.append(Finding("nvme_smart", "warn", f"{label}: {v['percent_used']}% of rated endurance used", v["percent_used"]))
+        for field, what in (("num_err_log_entries", "error-log entries"), ("unsafe_shutdowns", "unsafe shutdowns"),
+                            ("warning_temp_time", "minutes above the warning temperature"),
+                            ("critical_comp_time", "minutes above the critical temperature")):
+            if rose(field):
+                findings.append(Finding("nvme_smart", "warn", f"{label}: {what} {prev[field]} -> {v[field]}", v[field] - prev[field]))
+    memo["smart"] = {**before, **counters}
+    if any(f.level != "ok" for f in findings):
+        return findings
+    return [Finding("nvme_smart", "ok", f"{len(counters)} drives healthy (snapshot {doc.get('time')})")]
+
+
+def acknowledge_drive(host: Host, state_dir: Path, ident: str, note: str = "") -> str:
+    """Record that a drive's current media errors and kernel errors are known; only newer ones alert again."""
+    controllers = nvme_controllers(host)
+    match = [c for c, v in controllers.items() if controller_of(ident) == c or ident == v["serial"]]
+    if len(match) > 1:
+        raise ValueError(f"{ident!r} matches {', '.join(match)}")
+    ctrl = match[0] if match else ident
+    key = drive_key(ctrl, controllers)
+    doc, _ = load_smart_snapshot(host)
+    smart = ((doc or {}).get("controllers", {}).get(ctrl) or {}).get("smart") or {}
+    acks = load_drive_acks(state_dir)
+    acks[key] = {"acknowledged_at": datetime.now().isoformat(timespec="seconds"),
+                 "media_errors": smart_value(smart, "media_errors") if smart else (acks.get(key) or {}).get("media_errors", 0),
+                 "controller": ctrl, "note": note}
+    state_dir.mkdir(parents=True, exist_ok=True)
+    tmp = state_dir / (DRIVE_ACKS + ".tmp")
+    tmp.write_text(json.dumps(acks, indent=2) + "\n")
+    tmp.replace(state_dir / DRIVE_ACKS)
+    return f"acknowledged {drive_label(ctrl, controllers)}: media_errors baseline {acks[key]['media_errors']}"
+
+
+def backing_controller(host: Host, path: str) -> tuple[str | None, str]:
+    """(nvme controller, block device) that holds `path`, from st_dev -> /sys/dev/block/MAJ:MIN."""
+    major, minor = host.stat_dev(path)
+    real = host.realpath(f"/sys/dev/block/{major}:{minor}")
+    parts = Path(real).parts
+    block = parts[-1] if parts else ""
+    ctrl = next((p for p in reversed(parts) if CTRL_RE.match(p)), None)
+    return ctrl, block
+
+
+def preflight(host: Host, config: dict, th: dict, root: str, expected_gb: float | None,
+              since: str, previous: dict, acks: dict) -> list[Finding]:
+    """Is the drive under the recording root fit to record onto? Read-only: saves no state."""
+    try:
+        ctrl, block = backing_controller(host, root)
+    except OSError as exc:
+        return [Finding("preflight", "crit", f"{root}: {exc.strerror or exc}")]
+    findings = [Finding("preflight", "info", f"{root} is on {block}" + (f" (controller {ctrl})" if ctrl else " (not an NVMe drive)"))]
+    try:
+        st = host.statvfs(root)
+        free_gb = st.f_bavail * st.f_frsize / 1e9
+        free_pct = 100.0 * st.f_bavail / st.f_blocks if st.f_blocks else 0.0
+    except OSError as exc:
+        return findings + [Finding("preflight", "crit", f"{root}: {exc.strerror or exc}")]
+    if expected_gb is not None:
+        need = expected_gb * (1 + th["preflight_margin_pct"] / 100)
+        level = "crit" if free_gb < need else "ok"
+        findings.append(Finding("disk_space", level, f"{root}: {free_gb:.0f} GB free, run needs {expected_gb:.0f} GB "
+                                                     f"+ {th['preflight_margin_pct']:.0f}% = {need:.0f} GB", round(free_gb)))
+    level = "crit" if free_pct < th["disk_crit_pct"] else "warn" if free_pct < th["disk_warn_pct"] else "ok"
+    findings.append(Finding("disk_space", level, f"{root}: {free_pct:.0f}% free", round(free_pct, 1)))
+    if ctrl:
+        controllers = nvme_controllers(host)
+        memo: dict = {}
+        findings += check_storage_errors(host, since, datetime.now().isoformat(timespec="seconds"), previous, acks, memo,
+                                         controllers, only={ctrl})
+        findings += check_nvme_smart(host, th, datetime.now().timestamp(), previous, acks, memo, only={ctrl})
+    return findings
+
+
 def check_host_config(host: Host, checkout: Path) -> list[Finding]:
     """Is the installed copy other programs read (/etc/pancakebatter/host.yml) the same as the checkout file?"""
     installed = hostconfig.INSTALLED_CONFIG
@@ -492,7 +796,10 @@ def send_mail(host: Host, to: str, sender: str, subject: str, body: str) -> str:
 # --- main ------------------------------------------------------------------------------------
 
 def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, with_ptp: bool,
-               ntp_server: str | None = NTP_SERVER, config_path: Path | None = None) -> list[Finding]:
+               ntp_server: str | None = NTP_SERVER, config_path: Path | None = None,
+               previous: dict | None = None, acks: dict | None = None, memo: dict | None = None) -> list[Finding]:
+    """memo, when given, receives the storage counters to save for the next run's deltas."""
+    previous, acks, memo = previous or {}, acks or {}, memo if memo is not None else {}
     findings = []
     if config_path is not None:
         findings += check_host_config(host, config_path)
@@ -504,6 +811,10 @@ def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, w
         findings += check_ptp(host, config, th)
     findings += check_time_sync(host, th, ntp_server)
     findings += check_pcie_aer(host, since)
+    controllers = nvme_controllers(host)
+    findings += check_storage_errors(host, since, datetime.now().isoformat(timespec="seconds"), previous, acks, memo, controllers)
+    findings += check_nvme_smart(host, th, datetime.now().timestamp(), previous, acks, memo)
+    findings += check_nvme_firmware(host, config, controllers)
     findings += check_recording_transfer(config)
     findings += check_acquisition(host)
     return findings
@@ -595,7 +906,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--threshold", action="append", default=[], metavar="NAME=VALUE", help=f"override one of {', '.join(THRESHOLDS)}")
     parser.add_argument("--print-affinity", action="store_true", help="print the non-isolated CPU list for systemd CPUAffinity and exit")
     parser.add_argument("--test-mail", metavar="ADDRESS", help="send one test message to ADDRESS the way alerts are sent, and exit")
+    parser.add_argument("--preflight", action="store_true",
+                        help="pre-recording gate: check only the drive under --recording-root; saves no state; exit 2 = do not record")
+    parser.add_argument("--recording-root", help="--preflight: the directory the recording will be written to")
+    parser.add_argument("--expected-gb", type=float, help="--preflight: expected size of the run in GB (95 min is about 333)")
+    parser.add_argument("--acknowledge-drive", metavar="SERIAL|nvmeN",
+                        help="record the drive's current media errors and kernel storage errors as known (needs --state-dir), and exit")
+    parser.add_argument("--note", default="", help="--acknowledge-drive: why (kept in drive_acks.json)")
     args = parser.parse_args(argv)
+    if args.preflight and not args.recording_root:
+        parser.error("--preflight needs --recording-root")
 
     config_path = Path(args.config or hostconfig.default_config_path())
     config = yaml.safe_load(config_path.read_text()) or {}
@@ -619,10 +939,24 @@ def main(argv: list[str] | None = None) -> int:
                             f"Mail command: {' '.join(mail_command(host))}")
         print(outcome)
         return 0 if outcome.startswith("mailed") else 2
+    if args.acknowledge_drive:
+        if not args.state_dir:
+            parser.error("--acknowledge-drive needs --state-dir (the timer's is /var/lib/rig-health)")
+        try:
+            print(acknowledge_drive(host, args.state_dir, args.acknowledge_drive, args.note))
+        except ValueError as exc:
+            parser.error(str(exc))
+        return 0
     previous = load_state(args.state_dir)
+    acks = load_drive_acks(args.state_dir)
     since = args.since or previous.get("time") or "-15min"
-    findings = run_checks(host, config, th, since, with_gpu=not args.no_gpu, with_ptp=not args.no_ptp,
-                          ntp_server=None if args.no_ntp_query else args.ntp_server, config_path=config_path)
+    memo: dict = {}
+    if args.preflight:
+        findings = preflight(host, config, th, args.recording_root, args.expected_gb, since, previous, acks)
+    else:
+        findings = run_checks(host, config, th, since, with_gpu=not args.no_gpu, with_ptp=not args.no_ptp,
+                              ntp_server=None if args.no_ntp_query else args.ntp_server, config_path=config_path,
+                              previous=previous, acks=acks, memo=memo)
     levels = levels_by_check(findings)
     result = {
         "host": socket.gethostname().split(".")[0],
@@ -633,6 +967,15 @@ def main(argv: list[str] | None = None) -> int:
         "findings": [asdict(f) for f in findings],
         "transitions": {k: list(v) for k, v in transitions(previous.get("levels", {}), levels).items()},
     }
+    if args.preflight:   # a gate, not a run: no mail, no state, so the timer's deltas and journal window are untouched
+        result["preflight"] = {"recording_root": args.recording_root, "expected_gb": args.expected_gb}
+        del result["transitions"]
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            render(result, want_color(args.color, sys.stdout))
+        return LEVEL_RANK[result["worst"]]
+    result["storage"] = memo
 
     recipient = os.environ.get("RIG_HEALTH_EMAIL", "").strip()
     if recipient and args.state_dir and result["transitions"]:

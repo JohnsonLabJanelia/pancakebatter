@@ -1,0 +1,10 @@
+[Unit]
+Description=Take an NVMe SMART snapshot every @INTERVAL@
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=@INTERVAL@
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

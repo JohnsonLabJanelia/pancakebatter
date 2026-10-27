@@ -62,6 +62,28 @@
         "command": "umask 0002; SOURCE_DATE_EPOCH=1791757205 python -m pip wheel --no-deps --no-build-isolation -w dist .  (in a checkout of the tag, with setuptools==75.8.0 installed)",
         "verified": "Built by the citrus session and rebuilt byte-identically by pancakebatter on 2026-10-11 from a tarball of 00787e7 (Python 3.12.8, pip 24.3.1)."
       }
+    },
+    {
+      "version": "3.3.0",
+      "package": "citrus-recording-transfer",
+      "wheel": "citrus_recording_transfer-3.3.0-py3-none-any.whl",
+      "sha256": "608d40e2e6e9206de8333051bcb57af02c5cb8436d7beef50d2ad437e6604cac",
+      "source": {
+        "repo": "JohnsonLabJanelia/pancake-plate",
+        "tag": "recording-transfer-v3.3.0",
+        "tag_object": "adb049a6a4eae6dcd38f339890088e020b68012f",
+        "commit": "9f6816e7f5a45632cef63e7db4da461604b92cd9",
+        "release_url": "https://github.com/JohnsonLabJanelia/pancake-plate/releases/tag/recording-transfer-v3.3.0",
+        "release_assets": "wheel + SHA256SUMS, published 2026-10-15 by the citrus session on Jeremy's approval; downloaded asset verified against the sha256 above"
+      },
+      "notes": "Merge of pancake-plate PR #4 (head c0cc7d7; reviewed by the citrus-id-minting session): admits Citrus finalized receipt v4 (contract.subject_reference v2). Strict pairing receipt v3 <-> reference v1, v4 <-> v2; a chain mixing v3 and v4 is refused, and a v4 head needs v4 history. Same snapshot v3 / marker v4 / envelope 4865374c as 3.2.0; v1/v2/v3 inputs seal byte-identically to 3.2.0 (tested by the citrus session against the installed 3.2.0). 3.2.0 stays installed as the rollback.",
+      "build": {
+        "setuptools": "75.8.0",
+        "umask": "0002",
+        "source_date_epoch": 1792031027,
+        "command": "umask 0002; SOURCE_DATE_EPOCH=1792031027 python -m pip wheel --no-deps --no-build-isolation -w dist .  (in a checkout of the tag, with setuptools==75.8.0 installed)",
+        "verified": "Built by the citrus session and rebuilt byte-identically by pancakebatter on 2026-10-15 from a GitHub tarball of 9f6816e (Python 3.12.8, pip 24.3.1); tag object -> commit and PR #4 merge commit checked via the GitHub API."
+      }
     }
   ]
 }

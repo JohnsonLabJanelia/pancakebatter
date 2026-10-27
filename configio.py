@@ -36,9 +36,21 @@ def validate(config: dict[str, Any]) -> list[str]:
     return errors
 
 
+def warnings(config: dict[str, Any]) -> list[str]:
+    """Problems worth reporting that must not block a save or install (an overdue calibration, a shared
+    item recorded elsewhere). validate() returns only errors; call this to show the rest."""
+    import instruments
+    return [message for level, message in instruments.findings(config) if level == "warn"]
+
+
 def validate_with_repo_checker(config: dict[str, Any]) -> list[str]:
-    """Fallback when jsonschema is missing: reuse check_network_settings' v1 checks, quietly."""
+    """Fallback when jsonschema is missing: reuse check_network_settings' v1 checks, quietly.
+
+    Also the instrument cross-checks (instruments.findings: daq wiring, photodetector filter vs
+    calibration, light-array outlets); their warnings are dropped here and returned by warnings().
+    """
     import check_network_settings as cns
+    import instruments
 
     class QuietReporter(cns.Reporter):
         def section(self, title): pass
@@ -49,6 +61,7 @@ def validate_with_repo_checker(config: dict[str, Any]) -> list[str]:
     rep = QuietReporter()
     cns.check_schema_metadata(config, rep)
     cns.validate_system_config_v1(cns.parse_nic_configs(config), cns.parse_camera_configs(config), rep)
+    rep.errors += [message for level, message in instruments.findings(config) if level == "fail"]
     return rep.errors
 
 
