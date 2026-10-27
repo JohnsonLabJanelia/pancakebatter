@@ -242,34 +242,40 @@ $EDITOR rigs/<rig_id>/revisions.json                # add "<rev>": {physical_sha
 
 Set `last_physical_change` when the hardware itself moved, not when a declaration was added.
 
-## Install (proposed, not implemented)
+## Install
 
-`sudo ./install_host_config.sh` would, for each `rigs[].rig_id` in the host config:
+`sudo ./install_host_config.sh` (via `rig_install.py`), for each `rigs[].rig_id` in the host config:
 
-1. validate `rigs/<rig_id>/rig.yml` with `rigconfig.validate` and the binding with
-   `rigconfig.validate_binding`; refuse on any error;
-2. refuse when rig.yml has uncommitted changes (a recording must be able to pin a commit;
-   host.yml only flags this, rigs would refuse unless `--allow-dirty`);
-3. install it root-owned 0644 to `/etc/pancakebatter/rigs/<rig_id>.yml`
-   (under `paths.shared_config_root`);
-4. write `/etc/pancakebatter/rigs/<rig_id>.yml.source`:
+1. validates `rigs/<rig_id>/rig.yml` with `rigconfig.validate`, checks its `rig_id` names its
+   directory (`rigconfig.location_errors`) and the binding with `rigconfig.validate_binding`;
+   refuses on any error, before writing anything (host.yml included);
+2. refuses when anything under `rigs/<rig_id>/` has uncommitted changes, or git status cannot be
+   read, unless `--allow-dirty` (a recording must be able to pin a commit);
+3. installs it root-owned 0644 to `/etc/pancakebatter/rigs/<rig_id>.yml`, and
+   `rigs/<rig_id>/events.yml`, when the rig has one, to `/etc/pancakebatter/rigs/<rig_id>.events.yml`;
+4. writes `/etc/pancakebatter/rigs/<rig_id>.yml.source`:
 
    ```
-   source: rigs/omnifin0/rig.yml
+   source: /home/jeremy/pancakebatter/rigs/omnifin0/rig.yml
    commit: <full 40-character sha>
    installed: <ISO time>
-   sha256: <sha256 of the installed file>
+   sha256: <sha256 of the installed rig file>
    rig_geometry_revision: <n>
+   events_source: ...            # only with an events ledger
+   events_sha256: <sha256 of the installed events file>
    ```
 
-   and switch `host.yml.source` to the full commit sha too;
-5. remove installed rig files the host no longer binds.
+   (`host.yml.source` now records the full commit sha too);
+5. removes installed rig files the host no longer binds, so a missing file means "not driven
+   by this host", never "use a default".
 
-`rig_health_check.py` would warn while an installed rig file is stale, as it does for host.yml.
+`./install_host_config.sh --check` also reports stale or missing rig files.
 
-Consumers resolve `$PANCAKEBATTER_RIG_CONFIG` (one explicit file) > `/etc/pancakebatter/rigs/<rig_id>.yml`,
-with `rig_id` from the host's `rigs:` binding. A recording pins `rig_id`,
-`rig_geometry_revision`, the installed file's `sha256` and the sidecar's `commit`.
+Consumers resolve `$PANCAKEBATTER_RIG_CONFIG` (one explicit file) > `/etc/pancakebatter/rigs/<rig_id>.yml`.
+A consumer that takes `rig_id` from its own configuration must also find it in the installed
+host.yml `rigs:` and refuse otherwise. A recording pins `rig_id`, `rig_geometry_revision`, the
+installed files' `sha256` and `events_sha256`, and the sidecar's `commit`; a rig events ledger
+changes without changing rig.yml, so pinning rig.yml alone misses an appended condition.
 
 ## Consumers
 

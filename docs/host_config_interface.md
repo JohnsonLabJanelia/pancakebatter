@@ -27,8 +27,14 @@ user). It is published from the checkout:
 
 ```bash
 sudo ./install_host_config.sh        # validates, installs /etc/pancakebatter/host.yml + host.yml.source (commit, time, sha256)
-./install_host_config.sh --check     # is the installed copy current?
+./install_host_config.sh --check     # are the installed copies current?
 ```
+
+The same run installs the rig documents the host's `rigs:` block names, as
+`/etc/pancakebatter/rigs/<rig_id>.yml` (+ `<rig_id>.events.yml` when the rig has an events ledger)
+with a `.yml.source` sidecar, and removes rig files the host no longer binds; see
+[rigs/README.md "Install"](../rigs/README.md#install). Consumers resolve
+`$PANCAKEBATTER_RIG_CONFIG` > that path.
 
 To run the installers without typing a password, `sudo ./install_admin_helper.sh` installs a
 root-owned helper and a `sudoers.d` rule for it; afterwards `./install_host_config.sh`,

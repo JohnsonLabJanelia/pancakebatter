@@ -711,8 +711,6 @@ cameras:
 # | - | ----------------- | ------------------------- | ------------------------- | ---------- | ---------- |
 # |   | Display,Projector | 25Gbps, 4 Ports           |  25 Gbps, 4 Ports         | 4 GPUs     | 4 GPUs     |
 
-# Kernel-side tuning the Orange rig depends on (recorded by check_kernel_tuning.py --record).
-# Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
   E0-55-97-1E-B6-B8:
     model: HB-2800SC
     part_id: camera.emergent.hb_2800_s_c
@@ -742,6 +740,8 @@ paths:
   shared_config_root: /etc/pancakebatter
   recording_transfer_root: /opt/recording-transfer   # per-version sealer installs (install_recording_transfer.sh)
 
+# Kernel-side tuning the Orange rig depends on (recorded by check_kernel_tuning.py --record).
+# Drift here shows up as camera frame loss under load; see docs/kernel_tuning.md.
 kernel_tuning:
   cmdline:
     isolcpus: "1,2,6,8,10,12,33,34,38,40,42,44"
