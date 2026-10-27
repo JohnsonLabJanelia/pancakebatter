@@ -14,9 +14,9 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 8
+rig_geometry_revision: 9
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
-last_physical_change: unknown
+last_physical_change: "2026-10-24"   # projector Brightness 11 -> 50 (rigs/omnifin0/events.yml)
 
 provenance:
   declared_by: pancakebatter session (draft for Jeremy's review)
@@ -40,6 +40,13 @@ projection_paths:
       keystone_h: unknown
       keystone_v: unknown
       digital_zoom_percent: 100
+      brightness: 50             # Picture menu (rev 9); changed from 11 on 2026-10-24, see events.yml
+      contrast: 30
+      sharpness: 5
+    nominal_geometry:            # optional; consumed by nothing today (rev 9)
+      lens_nadir_canvas_px: {x: 958, y: 1152}    # straight above the lens front glass, NOT the optical axis
+      lens_nadir_uncertainty_px: {x: 12, y: 45}
+      lens_glass_to_film_mm: 672
     evidence:
       note: >-
         Rotation 180 from Citrus rig_config_v1 rev 3 ("Projector body is rotated 180 degrees about
@@ -59,8 +66,16 @@ projection_paths:
         Citrus measured a y reflection in arena_1's active camera->canvas homography; that is a
         measurement to check against, not a declaration. With rear projection, the GL
         presentation flip and no mirror, it predicts the Rear menu mode.
-      declared_by: pancakebatter session (draft); rev 5 approved by Jeremy; rev 8 from Jeremy via photodiode-integrator
-      declared_at: "2026-10-19"
+        Picture settings (rev 9): Brightness 50, Contrast 30, Sharpness 5. Jeremy changed Brightness
+        from 11 to 50 with the remote between 2026-10-24T20:17:50Z and 22:04:44Z and kept it at 50;
+        contrast and sharpness checked unchanged in the photo
+        (~/SpecSail/runs/projector_settings_20261024/settings_change.json; dated event in events.yml).
+        Lens nadir (rev 9): specsail-calibration-protocol 2026-10-21, from tape (plumb 290 + spill shelf
+        12.7 + 363 + shelf base 6.35 = 672 mm lens glass to film) plus CAD for the across-row placement.
+        It is the film point directly above the lens front glass, not where the optical axis lands;
+        do not use it as a principal point.
+      declared_by: pancakebatter session (draft); rev 5 approved by Jeremy; rev 8 from Jeremy via photodiode-integrator; rev 9 approved by Jeremy
+      declared_at: "2026-10-27"
     derived:
       canvas_space_parity: unknown
 
@@ -135,3 +150,88 @@ cameras:
       recorded_space_parity: unknown
       expected_camera_to_canvas_handedness:
         main: unknown
+
+# Optional (rev 9; rules in rigs/README.md "Room orientation"): canvas axes as seen by the operator
+# standing at the door, looking at the rig from above.
+room_orientation:
+  canvas_minus_x: operator_left
+  canvas_minus_y: toward_operator
+  projector_offset_toward: canvas_plus_y
+  evidence:
+    note: >-
+      Canvas -y is the door side, where the operator stands; the projector sits toward the back (+y):
+      Jeremy confirmed 2026-10-27 (relayed by zebrafish-vision-teacher), first inferred from the
+      2026-10-19 orientation photo. Canvas -x is the operator's left: Jeremy told rig-designer
+      2026-10-27 "arena 1 is on my left from the door", so arena_1 is at the -x end.
+    declared_by: Jeremy, via zebrafish-vision-teacher and rig-designer; rev 9 approved by Jeremy
+    declared_at: "2026-10-27"
+
+# Optional (rev 9; rules in rigs/README.md "Media stack"): the EXPERIMENT stack, light from the
+# projector up to the fish. The power-meter sweeps used a different arrangement (sensor in air above
+# the water, no dish); that geometry belongs with the SpecSail runs, not here.
+media_stack:
+  air_between_film_and_fish: false
+  layers:
+    - id: shelf
+      medium: acrylic
+      thickness_mm: 6.35
+      refractive_index: unknown
+      evidence:
+        note: >-
+          The shared shelf's acrylic base (acrlyicBase in the edited imaging_cabinet_5 FCStd), one sheet
+          under all four arenas. 6.35 mm is the CAD value, not calipered (Jeremy approved using it,
+          2026-10-27). The gasket (1.59), machined aluminum tank holder (6.35) and vinyl (0.26) above
+          it have 92 mm bores at the arenas, so arena light crosses only this acrylic (rig-designer).
+        declared_by: rig-designer from CAD; approved by Jeremy
+        declared_at: "2026-10-27"
+    - id: water_under_film
+      medium: water
+      thickness_mm: unknown
+      refractive_index: 1.333
+      refractive_index_source: pure water, visible, room temperature (textbook value)
+    - id: film
+      medium: film
+      part_id: optic.fish_imaging.arena_diffuser_disc
+      thickness_mm: unknown
+      refractive_index: unknown
+    - id: water_film_to_dish
+      medium: water
+      thickness_mm: unknown
+      refractive_index: 1.333
+      refractive_index_source: pure water, visible, room temperature (textbook value)
+    - id: dish_base
+      medium: acrylic
+      thickness_mm: unknown
+      refractive_index: unknown
+      evidence:
+        note: >-
+          One dish per arena sits in the shelf bore above the film (Jeremy 2026-10-20, relayed by
+          rig-designer). The palm1 dish has no hardware_library record and is unmeasured.
+        declared_by: Jeremy, via rig-designer
+        declared_at: "2026-10-27"
+    - id: dish_water
+      medium: water
+      thickness_mm: unknown
+      refractive_index: 1.333
+      refractive_index_source: pure water, visible, room temperature (textbook value)
+  arenas:
+    arena_1: {dish_base: {thickness_mm: unknown}}
+    arena_2: {dish_base: {thickness_mm: unknown}}
+    arena_3: {dish_base: {thickness_mm: unknown}}
+    arena_4: {dish_base: {thickness_mm: unknown}}
+  assumptions:
+    fish_eye_height_above_dish_floor_mm: unknown   # ASSUMED once declared; Citrus's shadow.json 8 mm conflicts with its 5 mm fill
+  evidence:
+    note: >-
+      Order from Jeremy 2026-10-20 (relayed by zebrafish-vision-teacher): light -> acrylic base ->
+      water -> film -> water -> acrylic dish -> water -> fish, "no air between film and fish". Film
+      part from hardware_library 3383437. Thicknesses other than the shelf are unmeasured; Citrus's
+      untracked shadow.json assumptions (diffuser_sandwich_mm 0, eye height 8 mm with a 5 mm fill) are
+      not used because they contradict each other.
+    declared_by: pancakebatter session from Jeremy's description; rev 9 approved by Jeremy
+    declared_at: "2026-10-27"
+  derived:
+    arena_1: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+    arena_2: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+    arena_3: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+    arena_4: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
