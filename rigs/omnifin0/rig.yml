@@ -49,7 +49,7 @@ projection_paths:
       width_px: 1920
       height_px: 1080
       refresh_rate_hz: 240.0
-    stimulus_render_rate_hz: 120 # rev 12; Citrus renders 120 frames/s (each shown for 2 refreshes)
+    stimulus_render_rate_hz: 240 # rev 12; Citrus renders a new frame every refresh (was 120; events.yml e7)
     nominal_geometry:            # optional; consumed by nothing today (rev 9)
       lens_nadir_canvas_px: {x: 958, y: 1152}    # straight above the lens front glass, NOT the optical axis
       lens_nadir_uncertainty_px: {x: 12, y: 45}

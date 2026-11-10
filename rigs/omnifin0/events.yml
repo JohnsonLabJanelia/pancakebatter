@@ -141,3 +141,22 @@ events:
       .mp4/.h5 written that day): the new DP-2 link came up at 3840x2160@60, a 1920x1080@240 test ran
       around 15:15Z, and the HDMI-1 replug reset it to 3840x2160@60. New: xrandr on DP-2 1920x1080,
       594.000 MHz, 2200 x 1125 total, 240.00 Hz (read 2026-11-10 after 15:36Z).
+  - event_id: e7
+    kind: setting_changed
+    item: projection_path.main
+    setting: stimulus_render_rate_hz       # rig.yml projection_paths.main.stimulus_render_rate_hz (rev 12)
+    old: 120
+    new: 240
+    at: "2026-11-10"
+    at_precision: on_or_after
+    recorded_at: "2026-11-10"
+    by: Jeremy Delahanty
+    method: >-
+      Citrus PR #102 reads the render rate from this rig file (replacing its local stimulus_frame_rate_hz);
+      rig.yml rev 12 and Citrus #102 are installed back to back between recordings, with no recording in between.
+    reason: Render a new stimulus frame every 240 Hz refresh (Jeremy, 2026-11-10, confirmed in the pancakebatter session)
+    evidence: >-
+      Old: 120 frames/s on omnifin0 throughout; a compile-time constant until Citrus 7e92836, which allows
+      only 120 (citrus-agent, 2026-11-10). Recorded before the change takes effect: it happens at the Citrus
+      #102 install, which this ledger will pin to an exact time with a correction once both installs are done
+      (the rig sidecar's installed timestamp and Citrus's install time).
