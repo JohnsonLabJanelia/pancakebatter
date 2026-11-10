@@ -753,14 +753,17 @@ cameras:
 rigs:
   - rig_id: omnifin0
     display_outputs:
-      - output_name: DP-3
+      # DP-2 since the 2026-11-10 swap to an active DP->HDMI adapter (was DP-3 on the passive DP++ link;
+      # same GPU connector). Projector input HDMI 1 (rigs/omnifin0/events.yml e4/e5).
+      - output_name: DP-2
         projection_path: main
         projector:
           manufacturer: BenQ
           model: X3100i
           part_id: projector.benq.x3100i
-          serial_number:
-          firmware_version:
+          serial_number:                 # RS-232 *serialnumber=?# answers "Unsupported item"
+          # RS-232 read 2026-11-10 (SpecSail runs/projector_settings_20261110/rs232_reads.txt)
+          firmware_version: "system 1.00, scaler 1.04, MCU 34.01-0.0.031"
 
 # Machine-level paths other programs need (schema: paths). data_root still embeds a username until the
 # shared-machine migration (docs/shared_machine_setup_todo.md) moves data to shared storage; change it here only.
