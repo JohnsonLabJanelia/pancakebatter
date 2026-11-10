@@ -76,3 +76,49 @@ events:
     evidence_files:
       - path: /home/jeremy/SpecSail/runs/pm_20261024/photos/orientation_crosshair_20261027T222450Z_from_door.jpg
         sha256: 08d38bdcffe885698bcf94e7b0cb9ad6b753c55e0727a69af11f8e0cce417f0e
+  - event_id: e4
+    kind: setting_changed
+    item: projector.benq.x3100i
+    setting: information.source            # same path as SpecSail settings_as_found.json
+    old: HDMI-1
+    new: HDMI-2
+    at_precision: window                   # cable swap on 2026-11-10; HDMI-2 confirmed by the RS-232 read
+    not_before: "2026-11-10T05:00:00Z"     # start of 2026-11-10 local: Jeremy swapped the cable that day
+    not_after: "2026-11-10T15:19:24Z"      # RS-232 transcript written (its lines have no times)
+    recorded_at: "2026-11-10"
+    by: Jeremy Delahanty
+    method: >-
+      not deliberate: the passive DP++ link was replaced by an active DP->HDMI adapter (UGREEN + Monoprice
+      43221), and the new cable went into HDMI 2
+    reason: link swap; the input change was a side effect
+    evidence: >-
+      The X3100i keeps a picture mode per input, so while on HDMI-2 the projected state was Picture Mode RPG
+      (APPMOD=RPG) with Contrast 50 (CON=50); Brightness 50, Sharpness 5, Gamma 2.2, Color Temperature
+      Normal, Rear Ceiling and keystone 0/0 matched rig.yml. The HDMI-1 picture settings themselves did not
+      change (e5). Last record of the old state: SpecSail settings_check 2026-10-27 ~23:50Z (HDMI-1, User,
+      Contrast 30). The desktop X log shows the old link last listed at 14:55:25Z and the projector first
+      seen on connector DP-2 at 15:07:51Z, so the swap was most likely between those times. Recordings
+      before 2026-11-10, including the 2026-11-03 demo, were at HDMI-1 / User / Contrast 30.
+    evidence_files:
+      - path: /home/jeremy/SpecSail/runs/projector_settings_20261110/rs232_reads.txt
+        sha256: 53f76fd9bdfe90640997d31608113e08e113b229b03eb0bad99cbeebe021de36
+  - event_id: e5
+    kind: setting_changed
+    item: projector.benq.x3100i
+    setting: information.source
+    old: HDMI-2
+    new: HDMI-1
+    at_precision: window
+    not_before: "2026-11-10T15:19:24Z"     # still HDMI-2 at the e4 read
+    not_after: "2026-11-10T15:32:03Z"      # SOUR=HDMI in the read-only check
+    recorded_at: "2026-11-10"
+    by: Jeremy Delahanty
+    method: moved the projector HDMI cable back to HDMI 1
+    reason: restore the commissioned picture state (Jeremy, 2026-11-10)
+    evidence: >-
+      Read-only RS-232 check 2026-11-10T15:32:01-15:32:21Z: SOUR=HDMI (HDMI-1), APPMOD=USER1, BRI=50, CON=30,
+      SHARP=5, PP=RC, CT=NORMAL, GAMMA=2.2, keystone 0/0, matching rig.yml rev 10 and the 2026-10-27
+      record. Replugging reset the DP-2 output mode to 3840x2160@60; display mode is outside this ledger.
+    evidence_files:
+      - path: /home/jeremy/SpecSail/runs/projector_settings_20261110/rs232_restore_check.txt
+        sha256: 38da65cfe1bd878e3b7b9c6bc31ee62c91f97cff46f0f3202cf2db5db8db88ad
