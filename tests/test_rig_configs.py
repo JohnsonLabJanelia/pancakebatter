@@ -6,6 +6,8 @@ from pathlib import Path
 
 import yaml
 
+import hostconfig
+
 import rigconfig as rc
 
 REPO = Path(__file__).resolve().parent.parent
@@ -45,7 +47,7 @@ class RigDocumentTests(unittest.TestCase):
             self.skipTest("jsonschema not installed")
         for name, doc in RIGS.items():
             with self.subTest(rig=name):
-                jsonschema.Draft202012Validator(SCHEMA).validate(doc)
+                hostconfig.schema_validator(jsonschema)(SCHEMA).validate(doc)
 
     def test_revision_bump_rule(self):
         """The physical digest of rig.yml must equal revisions.json's entry for its rig_geometry_revision.
@@ -252,7 +254,7 @@ class RoomOrientationTests(unittest.TestCase):
     @unittest.skipUnless(__import__("importlib").util.find_spec("jsonschema"), "jsonschema not installed")
     def test_json_schema_accepts_it(self):
         import jsonschema
-        jsonschema.Draft202012Validator(SCHEMA).validate(self.room())
+        hostconfig.schema_validator(jsonschema)(SCHEMA).validate(self.room())
 
 
 class OrientationDigestTests(unittest.TestCase):
@@ -428,4 +430,4 @@ class MediaStackTests(unittest.TestCase):
     @unittest.skipUnless(__import__("importlib").util.find_spec("jsonschema"), "jsonschema not installed")
     def test_json_schema_accepts_the_stack(self):
         import jsonschema
-        jsonschema.Draft202012Validator(SCHEMA).validate(with_stack(media_stack()))
+        hostconfig.schema_validator(jsonschema)(SCHEMA).validate(with_stack(media_stack()))

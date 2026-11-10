@@ -251,7 +251,7 @@ def validate_shared(doc: dict[str, Any], today: date | None = None) -> tuple[lis
     if jsonschema is not None:
         schema = json.loads(SHARED_SCHEMA_PATH.read_text())
         errors += [f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
-                   for e in sorted(jsonschema.Draft202012Validator(schema).iter_errors(doc),
+                   for e in sorted(hostconfig.schema_validator(jsonschema)(schema).iter_errors(doc),
                                    key=lambda e: list(e.absolute_path))]
     elif (doc.get("schema") or {}) != {"name": "shared_equipment", "version": 1}:
         errors.append("schema must be {name: shared_equipment, version: 1}")

@@ -321,7 +321,7 @@ def _schema_errors(doc: Any) -> list[str]:
         return []
     schema = json.loads(SCHEMA_PATH.read_text())
     return [f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
-            for e in sorted(jsonschema.Draft202012Validator(schema).iter_errors(doc), key=lambda e: list(e.absolute_path))]
+            for e in sorted(ee.hostconfig.schema_validator(jsonschema)(schema).iter_errors(doc), key=lambda e: list(e.absolute_path))]
 
 
 def check_all(check_files: bool = True) -> tuple[list[str], list[str]]:

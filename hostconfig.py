@@ -33,6 +33,12 @@ INSTALLED_CONFIG = Path("/etc/pancakebatter/host.yml")
 INSTALLED_SOURCE = Path("/etc/pancakebatter/host.yml.source")  # sidecar: where the copy came from
 
 
+def schema_validator(jsonschema):
+    """The JSON Schema validator class: Draft 2020-12, or Draft 7 on jsonschema < 4 (Ubuntu 22.04's
+    python3-jsonschema 3.2). The repo's schemas use no keyword whose meaning differs between the two."""
+    return getattr(jsonschema, "Draft202012Validator", None) or jsonschema.Draft7Validator
+
+
 def host_name() -> str:
     return os.environ.get(ENV_HOST) or socket.gethostname().split(".")[0]
 
