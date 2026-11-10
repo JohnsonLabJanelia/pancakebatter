@@ -14,7 +14,7 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 11
+rig_geometry_revision: 12
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
 last_physical_change: "2026-11-10"   # projector driven at 1920x1080@240 (rev 11); events.yml e4/e5
 
@@ -49,6 +49,7 @@ projection_paths:
       width_px: 1920
       height_px: 1080
       refresh_rate_hz: 240.0
+    stimulus_render_rate_hz: 120 # rev 12; Citrus renders 120 frames/s (each shown for 2 refreshes)
     nominal_geometry:            # optional; consumed by nothing today (rev 9)
       lens_nadir_canvas_px: {x: 958, y: 1152}    # straight above the lens front glass, NOT the optical axis
       lens_nadir_uncertainty_px: {x: 12, y: 45}

@@ -509,6 +509,18 @@
               ]
             }
           }
+        },
+        "stimulus_render_rate_hz": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            {
+              "const": "unknown"
+            }
+          ],
+          "description": "Optional. Frames per second the stimulus program (Citrus) renders on this path. When an integer, display_mode.refresh_rate_hz must be a number within 0.05 Hz of a whole multiple of it (rigconfig.validate; not expressible in JSON Schema). Citrus refuses to open its stimulus window when it is missing or unknown. Physical: a change bumps rig_geometry_revision."
         }
       }
     },

@@ -124,6 +124,14 @@ orientation digest. Citrus reads it with the host binding's `output_name` and re
 the live mode on that output differs. The mode itself is a desktop setting (GNOME `monitors.xml`,
 keyed by connector and EDID), so a cable swap that renames the connector loses it.
 
+**`projection_paths.<id>.stimulus_render_rate_hz` (optional)** is how many frames per second the
+stimulus program (Citrus) renders on this path: a positive integer or `unknown`. Display refresh
+(how often the projector redraws) and render rate (how often a new frame is submitted) are
+separate facts; when it is an integer, `display_mode.refresh_rate_hz` must be a number within
+0.05 Hz of a whole multiple of it (240/120 and 240/240 pass, 119.88/120 is refused). Physical when
+present, not part of the orientation digest. Citrus refuses to open its stimulus window when it is
+missing or `unknown`; there is no default.
+
 **`projection_paths.<id>.nominal_geometry` (optional)** mirrors the cameras' block: consumed by no
 runtime today, physical when present. `lens_nadir_canvas_px` `{x, y}` is the canvas pixel
 straight above the lens front glass, **not** where the optical axis lands and not a principal

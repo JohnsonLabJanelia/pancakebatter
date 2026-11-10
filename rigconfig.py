@@ -67,6 +67,9 @@ PROJECTION_NOMINAL = ("lens_nadir_canvas_px", "lens_nadir_uncertainty_px", "lens
 # Optional, per projection path: the video mode the host drives the projector at. Canvas pixels are in this
 # width x height; Citrus refuses START when the live output mode differs. Physical when present.
 DISPLAY_MODE_KEYS = ("width_px", "height_px", "refresh_rate_hz")
+# display_mode.refresh_rate_hz must be within this of a whole multiple of stimulus_render_rate_hz
+# (the same tolerance Citrus applies to the live mode).
+RENDER_RATE_TOLERANCE_HZ = 0.05
 # Optional room_orientation (README "Room orientation"): canvas axes in the operator's frame, standing at
 # the door looking at the rig from above.
 ROOM_DIRECTIONS = ("toward_operator", "away_from_operator", "operator_left", "operator_right")
@@ -180,7 +183,9 @@ def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
                                                           for k in PROJECTOR_SETTINGS + PROJECTOR_PICTURE
                                                           if k in p["projector_settings"]},
                                    **({"nominal_geometry": p["nominal_geometry"]} if "nominal_geometry" in p else {}),
-                                   **({"display_mode": p["display_mode"]} if "display_mode" in p else {})}
+                                   **({"display_mode": p["display_mode"]} if "display_mode" in p else {}),
+                                   **({"stimulus_render_rate_hz": p["stimulus_render_rate_hz"]}
+                                      if "stimulus_render_rate_hz" in p else {})}
                              for pid, p in doc["projection_paths"].items()},
         "cameras": {s: {**{k: c[k] for k in CAMERA_PHYSICAL},
                         **({"nominal_geometry": c["nominal_geometry"]} if "nominal_geometry" in c else {})}
@@ -323,6 +328,25 @@ def _display_mode_errors(where: str, p: dict[str, Any]) -> list[str]:
     return errs
 
 
+def _stimulus_render_rate_errors(where: str, p: dict[str, Any]) -> list[str]:
+    """Frames per second the stimulus program renders; the display refresh must be a whole multiple of it."""
+    if "stimulus_render_rate_hz" not in p:
+        return []
+    rate, where = p["stimulus_render_rate_hz"], f"{where}.stimulus_render_rate_hz"
+    if rate == UNKNOWN:
+        return []
+    if not (isinstance(rate, int) and not isinstance(rate, bool) and rate > 0):
+        return [f"{where}: integer > 0 or unknown"]
+    refresh = p.get("display_mode", {}).get("refresh_rate_hz") if isinstance(p.get("display_mode"), dict) else None
+    if not (isinstance(refresh, (int, float)) and not isinstance(refresh, bool) and refresh > 0):
+        return [f"{where}: needs display_mode.refresh_rate_hz declared as a number"]
+    k = round(refresh / rate)
+    if k < 1 or abs(refresh - k * rate) > RENDER_RATE_TOLERANCE_HZ:
+        return [f"{where}: display_mode.refresh_rate_hz {refresh} is not a whole multiple of {rate} "
+                f"(within {RENDER_RATE_TOLERANCE_HZ} Hz)"]
+    return []
+
+
 def _room_orientation_errors(room: Any) -> list[str]:
     where = "room_orientation"
     if not isinstance(room, dict):
@@ -444,6 +468,7 @@ def validate(doc: Any) -> list[str]:
         errs += _projector_settings_errors(where, p)
         errs += _projection_nominal_errors(where, p)
         errs += _display_mode_errors(where, p)
+        errs += _stimulus_render_rate_errors(where, p)
         errs += _evidence_errors(where, p.get("evidence"))
 
     cams = doc.get("cameras")

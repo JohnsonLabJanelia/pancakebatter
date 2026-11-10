@@ -156,6 +156,7 @@ class ProjectorSettingsTests(unittest.TestCase):
 
     def test_display_mode_is_optional_physical_and_outside_orientation(self):
         doc, p = self.doc()
+        p.pop("stimulus_render_rate_hz", None)  # needs a numeric refresh; tested on its own below
         p.pop("display_mode", None)
         base, orient = rc.physical_digest(doc), rc.orientation_digest(doc)
         self.assertEqual(rc.validate(doc), [])
@@ -175,6 +176,29 @@ class ProjectorSettingsTests(unittest.TestCase):
                 self.assertTrue(any("display_mode" in e for e in rc.validate(doc)))
         p["display_mode"] = {"width_px": 1920, "height_px": 1080, "refresh_rate_hz": "unknown"}
         self.assertEqual(rc.validate(doc), [])
+
+    def test_stimulus_render_rate_is_optional_physical_and_divides_the_refresh(self):
+        doc, p = self.doc()
+        p.pop("stimulus_render_rate_hz", None)
+        p["display_mode"] = {"width_px": 1920, "height_px": 1080, "refresh_rate_hz": 240.0}
+        base, orient = rc.physical_digest(doc), rc.orientation_digest(doc)
+        self.assertEqual(rc.validate(doc), [])
+        p["stimulus_render_rate_hz"] = 120
+        self.assertEqual(rc.validate(doc), [])
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        self.assertEqual(rc.orientation_digest(doc), orient)
+        for refresh, rate in ((240.0, 240), (240.0, 120), (240.04, 120), (60, 60), (240.0, "unknown")):
+            with self.subTest(refresh=refresh, rate=rate):
+                p["display_mode"]["refresh_rate_hz"], p["stimulus_render_rate_hz"] = refresh, rate
+                self.assertEqual(rc.validate(doc), [])
+        for refresh, rate in ((119.88, 120), (240.0, 100), (120.0, 240), (240.0, 0), (240.0, 120.0),
+                              (240.0, True), (240.0, "120"), ("unknown", 120)):
+            with self.subTest(refresh=refresh, rate=rate):
+                p["display_mode"]["refresh_rate_hz"], p["stimulus_render_rate_hz"] = refresh, rate
+                self.assertTrue(any("stimulus_render_rate_hz" in e for e in rc.validate(doc)))
+        p.pop("display_mode")
+        p["stimulus_render_rate_hz"] = 120
+        self.assertTrue(any("stimulus_render_rate_hz" in e for e in rc.validate(doc)))
 
     def test_lens_nadir_is_optional_and_physical(self):
         doc, p = self.doc()
