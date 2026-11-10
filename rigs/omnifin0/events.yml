@@ -122,3 +122,22 @@ events:
     evidence_files:
       - path: /home/jeremy/SpecSail/runs/projector_settings_20261110/rs232_restore_check.txt
         sha256: 38da65cfe1bd878e3b7b9c6bc31ee62c91f97cff46f0f3202cf2db5db8db88ad
+  - event_id: e6
+    kind: setting_changed
+    item: projection_path.main
+    setting: display_mode                  # rig.yml projection_paths.main.display_mode (rev 11)
+    old: {width_px: 1920, height_px: 1080, refresh_rate_hz: 119.88}
+    new: {width_px: 1920, height_px: 1080, refresh_rate_hz: 240.0}
+    at_precision: window
+    not_before: "2026-11-10T14:55:25Z"     # old DP-3 link last listed in the X log (e4)
+    not_after: "2026-11-10T15:36:45Z"      # DP-2 1920x1080@240 saved in GNOME monitors.xml
+    recorded_at: "2026-11-10"
+    by: Jeremy Delahanty
+    method: GNOME display settings on output DP-2, saved to monitors.xml
+    reason: 240 Hz becomes the default stimulus mode (Jeremy, 2026-11-10; Citrus 240 Hz design step 1)
+    evidence: >-
+      Old: monitors.xml held 1920x1080 at 119.8787841796875 Hz for the projector on DP-3 (saved 2026-06-15),
+      the mode SpecSail's photometry ran at. In the window the mode was in flux and no recording ran (no
+      .mp4/.h5 written that day): the new DP-2 link came up at 3840x2160@60, a 1920x1080@240 test ran
+      around 15:15Z, and the HDMI-1 replug reset it to 3840x2160@60. New: xrandr on DP-2 1920x1080,
+      594.000 MHz, 2200 x 1125 total, 240.00 Hz (read 2026-11-10 after 15:36Z).
