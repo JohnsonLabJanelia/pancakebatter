@@ -160,3 +160,18 @@ events:
       only 120 (citrus-agent, 2026-11-10). Recorded before the change takes effect: it happens at the Citrus
       #102 install, which this ledger will pin to an exact time with a correction once both installs are done
       (the rig sidecar's installed timestamp and Citrus's install time).
+  - event_id: e8
+    kind: correction
+    corrects: e7
+    at: "2026-11-10T19:33:46Z"
+    at_precision: exact
+    recorded_at: "2026-11-10"
+    by: Jeremy Delahanty
+    reason: pins e7 (render rate 120 -> 240) to the Citrus #102 install, as e7's evidence said it would
+    evidence: >-
+      Citrus #102 (main 66aabf8) moved onto ~/citrus/targets/citrus at 2026-11-10T19:33:46Z: the binary's ctime
+      and its directory's mtime both read 14:33:46.60-05:00, and citrus-agent's own record gives
+      19:33:46.611Z. Installed binary sha256 0959381142065546887fdd54817104edb91c809898826818fc10c89fd8d676a8,
+      18,377,568 bytes (checked here). rig.yml rev 12 went in at 19:26:19Z. No Citrus process ran between
+      the two installs (orientation agent, relayed by citrus-agent), so no stimulus frame was rendered at 120
+      under rev 12. Every Citrus launch from 19:33:46Z renders 240.
