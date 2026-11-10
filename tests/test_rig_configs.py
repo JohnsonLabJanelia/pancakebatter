@@ -140,6 +140,42 @@ class ProjectorSettingsTests(unittest.TestCase):
         p["projector_settings"]["sharpness"] = 500  # no upper bound stated
         self.assertEqual(rc.validate(doc), [])
 
+    def test_input_and_picture_mode_are_optional_and_physical_when_present(self):
+        doc, p = self.doc()
+        for k in rc.PROJECTOR_PICTURE_TEXT:
+            p["projector_settings"].pop(k, None)
+        base = rc.physical_digest(doc)
+        self.assertEqual(rc.validate(doc), [])
+        p["projector_settings"]["input_source"] = "HDMI-2"
+        self.assertEqual(rc.validate(doc), [])
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        for bad in ("", " ", 1, None):
+            with self.subTest(input_source=bad):
+                p["projector_settings"]["input_source"] = bad
+                self.assertTrue(any("input_source" in e for e in rc.validate(doc)))
+
+    def test_display_mode_is_optional_physical_and_outside_orientation(self):
+        doc, p = self.doc()
+        p.pop("display_mode", None)
+        base, orient = rc.physical_digest(doc), rc.orientation_digest(doc)
+        self.assertEqual(rc.validate(doc), [])
+        p["display_mode"] = {"width_px": 1920, "height_px": 1080, "refresh_rate_hz": 240.0}
+        self.assertEqual(rc.validate(doc), [])
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        self.assertEqual(rc.orientation_digest(doc), orient)
+        cases = ({"width_px": 1920, "height_px": 1080},                                   # missing key
+                 {"width_px": 1920, "height_px": 1080, "refresh_rate_hz": 240, "x": 1},     # extra key
+                 {"width_px": 0, "height_px": 1080, "refresh_rate_hz": 240},
+                 {"width_px": "1920", "height_px": 1080, "refresh_rate_hz": 240},
+                 {"width_px": 1920, "height_px": 1080, "refresh_rate_hz": True},
+                 {"width_px": 1920, "height_px": 1080, "refresh_rate_hz": -1})
+        for bad in cases:
+            with self.subTest(display_mode=bad):
+                p["display_mode"] = bad
+                self.assertTrue(any("display_mode" in e for e in rc.validate(doc)))
+        p["display_mode"] = {"width_px": 1920, "height_px": 1080, "refresh_rate_hz": "unknown"}
+        self.assertEqual(rc.validate(doc), [])
+
     def test_lens_nadir_is_optional_and_physical(self):
         doc, p = self.doc()
         p.pop("nominal_geometry", None)

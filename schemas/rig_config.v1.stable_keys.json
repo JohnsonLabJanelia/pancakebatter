@@ -3,7 +3,7 @@
     "name": "rig_config",
     "version": 1
   },
-  "description": "Key paths in rigs/<rig_id>/rig.yml (installed as /etc/pancakebatter/rigs/<rig_id>.yml) other programs may rely on. Same rules as system_config.v1.stable_keys.json: '*' fans out over map values; additive changes stay in version 1; renaming or removing a key, or changing a derived rule, bumps schema.version. Every key here exists in every rig document; any physical value may be the string 'unknown', which a consumer must treat as undeclared, never as a default. Free text (description, mount_notes, evidence) is for people and may change. Optional keys (media_stack, room_orientation, projector picture settings, projection nominal_geometry) are listed under optional_keys and exist only in rigs that declare them.",
+  "description": "Key paths in rigs/<rig_id>/rig.yml (installed as /etc/pancakebatter/rigs/<rig_id>.yml) other programs may rely on. Same rules as system_config.v1.stable_keys.json: '*' fans out over map values; additive changes stay in version 1; renaming or removing a key, or changing a derived rule, bumps schema.version. Every key here exists in every rig document; any physical value may be the string 'unknown', which a consumer must treat as undeclared, never as a default. Free text (description, mount_notes, evidence) is for people and may change. Optional keys (media_stack, room_orientation, projector picture settings, projection nominal_geometry, display_mode, input_source, picture_mode) are listed under optional_keys and exist only in rigs that declare them.",
   "keys": [
     "schema.name",
     "schema.version",
@@ -50,7 +50,12 @@
     "projection_paths.*.nominal_geometry.lens_glass_to_film_mm",
     "room_orientation.canvas_minus_x",
     "room_orientation.canvas_minus_y",
-    "room_orientation.projector_offset_toward"
+    "room_orientation.projector_offset_toward",
+    "projection_paths.*.projector_settings.input_source",
+    "projection_paths.*.projector_settings.picture_mode",
+    "projection_paths.*.display_mode.width_px",
+    "projection_paths.*.display_mode.height_px",
+    "projection_paths.*.display_mode.refresh_rate_hz"
   ],
   "optional_sections": [
     "media_stack",
@@ -75,6 +80,11 @@
     "projection_paths.*.nominal_geometry.lens_glass_to_film_mm",
     "room_orientation.canvas_minus_x",
     "room_orientation.canvas_minus_y",
-    "room_orientation.projector_offset_toward"
+    "room_orientation.projector_offset_toward",
+    "projection_paths.*.projector_settings.input_source",
+    "projection_paths.*.projector_settings.picture_mode",
+    "projection_paths.*.display_mode.width_px",
+    "projection_paths.*.display_mode.height_px",
+    "projection_paths.*.display_mode.refresh_rate_hz"
   ]
 }

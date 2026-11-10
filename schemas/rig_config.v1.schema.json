@@ -302,6 +302,30 @@
                 }
               ],
               "description": "Picture > Sharpness. Optional; physical when present. The manual states no range."
+            },
+            "input_source": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Source / input as the menu names it (e.g. HDMI-1). Optional; physical when present: the projector keeps a picture mode per input."
+            },
+            "picture_mode": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Picture Mode as the menu names it (e.g. User). Optional; physical when present."
             }
           }
         },
@@ -438,6 +462,51 @@
                 }
               ],
               "description": "Vertical distance from the lens front glass to the film."
+            }
+          }
+        },
+        "display_mode": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "width_px",
+            "height_px",
+            "refresh_rate_hz"
+          ],
+          "description": "Optional. The video mode the host drives this projection path at; canvas pixels are in width_px x height_px. Citrus refuses START when the live output mode differs. Physical: a change bumps rig_geometry_revision.",
+          "properties": {
+            "width_px": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ]
+            },
+            "height_px": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ]
+            },
+            "refresh_rate_hz": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ]
             }
           }
         }

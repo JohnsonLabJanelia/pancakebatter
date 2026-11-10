@@ -112,6 +112,17 @@ its own values.
 is, not where it lands, so they are optional: a rig that omits them keeps its digest. Once present
 they are physical, so a menu change is a revision bump. The SpecSail record of the change
 (time window, evidence) goes in the rig's events ledger; rig.yml holds the current value.
+`input_source` (e.g. HDMI-1; RS-232 `*sour=?#` answers HDMI for HDMI-1) and `picture_mode` (e.g. User;
+`*appmod=?#` answers USER1) are optional menu names, physical when present. They matter because the
+X3100i keeps a picture mode per input: moving the cable to another input changes the picture
+settings in effect without anyone touching the Picture menu (omnifin0 events e4/e5, 2026-11-10).
+
+**`projection_paths.<id>.display_mode` (optional)** `{width_px, height_px, refresh_rate_hz}` is the
+video mode the host drives this path at; canvas pixels (lens nadir, homographies) are in its width
+and height. Physical when present (a refresh change invalidates photometry), not part of the
+orientation digest. Citrus reads it with the host binding's `output_name` and refuses START when
+the live mode on that output differs. The mode itself is a desktop setting (GNOME `monitors.xml`,
+keyed by connector and EDID), so a cable swap that renames the connector loses it.
 
 **`projection_paths.<id>.nominal_geometry` (optional)** mirrors the cameras' block: consumed by no
 runtime today, physical when present. `lens_nadir_canvas_px` `{x, y}` is the canvas pixel

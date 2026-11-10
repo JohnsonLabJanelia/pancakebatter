@@ -53,6 +53,10 @@ PROJECTOR_SETTINGS = tuple(PROJECTOR_SETTINGS_ENUMS) + tuple(PROJECTOR_SETTINGS_
 # Optional picture settings (Picture menu): they change how bright the canvas is, not where it lands.
 # Physical when present; a rig that omits them keeps its digest. None = no upper bound stated.
 PROJECTOR_PICTURE_RANGES = {"brightness": (0, 100), "contrast": (0, 100), "sharpness": (0, None)}
+# Optional, as the menu names them (e.g. HDMI-1, User): the projector keeps a picture mode per input, so
+# the input selects which picture settings apply (events.yml e4/e5, 2026-11-10). Physical when present.
+PROJECTOR_PICTURE_TEXT = ("input_source", "picture_mode")
+PROJECTOR_PICTURE = tuple(PROJECTOR_PICTURE_RANGES) + PROJECTOR_PICTURE_TEXT
 # BenQ Projector Position -> net firmware mirroring (BenQ convention; the manual does not state it).
 POSITION_FLIP = {"front": "none", "rear": "horizontal", "front_ceiling": "both", "rear_ceiling": "vertical"}
 # Optional; recorded for the deferred parallax model, consumed by no runtime today.
@@ -60,6 +64,9 @@ CAMERA_NOMINAL = ("height_above_gel_mm", "optical_axis_tilt_from_nadir_deg")
 # Optional, per projection path: the canvas point straight above the lens front glass (not where the
 # optical axis lands) and the lens-glass-to-film height. Physical when present; consumed by nothing yet.
 PROJECTION_NOMINAL = ("lens_nadir_canvas_px", "lens_nadir_uncertainty_px", "lens_glass_to_film_mm")
+# Optional, per projection path: the video mode the host drives the projector at. Canvas pixels are in this
+# width x height; Citrus refuses START when the live output mode differs. Physical when present.
+DISPLAY_MODE_KEYS = ("width_px", "height_px", "refresh_rate_hz")
 # Optional room_orientation (README "Room orientation"): canvas axes in the operator's frame, standing at
 # the door looking at the rig from above.
 ROOM_DIRECTIONS = ("toward_operator", "away_from_operator", "operator_left", "operator_right")
@@ -170,9 +177,10 @@ def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
         "rig_id": doc["rig_id"],
         "projection_paths": {pid: {**{k: p[k] for k in PROJECTION_PHYSICAL},
                                    "projector_settings": {k: p["projector_settings"][k]
-                                                          for k in PROJECTOR_SETTINGS + tuple(PROJECTOR_PICTURE_RANGES)
+                                                          for k in PROJECTOR_SETTINGS + PROJECTOR_PICTURE
                                                           if k in p["projector_settings"]},
-                                   **({"nominal_geometry": p["nominal_geometry"]} if "nominal_geometry" in p else {})}
+                                   **({"nominal_geometry": p["nominal_geometry"]} if "nominal_geometry" in p else {}),
+                                   **({"display_mode": p["display_mode"]} if "display_mode" in p else {})}
                              for pid, p in doc["projection_paths"].items()},
         "cameras": {s: {**{k: c[k] for k in CAMERA_PHYSICAL},
                         **({"nominal_geometry": c["nominal_geometry"]} if "nominal_geometry" in c else {})}
@@ -232,7 +240,7 @@ def _projector_settings_errors(where: str, p: dict[str, Any]) -> list[str]:
     where = f"{where}.projector_settings"
     if not isinstance(ps, dict):
         return [f"{where}: required (every key, unknown allowed)"]
-    extra = sorted(set(ps) - set(PROJECTOR_SETTINGS) - set(PROJECTOR_PICTURE_RANGES))
+    extra = sorted(set(ps) - set(PROJECTOR_SETTINGS) - set(PROJECTOR_PICTURE))
     errs = [f"{where}: unexpected keys {extra}"] if extra else []
     for k, allowed in PROJECTOR_SETTINGS_ENUMS.items():
         if ps.get(k) not in allowed + (UNKNOWN,):
@@ -247,6 +255,9 @@ def _projector_settings_errors(where: str, p: dict[str, Any]) -> list[str]:
                                  and (hi is None or v <= hi))):
             bound = f"{lo}..{hi}" if hi is not None else f">= {lo}"
             errs.append(f"{where}.{k}: optional; integer {bound} or unknown")
+    for k in PROJECTOR_PICTURE_TEXT:
+        if k in ps and not (isinstance(ps[k], str) and ps[k].strip()):
+            errs.append(f"{where}.{k}: optional; the menu's name for it, or unknown")
     menu, eff = ps.get("position_menu"), ps.get("position_effective")
     if menu in POSITION_FLIP and eff != menu:
         errs.append(f"{where}.position_effective: must equal position_menu ({menu!r}) unless the menu is auto")
@@ -292,6 +303,23 @@ def _projection_nominal_errors(where: str, p: dict[str, Any]) -> list[str]:
             errs += _xy_errors(f"{where}.{k}", nominal[k])
     if "lens_glass_to_film_mm" in nominal and not _number_or_unknown(nominal["lens_glass_to_film_mm"], 0):
         errs.append(f"{where}.lens_glass_to_film_mm: number >= 0 or unknown")
+    return errs
+
+
+def _display_mode_errors(where: str, p: dict[str, Any]) -> list[str]:
+    if "display_mode" not in p:
+        return []
+    mode, where = p["display_mode"], f"{where}.display_mode"
+    if not (isinstance(mode, dict) and set(mode) == set(DISPLAY_MODE_KEYS)):
+        return [f"{where}: exactly {DISPLAY_MODE_KEYS}"]
+    errs = []
+    for k in ("width_px", "height_px"):
+        v = mode[k]
+        if not (v == UNKNOWN or (isinstance(v, int) and not isinstance(v, bool) and v > 0)):
+            errs.append(f"{where}.{k}: integer > 0 or unknown")
+    v = mode["refresh_rate_hz"]
+    if not (v == UNKNOWN or (isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0)):
+        errs.append(f"{where}.refresh_rate_hz: number > 0 or unknown")
     return errs
 
 
@@ -415,6 +443,7 @@ def validate(doc: Any) -> list[str]:
             errs.append(f"{where}.optical_mirror_count: integer >= 0 or unknown")
         errs += _projector_settings_errors(where, p)
         errs += _projection_nominal_errors(where, p)
+        errs += _display_mode_errors(where, p)
         errs += _evidence_errors(where, p.get("evidence"))
 
     cams = doc.get("cameras")
