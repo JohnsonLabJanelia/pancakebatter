@@ -66,5 +66,34 @@ class ResolverTests(unittest.TestCase):
         self.assertEqual(out.stdout.strip(), str(self.explicit))
 
 
+class SchemaValidatorTests(unittest.TestCase):
+    """jsonschema < 4 (Ubuntu 22.04 apt) has only Draft 7; the fallback must never check less."""
+
+    class Old:  # jsonschema 3.2's surface: Draft7Validator, no Draft202012Validator
+        __version__ = "3.2.0"
+
+        class Draft7Validator:
+            def __init__(self, schema):
+                self.schema = schema
+
+    def test_every_repo_schema_checks_the_same_under_draft7(self):
+        import json
+        for path in sorted((REPO / "schemas").glob("*.schema.json")):
+            with self.subTest(schema=path.name):
+                self.assertEqual(hostconfig.draft7_unsafe(json.loads(path.read_text())), [])
+
+    def test_old_jsonschema_refuses_a_schema_draft7_would_check_less(self):
+        for schema in ({"prefixItems": [{"type": "integer"}]},
+                       {"$defs": {"a": {"type": "string"}}, "properties": {"x": {"$ref": "#/$defs/a", "maxLength": 3}}},
+                       {"items": [{"type": "integer"}]},
+                       {"properties": {"x": {"unevaluatedProperties": False}}}):
+            with self.subTest(schema=schema), self.assertRaises(RuntimeError):
+                hostconfig.schema_validator(self.Old, schema)
+
+    def test_old_jsonschema_gets_draft7_for_a_safe_schema(self):
+        v = hostconfig.schema_validator(self.Old, {"properties": {"x": {"$ref": "#/$defs/a", "description": "d"}}})
+        self.assertIsInstance(v, self.Old.Draft7Validator)
+
+
 if __name__ == "__main__":
     unittest.main()

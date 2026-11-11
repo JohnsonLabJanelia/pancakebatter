@@ -281,7 +281,7 @@ def _host_doc_schema_errors(doc: Any) -> list[str]:
         return []
     schema = json.loads(HOST_EVENTS_SCHEMA_PATH.read_text())
     return [f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
-            for e in sorted(hostconfig.schema_validator(jsonschema)(schema).iter_errors(doc), key=lambda e: list(e.absolute_path))]
+            for e in sorted(hostconfig.schema_validator(jsonschema, schema).iter_errors(doc), key=lambda e: list(e.absolute_path))]
 
 
 def check_all() -> tuple[list[str], list[str]]:

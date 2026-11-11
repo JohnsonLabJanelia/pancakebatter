@@ -170,7 +170,7 @@ class RepoFileTests(unittest.TestCase):
         schema = json.loads((REPO / "schemas" / "rig_events.v1.schema.json").read_text())
         for path in sorted((REPO / "rigs").glob("*/events.yml")):
             with self.subTest(rig=path.parent.name):
-                hostconfig.schema_validator(jsonschema)(schema).validate(yaml.safe_load(path.read_text()))
+                hostconfig.schema_validator(jsonschema, schema).validate(yaml.safe_load(path.read_text()))
 
     def test_append_only_against_origin_main(self):
         for path in sorted((REPO / "rigs").glob("*/events.yml")):

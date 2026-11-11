@@ -29,7 +29,7 @@ def validate(config: dict[str, Any]) -> list[str]:
     if jsonschema is not None:
         schema = json.loads(SCHEMA_PATH.read_text())
         errors += [f"{'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}"
-                   for e in sorted(hostconfig.schema_validator(jsonschema)(schema).iter_errors(config),
+                   for e in sorted(hostconfig.schema_validator(jsonschema, schema).iter_errors(config),
                                    key=lambda e: list(e.absolute_path))]
     if not errors:  # the repo checker assumes a structurally valid config
         errors += validate_with_repo_checker(config)

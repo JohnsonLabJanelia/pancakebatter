@@ -24,6 +24,7 @@ import os
 import socket
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent
 HOSTS_DIR = REPO_ROOT / "hosts"
@@ -33,10 +34,42 @@ INSTALLED_CONFIG = Path("/etc/pancakebatter/host.yml")
 INSTALLED_SOURCE = Path("/etc/pancakebatter/host.yml.source")  # sidecar: where the copy came from
 
 
-def schema_validator(jsonschema):
-    """The JSON Schema validator class: Draft 2020-12, or Draft 7 on jsonschema < 4 (Ubuntu 22.04's
-    python3-jsonschema 3.2). The repo's schemas use no keyword whose meaning differs between the two."""
-    return getattr(jsonschema, "Draft202012Validator", None) or jsonschema.Draft7Validator
+# 2020-12 keywords Draft 7 ignores or reads differently. Draft 7 also ignores keywords next to $ref
+# and reads an array-valued `items` as a tuple.
+DRAFT7_UNSAFE_KEYWORDS = frozenset({"prefixItems", "unevaluatedItems", "unevaluatedProperties", "dependentRequired",
+                                    "dependentSchemas", "$anchor", "$dynamicRef", "$dynamicAnchor", "minContains",
+                                    "maxContains"})
+REF_ANNOTATIONS = frozenset({"$ref", "description", "title", "$comment"})
+
+
+def draft7_unsafe(schema: Any, path: str = "") -> list[str]:
+    """Where a 2020-12 schema would validate less under Draft 7 (empty = Draft 7 checks the same)."""
+    out: list[str] = []
+    if isinstance(schema, dict):
+        out += [f"{path or '/'}: {k}" for k in sorted(DRAFT7_UNSAFE_KEYWORDS & set(schema))]
+        if "$ref" in schema and set(schema) - REF_ANNOTATIONS:
+            out.append(f"{path or '/'}: $ref with {sorted(set(schema) - REF_ANNOTATIONS)}")
+        if isinstance(schema.get("items"), list):
+            out.append(f"{path or '/'}: items as an array")
+        for k, v in schema.items():
+            out += draft7_unsafe(v, f"{path}/{k}")
+    elif isinstance(schema, list):
+        for i, v in enumerate(schema):
+            out += draft7_unsafe(v, f"{path}/{i}")
+    return out
+
+
+def schema_validator(jsonschema, schema: dict[str, Any]):
+    """A validator for a 2020-12 schema: Draft 2020-12, or Draft 7 on jsonschema < 4 (Ubuntu 22.04's
+    python3-jsonschema 3.2) only when Draft 7 checks the schema the same. Never a weaker check: raises
+    RuntimeError instead."""
+    if hasattr(jsonschema, "Draft202012Validator"):
+        return jsonschema.Draft202012Validator(schema)
+    unsafe = draft7_unsafe(schema)
+    if unsafe:
+        raise RuntimeError(f"jsonschema {getattr(jsonschema, '__version__', '?')} has no Draft 2020-12 validator and "
+                           f"Draft 7 would not check {', '.join(unsafe)}; install jsonschema >= 4")
+    return jsonschema.Draft7Validator(schema)
 
 
 def host_name() -> str:

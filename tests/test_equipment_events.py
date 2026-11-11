@@ -157,7 +157,7 @@ class RepoFileTests(unittest.TestCase):
         schema = json.loads((REPO / "schemas" / "host_events.v1.schema.json").read_text())
         for path in sorted((REPO / "hosts").glob("*/events.yml")):
             with self.subTest(host=path.parent.name):
-                hostconfig.schema_validator(jsonschema)(schema).validate(yaml.safe_load(path.read_text()))
+                hostconfig.schema_validator(jsonschema, schema).validate(yaml.safe_load(path.read_text()))
 
 
 def _at_ref(ref, relpath):
