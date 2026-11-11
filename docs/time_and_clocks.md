@@ -101,6 +101,90 @@ offset at the 2026-09-19 22:22 boot to ~8 min on 2026-10-05, at roughly
 `rig_health_check.py`'s `time_sync` check now logs it every five minutes
 (`/var/lib/rig-health/history.jsonl`), so from here on it is known.
 
+## How the kernel turns the counter into time
+
+Every core has its own TSC, and all of them count up from boot at the same fixed rate
+(3593.249 MHz here, which is 36 x a 99.8125 MHz reference). Reading the time is cheap
+because the kernel doesn't ask any hardware clock. At each scheduler tick (every 4 ms at
+HZ=250) it notes a pair (counter value X, time T). When a program asks for the time, the
+vDSO, a small piece of kernel code mapped into every process, reads the counter on whatever
+core the thread is on and returns
+
+    time = T + (counter_now - X) x (ns per cycle)
+
+with no system call. That takes about 80 ns. It only works if every core's counter agrees
+with the counter that was read when (X, T) was noted. The kernel guards this in two ways:
+
+- A **monotonic clamp:** if `counter_now` is *less* than X, the formula would go backwards, so
+  the kernel returns T instead. Time holds still rather than reversing.
+- The **clocksource watchdog:** it periodically compares the TSC against a slower,
+  independent clock (`acpi_pm` here). If they disagree, it marks the TSC unstable and
+  switches the whole system to the slower clock. Reads on `acpi_pm` cost about 2 µs and
+  serialize across CPUs.
+
+`tsc=reliable` on the kernel command line turns the watchdog off for the TSC.
+
+## The 2026-11-11 chiplet clock fault
+
+**What was seen (measured 2026-11-11 by citrus-agent, compositor-vsync-investigator and
+pancakebatter):**
+- On CPUs 24-31 and 56-63, which are chiplet 3 in [`cpu_topology.md`](cpu_topology.md),
+  every kernel clock (`CLOCK_MONOTONIC`, `CLOCK_REALTIME`, `CLOCK_MONOTONIC_RAW`), read
+  through the vDSO and through the raw system call, sometimes returned the same value until
+  the next tick. The result was a 4 ms staircase, with steps of 4,000,084 ns and 100% repeated
+  readings. All other CPUs stepped about every 100 ns.
+- The fault comes and goes for the whole chiplet at once, staying in each state from 1 s to
+  over 40 s. For example, CPU 24 sampled once a second from 15:49:24 to 15:50:24Z was good for
+  17 s, bad for 37 s, then good again. It was absent at 02:12Z and present by 15:17Z.
+- While bad, the chiplet's TSC (`rdtscp`) reads 10,133,099,160,916,788 cycles behind CPU 0,
+  which is 2^48 x 36 minus the 0.19 ms between the two reads. 2^48 cycles of the 99.8125 MHz
+  reference is 32.64 days. The host was booted 2026-10-06 21:44Z, so boot plus 32.64 days is
+  2026-11-08 13:05Z.
+
+**What it means (inferred):**
+- A 48-bit count of reference ticks overflowed at 2026-11-08 13:05Z.
+- Since then, chiplet 3 sometimes reports its counter without the overflowed bit, so it reads
+  as if the machine had booted 32.64 days later. Its counter is then far *behind* the time the
+  kernel last noted, so the monotonic clamp returns T, the tick time, until the next tick.
+  That is the staircase, with an occasional backwards step when the chiplet flips between
+  states.
+- Why only that chiplet, why it flips, and whether a BIOS or microcode update fixes it are all
+  unknown. The board is an ASUS Pro WS WRX80E-SAGE SE WIFI with BIOS 1201 (2023-04-19) and
+  microcode 0xa008205. Idle-state restore is one suspect, unproven.
+
+**The September episode (from Orange's records):**
+- On 2026-09-11 07:03:06 the kernel logged `Clocksource 'tsc' skewed -485515617 ns over
+  watchdog 'acpi_pm' interval of 485515617 ns`, marked the TSC unstable and switched to
+  `acpi_pm`.
+- The host had been up since 2026-08-09, so the 48-bit count would have overflowed 32.64 days
+  later, on 2026-09-11. A skew of exactly minus one watchdog interval means the TSC didn't
+  advance at all over the interval, the same staircase seen from the watchdog's side.
+  **Inferred:** the same fault.
+- Clock reads went from about 80 ns to about 1.95 µs and Orange's host-side latencies grew 2-4
+  times (Orange found this on 09-17).
+- `tsc=reliable` was added at the 2026-09-17 reboot to stop that fallback. It has been on the
+  command line since.
+
+**The trade-off:**
+- `tsc=reliable` keeps clock reads fast, but it is why the November fault produced no kernel
+  message: the detector was off.
+- Without it, the watchdog catches the fault and the whole host falls back to the slow clock.
+- Either way, after about 32 days of uptime this host can't trust its TSC on chiplet 3.
+
+**What follows for operations:**
+- **Reboot before about 30 days of uptime.** That is Jeremy's call. Rebooting resets the
+  count, and both episodes started at 32.64 days.
+- **Run a per-CPU clock check before trusting timing.** One probe isn't enough, because the
+  fault comes and goes. Check that the clock advances on every non-isolated CPU and that each
+  CPU's counter agrees with CPU 0, sampled over time. Never probe the isolated CPUs while
+  something runs on them.
+- Evidence and probes (clockwatch, clkprobe, tsc3/tsc4) are in
+  `/home/jeremy/stimulus-display-tests-2026-11-10/clock-fault/`.
+
+**Which recordings are affected:** any recording made after 32.64 days of uptime, with threads
+floating onto chiplet 3, may carry timestamps quantized to 4 ms. Camera PTP timestamps and
+`ptp4l`/`phc2sys` were measured unaffected.
+
 ## A better reference: GPS-disciplined clocks
 
 Each GPS satellite carries atomic clocks and broadcasts the time; a receiver
