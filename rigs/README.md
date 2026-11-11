@@ -14,7 +14,9 @@ rigs/<rig_id>/
 A rig is not a host. One host may drive several rigs and a rig may move hosts, so the
 rig document holds only what is physically built, and `hosts/<host>/config.yml` holds a
 `rigs:` binding: which rig ids that host drives, which display output drives each
-projection path, and the projector hardware on that output.
+projection path, and the projector hardware on that output. An output on a second X screen
+says so with `x_screen` (the screen number of `$DISPLAY`, e.g. 1 for `:1.1`; absent = the
+default screen), which Citrus uses to open its stimulus window there.
 
 ## Who owns what
 

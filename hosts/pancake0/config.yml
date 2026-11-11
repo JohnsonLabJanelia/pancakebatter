@@ -757,6 +757,7 @@ rigs:
       # same GPU connector). Projector input HDMI 1 (rigs/omnifin0/events.yml e4/e5).
       - output_name: DP-2
         projection_path: main
+        x_screen: 1                      # projector on its own X screen, DISPLAY=:1.1 (2026-11-10; Citrus PR #106)
         projector:
           manufacturer: BenQ
           model: X3100i

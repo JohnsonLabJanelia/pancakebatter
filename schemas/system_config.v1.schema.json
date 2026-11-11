@@ -357,6 +357,11 @@
                   "minLength": 1,
                   "description": "Key in the rig document's projection_paths."
                 },
+                "x_screen": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Optional. X screen number of $DISPLAY this output is on (screen 1 = :1.1). Absent = the display's default screen. Citrus opens its stimulus window there and refuses anything but a whole number >= 0."
+                },
                 "projector": {
                   "type": "object",
                   "additionalProperties": true,

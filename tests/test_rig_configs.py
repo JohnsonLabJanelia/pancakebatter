@@ -332,6 +332,18 @@ class HostBindingTests(unittest.TestCase):
         self.assertTrue(any("ghost" in e for e in errs))
         self.assertTrue(any("not driven by any output" in e for e in errs))
 
+    def test_x_screen_is_optional_and_a_whole_number(self):
+        cfg = copy.deepcopy(HOST_CONFIGS["pancake0"])
+        out = cfg["rigs"][0]["display_outputs"][0]
+        for good in (0, 1, None):
+            with self.subTest(x_screen=good):
+                out.pop("x_screen", None) if good is None else out.__setitem__("x_screen", good)
+                self.assertEqual(rc.validate_binding("pancake0", cfg, RIGS), [])
+        for bad in (-1, True, "1", 1.0):
+            with self.subTest(x_screen=bad):
+                out["x_screen"] = bad
+                self.assertTrue(any("x_screen" in e for e in rc.validate_binding("pancake0", cfg, RIGS)))
+
 
 if __name__ == "__main__":
     unittest.main()

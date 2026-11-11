@@ -548,6 +548,9 @@ def validate_binding(host: str, host_cfg: dict[str, Any], rig_docs: dict[str, di
             outputs_seen.add(name)
             if pid not in doc["projection_paths"]:
                 errs.append(f"{host}: rig {rid} output {name} names unknown projection_path {pid!r}")
+            screen = o.get("x_screen", 0)
+            if not (isinstance(screen, int) and not isinstance(screen, bool) and screen >= 0):
+                errs.append(f"{host}: rig {rid} output {name} x_screen must be an integer >= 0")
             used.add(pid)
         missing = sorted(set(doc["projection_paths"]) - used)
         if missing:
