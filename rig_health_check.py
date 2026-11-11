@@ -6,8 +6,10 @@
   ./rig_health_check.py --color always   force colour (default: only on a terminal; rich if installed, else ANSI)
   ./rig_health_check.py --state-dir DIR  remember the last result there; level changes are what get mailed
   ./rig_health_check.py --print-affinity the non-isolated CPU list (install_rig_health_timer.sh uses it)
+  ./rig_health_check.py --print-clock-watch-cpus
+                                         REF PROBE SWEEP CPU lists for clock_watch (install_clock_watch.sh uses it)
   ./rig_health_check.py --preflight --recording-root DIR [--expected-gb N] [--state-dir /var/lib/rig-health]
-                                         pre-recording gate for the drive under DIR; exit 2 = do not record
+                                         pre-recording gate for the drive under DIR and the clocks; exit 2 = do not record
   ./rig_health_check.py --state-dir /var/lib/rig-health --acknowledge-drive SERIAL [--note TEXT]
                                          mark a drive's current media/kernel errors as known
 
@@ -30,6 +32,10 @@ Checks (reads of sysfs, /proc and the journal, plus one nvidia-smi query):
                 the acknowledged baseline, spare at threshold (crit); new error-log entries, unsafe shutdowns,
                 over-temperature minutes, endurance used (warn); a stale snapshot warns
   nvme_firmware same-model drives on different firmware, or firmware that differs from the host config (warn)
+  clock_steps   from clock_watch (install_clock_watch.sh): a CPU whose clock froze between ticks or disagreed with
+                the reference CPU now or since the last run (crit); the sampler not updating (warn)
+  uptime        days since boot against the chiplet counter fault seen after 32.64 days (warn 28, crit 32); notes the
+                clocksource and whether tsc=reliable has turned the kernel's own TSC watchdog off
   acquisition   whether Orange is recording (info only)
   host_config   the installed copy other programs read (/etc/pancakebatter/host.yml) matches the checkout (warn if stale)
   recording_transfer  every sealer version under paths.recording_transfer_root matches releases.json, file by file
@@ -77,10 +83,17 @@ THRESHOLDS = {  # degrees C unless noted; override with --threshold name=value
     "nvme_used_warn_pct": 80,                 # SMART percent_used (rated endurance)
     "smart_stale_s": 900,                     # SMART snapshot older than this: warn
     "preflight_margin_pct": 10,               # --preflight: free space must exceed --expected-gb by this much
+    "uptime_warn_days": 28, "uptime_crit_days": 32,  # the chiplet counter fault appeared after 32.64 days
+    "clock_stale_s": 15,                      # clock_watch status older than this: the sampler has stopped
+    "preflight_clock_window_s": 60,           # --preflight: refuse if any CPU's clock was bad this recently
 }
 NTP_SERVER = "pool.ntp.org"
 HWMON = Path("/sys/class/hwmon")
 MAIL_SUBJECT = "[rig-health] {host}: {summary}"
+CLOCK_WATCH_STATUS = Path("/run/clock-watch/status.json")
+CLOCK_WATCH_UNIT = Path("/etc/systemd/system/clock-watch.service")
+CLOCKSOURCE = Path("/sys/devices/system/clocksource/clocksource0/current_clocksource")
+COUNTER_WRAP_DAYS = 2**48 / 99.8125e6 / 86400   # 48 bits of pancake0's 99.8125 MHz reference clock: 32.64 days
 
 
 @dataclass
@@ -151,6 +164,16 @@ def allowed_cpus(config: dict, ncpu: int) -> list[int]:
     isolated = parse_cpulist((config.get("kernel_tuning") or {}).get("isolated_cores", ""))
     allowed = [c for c in range(ncpu) if c not in isolated]
     return allowed or list(range(ncpu))
+
+
+def clock_watch_cpus(host: Host, config: dict, ncpu: int) -> tuple[int, list[int], list[int]]:
+    """(reference CPU, one probe CPU per L3 group, every CPU to sweep), all from the non-isolated CPUs."""
+    allowed = allowed_cpus(config, ncpu)
+    first_in_group: dict[str, int] = {}
+    for cpu in allowed:
+        group = (host.read(f"/sys/devices/system/cpu/cpu{cpu}/cache/index3/shared_cpu_list") or "").strip()
+        first_in_group.setdefault(group, cpu)
+    return allowed[0], sorted(first_in_group.values()), allowed
 
 
 def stay_out_of_the_way(config: dict) -> None:
@@ -634,7 +657,15 @@ def backing_controller(host: Host, path: str) -> tuple[str | None, str]:
 
 def preflight(host: Host, config: dict, th: dict, root: str, expected_gb: float | None,
               since: str, previous: dict, acks: dict) -> list[Finding]:
-    """Is the drive under the recording root fit to record onto? Read-only: saves no state."""
+    """Are the clocks, and the drive under the recording root, fit to record with? Read-only: saves no state."""
+    now = datetime.now().timestamp()
+    clocks = check_clock_steps(host, th, now - th["preflight_clock_window_s"], now) + check_uptime(host, th)
+    return clocks + preflight_drive(host, config, th, root, expected_gb, since, previous, acks)
+
+
+def preflight_drive(host: Host, config: dict, th: dict, root: str, expected_gb: float | None,
+                    since: str, previous: dict, acks: dict) -> list[Finding]:
+    """Is the drive under the recording root fit to record onto?"""
     try:
         ctrl, block = backing_controller(host, root)
     except OSError as exc:
@@ -693,6 +724,68 @@ def check_recording_transfer(config: dict) -> list[Finding]:
     if problems:
         return [Finding("recording_transfer", "warn", p) for p in problems]
     return [Finding("recording_transfer", "ok", f"{', '.join(versions)} intact under {root}")]
+
+
+def check_clock_steps(host: Host, th: dict, since: float | None, now: float) -> list[Finding]:
+    """Did clock_watch see a CPU's clock freeze or leave the reference CPU's, now or after `since` (epoch)?
+
+    Why (2026-11-11): after 32.64 days up, chiplet 3's counter intermittently read 2^48 x 36 cycles behind, every
+    kernel clock on CPUs 24-31/56-63 moved in 4 ms steps, and with tsc=reliable the kernel logged nothing.
+    See docs/time_and_clocks.md.
+    """
+    text = host.read(CLOCK_WATCH_STATUS)
+    if text is None:
+        if host.exists(CLOCK_WATCH_UNIT):
+            return [Finding("clock_steps", "warn", f"clock-watch is installed but {CLOCK_WATCH_STATUS} is missing "
+                                                   "(systemctl status clock-watch)")]
+        return [Finding("clock_steps", "info", "clock-watch not installed (sudo ./install_clock_watch.sh); "
+                                               "per-CPU clock faults go unseen")]
+    try:
+        status = json.loads(text)
+        t, started = float(status["t"]), float(status["started"])
+    except (ValueError, KeyError, TypeError) as exc:
+        return [Finding("clock_steps", "warn", f"{CLOCK_WATCH_STATUS} unreadable: {exc}")]
+    stamp = lambda epoch: datetime.fromtimestamp(epoch).isoformat(timespec="seconds")
+    findings = []
+    if now - t > th["clock_stale_s"]:
+        findings.append(Finding("clock_steps", "warn", f"clock-watch last updated {now - t:.0f} s ago "
+                                                       "(systemctl status clock-watch)"))
+    bad_now, last_bad = status.get("bad_now") or [], status.get("last_bad")
+    value = {"bad_now": bad_now, "last_bad": last_bad, "last_bad_cpus": status.get("last_bad_cpus") or [],
+             "bad_seconds": status.get("bad_seconds"), "since": since}
+    total = f"{status.get('bad_seconds')} bad seconds since {stamp(started)}"
+    if bad_now:
+        findings.append(Finding("clock_steps", "crit", f"CPUs {format_cpulist(bad_now)}: clock frozen between ticks or "
+                                                       f"off the reference CPU now ({total}); timestamps taken there "
+                                                       "are not trustworthy (docs/time_and_clocks.md)", value))
+    elif last_bad is not None and (since is None or last_bad > since):
+        findings.append(Finding("clock_steps", "crit", f"CPUs {format_cpulist(value['last_bad_cpus'])}: clock fault, "
+                                                       f"last seen {stamp(last_bad)} ({total}); timestamps taken there "
+                                                       "are not trustworthy (docs/time_and_clocks.md)", value))
+    elif not findings:
+        cpus = len(status.get("sweep") or [])
+        earlier = f"; last fault {stamp(last_bad)}" if last_bad is not None else ""
+        findings.append(Finding("clock_steps", "ok", f"{cpus} CPUs' clocks working (checked every second since "
+                                                     f"{stamp(started)}){earlier}", value))
+    return findings
+
+
+def check_uptime(host: Host, th: dict) -> list[Finding]:
+    text = host.read("/proc/uptime")
+    try:
+        days = float(text.split()[0]) / 86400
+    except (AttributeError, IndexError, ValueError):
+        return [Finding("uptime", "warn", "could not read /proc/uptime")]
+    level = level_for(days, th["uptime_warn_days"], th["uptime_crit_days"])
+    if level == "ok":
+        message = f"up {days:.1f} days, {COUNTER_WRAP_DAYS - days:.1f} before the {COUNTER_WRAP_DAYS:.2f}-day counter wrap"
+    else:
+        message = (f"up {days:.1f} days: the chiplet clock fault appeared after {COUNTER_WRAP_DAYS:.2f} days; a reboot "
+                   "resets the counter (docs/time_and_clocks.md)")
+    source = (host.read(CLOCKSOURCE) or "unknown").strip()
+    watchdog_off = "tsc=reliable" in (host.read("/proc/cmdline") or "").split()
+    message += f"; clocksource {source}" + (", tsc=reliable (kernel TSC watchdog off)" if watchdog_off else "")
+    return [Finding("uptime", level, message, round(days, 2))]
 
 
 def check_acquisition(host: Host) -> list[Finding]:
@@ -795,6 +888,14 @@ def send_mail(host: Host, to: str, sender: str, subject: str, body: str) -> str:
 
 # --- main ------------------------------------------------------------------------------------
 
+def epoch_of(stamp: str | None) -> float | None:
+    """The previous run's local ISO time (as saved in last.json) as epoch seconds."""
+    try:
+        return datetime.fromisoformat(stamp).timestamp() if stamp else None
+    except ValueError:
+        return None
+
+
 def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, with_ptp: bool,
                ntp_server: str | None = NTP_SERVER, config_path: Path | None = None,
                previous: dict | None = None, acks: dict | None = None, memo: dict | None = None) -> list[Finding]:
@@ -810,6 +911,9 @@ def run_checks(host: Host, config: dict, th: dict, since: str, with_gpu: bool, w
     if with_ptp:
         findings += check_ptp(host, config, th)
     findings += check_time_sync(host, th, ntp_server)
+    now = datetime.now().timestamp()
+    findings += check_clock_steps(host, th, epoch_of((previous or {}).get("time")), now)
+    findings += check_uptime(host, th)
     findings += check_pcie_aer(host, since)
     controllers = nvme_controllers(host)
     findings += check_storage_errors(host, since, datetime.now().isoformat(timespec="seconds"), previous, acks, memo, controllers)
@@ -905,6 +1009,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--since", help="journal window for mlx5/AER checks (default: last run, else -15min)")
     parser.add_argument("--threshold", action="append", default=[], metavar="NAME=VALUE", help=f"override one of {', '.join(THRESHOLDS)}")
     parser.add_argument("--print-affinity", action="store_true", help="print the non-isolated CPU list for systemd CPUAffinity and exit")
+    parser.add_argument("--print-clock-watch-cpus", action="store_true",
+                        help="print clock_watch's reference CPU, probe CPUs and sweep CPUs (install_clock_watch.sh uses it) and exit")
     parser.add_argument("--test-mail", metavar="ADDRESS", help="send one test message to ADDRESS the way alerts are sent, and exit")
     parser.add_argument("--preflight", action="store_true",
                         help="pre-recording gate: check only the drive under --recording-root; saves no state; exit 2 = do not record")
@@ -921,6 +1027,10 @@ def main(argv: list[str] | None = None) -> int:
     config = yaml.safe_load(config_path.read_text()) or {}
     if args.print_affinity:
         print(format_cpulist(allowed_cpus(config, os.cpu_count() or 1)))
+        return 0
+    if args.print_clock_watch_cpus:
+        ref, probe, sweep = clock_watch_cpus(Host(), config, os.cpu_count() or 1)
+        print(ref, ",".join(format_cpulist(probe).split()), ",".join(format_cpulist(sweep).split()))
         return 0
     stay_out_of_the_way(config)
 

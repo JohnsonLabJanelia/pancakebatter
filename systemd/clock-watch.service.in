@@ -1,0 +1,31 @@
+# Rendered by install_clock_watch.sh (@REPO@, @USER@, @BINARY@, @REF@, @PROBE@, @SWEEP@, @AFFINITY@ are filled in).
+[Unit]
+Description=Per-CPU clock fault sampler (pancakebatter clock_watch)
+Documentation=file://@REPO@/docs/time_and_clocks.md
+
+[Service]
+Type=simple
+User=@USER@
+# Keep this boot's kernel messages (TSC calibration, clocksource choice) before the ring buffer drops them.
+# Runs as root ("+") because dmesg is restricted; written once per boot. ($$ is a literal $ to systemd.)
+ExecStartPre=+/bin/sh -c 'f=/var/lib/clock-watch/dmesg-boot-%b.txt; [ -e "$$f" ] || { dmesg > "$$f"; chmod 0644 "$$f"; }'
+ExecStart=@BINARY@ --ref @REF@ --probe @PROBE@ --sweep @SWEEP@ --status /run/clock-watch/status.json --log /var/lib/clock-watch/events.jsonl
+Restart=always
+RestartSec=5
+StateDirectory=clock-watch
+RuntimeDirectory=clock-watch
+RuntimeDirectoryMode=0755
+
+# A few microseconds per CPU per second, never on an isolated CPU.
+Nice=19
+CPUAffinity=@AFFINITY@
+
+ProtectSystem=strict
+ReadWritePaths=/var/lib/clock-watch
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

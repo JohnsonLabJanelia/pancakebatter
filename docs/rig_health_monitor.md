@@ -29,6 +29,8 @@ sudo ./install_rig_health_timer.sh --uninstall
 | `storage_errors` | `journalctl -k --since <last run>` | any `critical medium error`, nvme `I/O Error`, `I/O error, dev`, `Buffer I/O error`, nvme timeout or controller reset: crit per drive, and it **stays crit** on later runs until the drive is acknowledged |
 | `nvme_smart` | `/var/lib/pancakebatter-nvme/smart.json` (root snapshot, below) | `critical_warning` ≠ 0, media errors above the acknowledged baseline (any, if never acknowledged), available spare at or below its threshold: crit. Increases since the last run in error-log entries, unsafe shutdowns, warning/critical temperature minutes, and `percent_used` ≥ 80: warn. Snapshot older than 15 min: warn. Not installed: info |
 | `nvme_firmware` | `/sys/class/nvme/*/{model,firmware_rev,serial}` | same-model drives on different firmware, or firmware differing from `storage_devices` in the host config: warn |
+| `clock_steps` | `/run/clock-watch/status.json` from `clock-watch.service` (below) | a CPU whose clock is frozen between ticks or off the reference CPU's now, or at any time since the last run: crit, naming the CPUs; status older than 15 s while the unit is installed: warn; not installed: info |
+| `uptime` | `/proc/uptime`, the current clocksource, `/proc/cmdline` | warn from 28 days, crit from 32: the chiplet counter fault appeared after 32.64 days ([`time_and_clocks.md`](time_and_clocks.md#the-2026-11-11-chiplet-clock-fault)); notes `tsc=reliable` (kernel TSC watchdog off) |
 | `acquisition` | `pgrep` for `targets/release/orange` (argv[0] checked) | info only |
 
 Thresholds are overridable per run: `--threshold nic_warn=80 --threshold disk_warn_pct=15`.
@@ -93,6 +95,38 @@ are exit 1, healthy is 0. It reads the timer's state for its journal window and
 acknowledgements but writes nothing and sends no mail. Calling it, and refusing to
 start on exit 2, is up to the recorder (Orange owns the record start); a 95-minute
 run is about 333 GB.
+
+The gate checks the clocks first: a `clock_steps` fault seen in the last 60 s
+(`--threshold preflight_clock_window_s=N`) or `uptime` at 32 days or more is
+exit 2, because host timestamps taken then can't be trusted.
+
+## Per-CPU clock sampler (clock-watch)
+
+```bash
+sudo ./install_clock_watch.sh                    # builds libexec/clock_watch.c, enables clock-watch.service
+sudo ./install_clock_watch.sh --uninstall
+```
+
+Once a second, on one non-isolated CPU per L3 group (pancake0: 0, 9, 16, 24),
+`clock_watch` reads `CLOCK_MONOTONIC_RAW` around one `rdtscp` and then 64 more
+times. A CPU is bad when 60 or more of those reads repeat (the clock is frozen
+between ticks) or when its clock and counter disagree with CPU 0's by more than
+1 ms. While any CPU is bad, and for the second after, it checks every
+non-isolated CPU. It never runs on an isolated CPU and costs a few microseconds
+per CPU per second.
+
+- `/run/clock-watch/status.json`: rewritten every second (the bad CPUs now, the
+  last bad time and CPUs, bad seconds since start). `clock_steps` and the gate
+  read it.
+- `/var/lib/clock-watch/events.jsonl`: one line per CPU state change and a
+  summary each minute; rotated to `events.jsonl.1` at 64 MiB.
+- `/var/lib/clock-watch/dmesg-boot-<boot id>.txt`: the kernel messages from
+  each boot (TSC calibration, clocksource), saved when the unit first starts,
+  before the ring buffer drops them.
+
+Re-run the installer after changing `kernel_tuning.isolated_cores`, because the
+unit embeds the CPU lists. Tested on 2026-11-11 against the live fault: it
+flagged CPUs 24-31 and 56-63 and no others.
 
 ## Not interfering with acquisition
 

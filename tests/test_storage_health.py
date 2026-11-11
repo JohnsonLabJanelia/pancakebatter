@@ -10,10 +10,10 @@ from types import SimpleNamespace
 import rig_health_check as rhc
 try:
     from tests.test_reset_camera_nics import CONFIG
-    from tests.test_rig_health_check import FakeHost, Statvfs
+    from tests.test_rig_health_check import HEALTHY_CLOCKS, FakeHost, Statvfs, clock_status
 except ImportError:  # discover -s tests puts tests/ itself on sys.path
     from test_reset_camera_nics import CONFIG
-    from test_rig_health_check import FakeHost, Statvfs
+    from test_rig_health_check import HEALTHY_CLOCKS, FakeHost, Statvfs, clock_status
 
 ROOT = Path(__file__).resolve().parent.parent
 SNAP = ROOT / "libexec" / "nvme_smart_snapshot.py"
@@ -211,8 +211,10 @@ class PreflightTests(unittest.TestCase):
             "/mnt/Data2": (259, 4, "/sys/devices/pci0000:40/0000:40:01.1/0000:41:00.0/nvme/nvme0/nvme0n1/nvme0n1p2")}
     DISKS = {"/mnt/Data1": Statvfs(1_000_000_000, 850_000_000, 4096), "/mnt/Data2": Statvfs(1_000_000_000, 100_000_000, 4096)}
 
-    def gate(self, root, expected_gb=None, journal="", doc=None, previous=None, acks=None):
-        host = StorageHost(journal, snap_doc=doc or snapshot(nvme1=smart(media_errors=1495)), devs=self.DEVS, disks=self.DISKS)
+    def gate(self, root, expected_gb=None, journal="", doc=None, previous=None, acks=None, clocks=None):
+        clocks = clocks or {str(rhc.CLOCK_WATCH_STATUS): clock_status(datetime.now().timestamp())}
+        host = StorageHost(journal, snap_doc=doc or snapshot(nvme1=smart(media_errors=1495)), devs=self.DEVS, disks=self.DISKS,
+                           files=dict(HEALTHY_CLOCKS, **clocks))
         f = rhc.preflight(host, CONFIG, TH, root, expected_gb, "x", previous or {}, acks or {})
         return rhc.worst_level(f), f
 
@@ -223,7 +225,16 @@ class PreflightTests(unittest.TestCase):
         self.assertTrue(all("nvme0" not in x.message for x in f if x.level != "info"))
         worst, f = self.gate("/mnt/Data2", 333)    # healthy drive, 410 GB free > 333 GB + 10%
         self.assertEqual(worst, "ok")
-        self.assertIn("/mnt/Data2 is on nvme0n1p2 (controller nvme0)", f[0].message)
+        self.assertIn("/mnt/Data2 is on nvme0n1p2 (controller nvme0)", next(x.message for x in f if x.check == "preflight"))
+
+    def test_a_clock_fault_in_the_last_minute_or_a_long_uptime_blocks(self):
+        now = datetime.now().timestamp()
+        for last_bad, expect in ((now - 30, "crit"), (now - 90, "ok")):
+            status = clock_status(now, last_bad=last_bad, last_bad_cpus=[24], bad_seconds=1)
+            worst, f = self.gate("/mnt/Data2", 333, clocks={str(rhc.CLOCK_WATCH_STATUS): status})
+            self.assertEqual(worst, expect)
+        worst, f = self.gate("/mnt/Data2", 333, clocks={"/proc/uptime": f"{33 * 86400} 1\n"})
+        self.assertEqual([x.check for x in f if x.level == "crit"], ["uptime"])
 
     def test_not_enough_space_for_the_run_blocks(self):
         worst, f = self.gate("/mnt/Data2", 380)    # needs 418 GB, has 410

@@ -14,8 +14,9 @@ Statvfs = namedtuple("Statvfs", "f_blocks f_bavail f_frsize")
 
 
 class FakeHost(FakeSystem):
-    def __init__(self, hwmon=None, disks=None, **kw):
+    def __init__(self, hwmon=None, disks=None, files=None, **kw):
         super().__init__(**kw)
+        self.files = dict(files or {})  # path -> text, for plain files (/proc/uptime, the clock_watch status)
         self.hwmon = hwmon or {}      # hwmonN -> {"name":..., "device": "0000:61:00.0", "temps": {"1": {"label","input","max","crit"}}}
         self.disks = disks or {"/": Statvfs(1000, 500, 4096)}
 
@@ -33,12 +34,16 @@ class FakeHost(FakeSystem):
 
     def exists(self, path):
         p = str(path)
+        if p in self.files:
+            return True
         if p.startswith(str(rhc.HWMON) + "/"):
             return p.endswith("/device") and bool(self.hwmon[p.split("/")[4]].get("device"))
         return super().exists(path)
 
     def read(self, path):
         p = str(path)
+        if p in self.files:
+            return self.files[p]
         if p.startswith(str(rhc.HWMON) + "/"):
             parts = p.split("/")
             entry, attr = self.hwmon[parts[4]], parts[5]
@@ -304,6 +309,77 @@ class RecordingTransferCheckTests(unittest.TestCase):
         self.assertEqual(rhc.check_recording_transfer({}), [])
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual([f.level for f in rhc.check_recording_transfer({"paths": {"recording_transfer_root": d}})], ["info"])
+
+
+def clock_status(t, bad_now=(), last_bad=None, last_bad_cpus=(), bad_seconds=0):
+    import json
+    return json.dumps({"version": 1, "t": t, "started": t - 3600, "ref": 0, "samples": 3600, "bad_seconds": bad_seconds,
+                       "probe": [0, 9, 16, 24], "sweep": [0, 3, 4, 5, 24, 25], "bad_now": list(bad_now),
+                       "last_bad": last_bad, "last_bad_cpus": list(last_bad_cpus)})
+
+
+HEALTHY_CLOCKS = {"/proc/uptime": "86400.00 1000.00\n", str(rhc.CLOCKSOURCE): "tsc\n",
+                  "/proc/cmdline": "BOOT_IMAGE=/vmlinuz isolcpus=1,2 tsc=reliable quiet\n"}
+
+
+class ClockTests(unittest.TestCase):
+    TH = dict(rhc.THRESHOLDS)
+    NOW = 1_800_000_000.0
+
+    def steps(self, status=None, since=None, unit=False):
+        files = {} if status is None else {str(rhc.CLOCK_WATCH_STATUS): status}
+        if unit:
+            files[str(rhc.CLOCK_WATCH_UNIT)] = ""
+        return rhc.check_clock_steps(FakeHost(files=files), self.TH, since, self.NOW)
+
+    def test_not_installed_is_info_but_installed_and_silent_warns(self):
+        self.assertEqual([f.level for f in self.steps()], ["info"])
+        self.assertEqual([f.level for f in self.steps(unit=True)], ["warn"])
+
+    def test_bad_now_is_crit_and_names_the_cpus(self):
+        [f] = self.steps(clock_status(self.NOW - 1, bad_now=[24, 25, 26, 27], last_bad=self.NOW - 1,
+                                      last_bad_cpus=[24, 25, 26, 27], bad_seconds=37), since=self.NOW - 30)
+        self.assertEqual(f.level, "crit")
+        self.assertIn("CPUs 24-27", f.message)
+        self.assertIn("37 bad seconds", f.message)
+
+    def test_fault_since_the_last_run_is_crit_once_then_ok(self):
+        status = clock_status(self.NOW - 1, last_bad=self.NOW - 100, last_bad_cpus=[24, 56], bad_seconds=3)
+        [f] = self.steps(status, since=self.NOW - 300)
+        self.assertEqual((f.level, f.value["last_bad_cpus"]), ("crit", [24, 56]))
+        [f] = self.steps(status, since=self.NOW - 60)
+        self.assertEqual(f.level, "ok")
+        self.assertIn("last fault", f.message)
+        [f] = self.steps(status, since=None)   # first run: anything seen since the sampler started counts
+        self.assertEqual(f.level, "crit")
+
+    def test_stale_or_garbled_status_warns(self):
+        [f] = self.steps(clock_status(self.NOW - 60))
+        self.assertEqual(f.level, "warn")
+        self.assertIn("60 s ago", f.message)
+        self.assertEqual([f.level for f in self.steps("{not json")], ["warn"])
+        self.assertEqual([f.level for f in self.steps(clock_status(self.NOW - 1), since=self.NOW - 300)], ["ok"])
+
+    def test_uptime_levels_and_context(self):
+        def up(days):
+            files = dict(HEALTHY_CLOCKS, **{"/proc/uptime": f"{days * 86400:.2f} 1.0\n"})
+            return rhc.check_uptime(FakeHost(files=files), self.TH)[0]
+        self.assertEqual([up(d).level for d in (1, 27.9, 28, 31.9, 32, 35.9)], ["ok", "ok", "warn", "warn", "crit", "crit"])
+        self.assertIn("31.6 before the 32.64-day counter wrap", up(1).message)
+        self.assertIn("clocksource tsc, tsc=reliable", up(35.9).message)
+        self.assertEqual(rhc.check_uptime(FakeHost(), self.TH)[0].level, "warn")
+
+    def test_probe_cpus_are_the_first_non_isolated_cpu_of_each_l3_group(self):
+        groups = {**{c: "0-7,32-39" for c in list(range(0, 8)) + list(range(32, 40))},
+                  **{c: "8-15,40-47" for c in list(range(8, 16)) + list(range(40, 48))},
+                  **{c: "16-23,48-55" for c in list(range(16, 24)) + list(range(48, 56))},
+                  **{c: "24-31,56-63" for c in list(range(24, 32)) + list(range(56, 64))}}
+        files = {f"/sys/devices/system/cpu/cpu{c}/cache/index3/shared_cpu_list": g for c, g in groups.items()}
+        config = {"kernel_tuning": {"isolated_cores": "0-2,6,8,10,12,33,34,38,40,42,44"}}
+        ref, probe, sweep = rhc.clock_watch_cpus(FakeHost(files=files), config, 64)
+        self.assertEqual((ref, probe), (3, [3, 9, 16, 24]))
+        self.assertNotIn(8, sweep)
+        self.assertEqual(len(sweep), 64 - 13)
 
 
 class StateTests(unittest.TestCase):

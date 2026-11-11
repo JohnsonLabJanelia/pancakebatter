@@ -187,6 +187,10 @@ pancakebatter):**
   fault comes and goes. Check that the clock advances on every non-isolated CPU and that each
   CPU's counter agrees with CPU 0, sampled over time. Never probe the isolated CPUs while
   something runs on them.
+- **These checks are automated.** `clock-watch.service` samples every second, rig-health's
+  `clock_steps` and `uptime` checks mail on a fault or long uptime, `--preflight` refuses a
+  recording after a fault in the last minute or at 32 days up, and each boot's kernel messages
+  are saved. See [`rig_health_monitor.md`](rig_health_monitor.md#per-cpu-clock-sampler-clock-watch).
 - Evidence and probes (clockwatch, clkprobe, tsc3/tsc4) are in
   `/home/jeremy/stimulus-display-tests-2026-11-10/clock-fault/`.
 
