@@ -28,6 +28,9 @@ and its own 32 MiB L3 cache, plus one **I/O die** that holds the memory controll
 lanes and the links between chiplets. Two cores on the same chiplet share an L3 and talk
 cheaply. Two cores on different chiplets talk through the I/O die, which costs more.
 
+Chiplets are numbered from 0 here, so "chiplet 3" is the fourth chiplet (the one the
+2026-11-11 explainer calls the fourth).
+
 | L3 group (chiplet) | Logical CPUs | Source |
 |---|---|---|
 | 0 | 0-7 and 32-39 | measured, `cache/index3/shared_cpu_list` |

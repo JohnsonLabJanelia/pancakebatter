@@ -135,7 +135,11 @@ pancakebatter):**
   readings. All other CPUs stepped about every 100 ns.
 - The fault comes and goes for the whole chiplet at once, staying in each state from 1 s to
   over 40 s. For example, CPU 24 sampled once a second from 15:49:24 to 15:50:24Z was good for
-  17 s, bad for 37 s, then good again. It was absent at 02:12Z and present by 15:17Z.
+  17 s, bad for 37 s, then good again.
+- The flipping began between about 2026-11-11 03:00Z and 15:17Z. Before that, Citrus
+  update-manager logs had workers on chiplet 3 for 22-26% of ticks with no 4 ms-quantized
+  stamps (11-10 20:55Z and 11-11 02:17Z). Orange's per-frame receive stamps were clean through
+  headless run 2 at 02:55Z. Run 3 at 15:17Z was affected.
 - While bad, the chiplet's TSC (`rdtscp`) reads 10,133,099,160,916,788 cycles behind CPU 0,
   which is 2^48 x 36 minus the 0.19 ms between the two reads. 2^48 cycles of the 99.8125 MHz
   reference is 32.64 days. The host was booted 2026-10-06 21:44Z, so boot plus 32.64 days is
@@ -143,6 +147,8 @@ pancakebatter):**
 
 **What it means (inferred):**
 - A 48-bit count of reference ticks overflowed at 2026-11-08 13:05Z.
+- The flipping didn't start until more than two days later, and what starts it after the
+  overflow is unknown.
 - Since then, chiplet 3 sometimes reports its counter without the overflowed bit, so it reads
   as if the machine had booted 32.64 days later. Its counter is then far *behind* the time the
   kernel last noted, so the monotonic clamp returns T, the tick time, until the next tick.
@@ -173,7 +179,10 @@ pancakebatter):**
 
 **What follows for operations:**
 - **Reboot before about 30 days of uptime.** That is Jeremy's call. Rebooting resets the
-  count, and both episodes started at 32.64 days.
+  count, and both episodes appeared only after the 32.64-day mark.
+- **Capture boot-time kernel messages soon after boot.** The kernel's message buffer no longer
+  held the boot-time TSC calibration lines after 35 days (an empty `sudo dmesg | grep -i tsc`
+  on 2026-11-11), and the journal keeps only a few days of kernel log here.
 - **Run a per-CPU clock check before trusting timing.** One probe isn't enough, because the
   fault comes and goes. Check that the clock advances on every non-isolated CPU and that each
   CPU's counter agrees with CPU 0, sampled over time. Never probe the isolated CPUs while
@@ -181,9 +190,16 @@ pancakebatter):**
 - Evidence and probes (clockwatch, clkprobe, tsc3/tsc4) are in
   `/home/jeremy/stimulus-display-tests-2026-11-10/clock-fault/`.
 
-**Which recordings are affected:** any recording made after 32.64 days of uptime, with threads
-floating onto chiplet 3, may carry timestamps quantized to 4 ms. Camera PTP timestamps and
-`ptp4l`/`phc2sys` were measured unaffected.
+**Which recordings are affected:**
+- In principle, any recording made after the 32.64-day mark may carry host timestamps quantized
+  to 4 ms if its threads floated onto chiplet 3.
+- Measured so far:
+  - Recordings through 11-10, and headless runs 1-2 (11-11 02:43 and 02:55Z), are clean, with
+    threads confirmed on that chiplet.
+  - Of what is on Data2, only run 3 (`fourcam_headless_citrus_validation_20261111_101731`) is
+    affected. Cam2010094's host receive stamps were 79.79% on the 4 ms lattice.
+  - Recordings from 11-08 and 11-09 were not available to scan.
+- Camera PTP timestamps and `ptp4l`/`phc2sys` were measured unaffected.
 
 ## A better reference: GPS-disciplined clocks
 
