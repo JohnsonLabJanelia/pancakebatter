@@ -1,6 +1,7 @@
 # pancake0 X configuration
 
 A record of pancake0's X display setup, so the layout in use and its rollback can be recovered.
+For how it works and how to check or refresh it, see [`docs/display_and_projector_edid.md`](../../../docs/display_and_projector_edid.md).
 Nothing in this repo installs these files. `/etc/X11/xorg.conf` is changed by hand (root),
 followed by `sudo systemctl restart gdm`, which ends the desktop session and so needs Orange's
 clear. Each file here is byte-identical to its source when it was recorded; check with
