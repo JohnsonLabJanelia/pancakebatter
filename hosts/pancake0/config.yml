@@ -154,44 +154,30 @@ storage_devices:
 
         uuid: bb4ea7ac-11f3-4f20-80b1-5e3cb0927711
     transport: nvme
-  - name: nvme2n1
+  - name: nvme1n1
     model: Sabrent SB-RKT4P-8TB
     serial_number: 48816072200222
     capacity: 8
-    device_path: /dev/nvme2n1
+    device_path: /dev/nvme1n1
     firmware_version: R4PTLC.4
     format: 512
     sequential_read_speed: 7000
     sequential_write_speed: 6000
     partitions:
-      - partition: nvme2n1p1
+      - partition: nvme1n1p1
         fs_type: vfat
         mount_point: /boot/efi
         uuid: 77E2-AB0D
-      - partition: nvme2n1p2
+      - partition: nvme1n1p2
         fs_type: ext4
         mount_point: /
 
         uuid: c60c38ed-2574-4698-be88-7c06aeef8582
     transport: nvme
-  - name: nvme1n1
-    model: Sabrent SB-RKT4P-8TB
-    serial_number: 48804572201297
-    capacity: 8
-    device_path: /dev/nvme1n1
-    firmware_version: R4PTLC.3
-    format: 512
-    sequential_read_speed: 7000
-    sequential_write_speed: 6000
-    partitions:
-      - partition: nvme1n1p1
-        fs_type: ext4
-        mount_point: /mnt/Data1
+# Removed 2026-11-12 for RMA: Sabrent SB-RKT4P-8TB serial 48804572201297 (/mnt/Data1); see events.yml.
 
 
 # GPUs
-        uuid: 4b655567-3500-4781-8aaf-5318bf293f45
-    transport: nvme
 gpus:
   - model: NVIDIA A16
     driver_version: 535.183.06
@@ -883,31 +869,22 @@ pcie_topology:
           kind: gpu
           name: GPU0 NVIDIA RTX A6000
     '20':
-      note: 'The crowded one: A16 card A (GPU1-4, the landing dies for the mlnx1 cameras 2010093/2010094), all three NVMe
-        drives (OS, /mnt/Data1, /mnt/Data2) and both Intel X550T 10 GbE ports (ethernet_1 = lab uplink/default route, ethernet_2
-        = PDU/control net). nvme0 (/mnt/Data2) and the X550T share one x8 chipset link (20:01.1). Writeback bursts across
-        this bridge cost camera frames before (docs/kernel_tuning.md, vm.dirty_*_bytes); any new bulk traffic here during
-        a recording needs its own no-impact proof.'
+      note: 'The crowded one: A16 card A (GPU1-4, the landing dies for the mlnx1 cameras 2010093/2010094), both NVMe drives
+        (OS on CPU port 20:01.2, /mnt/Data2 on CPU port 20:01.3) and both Intel X550T 10 GbE ports (ethernet_1 = lab uplink/default
+        route, ethernet_2 = PDU/control net) behind the x8 chipset link (20:01.1). Since 2026-11-12 Data2 sits in the slot
+        Data1 used, no longer on the chipset link with the X550T; removing Data1 also moved every bus number here down by
+        one. Writeback bursts across this bridge cost camera frames before (docs/kernel_tuning.md, vm.dirty_*_bytes); any
+        new bulk traffic here during a recording needs its own no-impact proof.'
       devices:
         - pci: '23:00.0'
-          kind: nvme
-          name: nvme0 (at record time; nvmeN is not stable, the serial is)
-          serial: '48816072200219'
-          partitions:
-            - uuid: 1802-0551
-              mounts: []
-            - uuid: bb4ea7ac-11f3-4f20-80b1-5e3cb0927711
-              mounts:
-                - /mnt/Data2
-        - pci: '24:00.0'
           kind: nic
           name: ethernet_1
-        - pci: '24:00.1'
+        - pci: '23:00.1'
           kind: nic
           name: ethernet_2
-        - pci: '29:00.0'
+        - pci: '28:00.0'
           kind: nvme
-          name: nvme2 (at record time; nvmeN is not stable, the serial is)
+          name: nvme1 (at record time; nvmeN is not stable, the serial is)
           serial: '48816072200222'
           partitions:
             - uuid: 77E2-AB0D
@@ -917,24 +894,26 @@ pcie_topology:
               mounts:
                 - /var/snap/firefox/common/host-hunspell
                 - /
-        - pci: 2a:00.0
+        - pci: '29:00.0'
           kind: nvme
-          name: nvme1 (at record time; nvmeN is not stable, the serial is)
-          serial: '48804572201297'
+          name: nvme0 (at record time; nvmeN is not stable, the serial is)
+          serial: '48816072200219'
           partitions:
-            - uuid: 4b655567-3500-4781-8aaf-5318bf293f45
+            - uuid: 1802-0551
+              mounts: []
+            - uuid: bb4ea7ac-11f3-4f20-80b1-5e3cb0927711
               mounts:
-                - /mnt/Data1
-        - pci: 2f:00.0
+                - /mnt/Data2
+        - pci: 2e:00.0
           kind: gpu
           name: GPU1 NVIDIA A16
-        - pci: '30:00.0'
+        - pci: 2f:00.0
           kind: gpu
           name: GPU2 NVIDIA A16
-        - pci: '31:00.0'
+        - pci: '30:00.0'
           kind: gpu
           name: GPU3 NVIDIA A16
-        - pci: '32:00.0'
+        - pci: '31:00.0'
           kind: gpu
           name: GPU4 NVIDIA A16
     '40':

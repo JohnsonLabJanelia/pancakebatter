@@ -14,7 +14,7 @@ host: pancake0
 components:
   - serial_number: "48804572201297"
     component: storage_device
-    description: Sabrent SB-RKT4P-8TB (Data1, /mnt/Data1); 2498 media errors by 2026-10-18, pull for RMA pending
+    description: Sabrent SB-RKT4P-8TB (Data1, /mnt/Data1); 2498 media errors by 2026-10-18; removed 2026-11-12 for RMA
     events:
       - event_id: e1
         kind: installed
@@ -26,7 +26,44 @@ components:
         evidence: >-
           Listed in hosts/pancake0/config.yml storage_devices since 8de7639 (2026-10-02); the install
           date itself is unknown.
-      # Append the pull here when it happens, e.g.
-      # - {event_id: e2, kind: removed, at: "YYYY-MM-DD", at_precision: exact, from: pancake0,
-      #    to: "owner:<RMA recipient>", by: Jeremy, reason: RMA (media errors), recorded_at: "YYYY-MM-DD"}
-      # and remove the drive from config.yml storage_devices in the same commit.
+      - event_id: e2
+        kind: removed
+        at: "2026-11-12T13:37:11-05:00"
+        at_precision: on_or_before
+        from: pancake0
+        to: "storage:awaiting RMA shipment"
+        by: Jeremy
+        reason: RMA (media errors)
+        recorded_at: "2026-11-12"
+        evidence: >-
+          pancake0 shut down 2026-11-12 13:05:41 and booted 13:37:11 local without it (last -x; /sys/class/nvme
+          lists serials 48816072200219 and 48816072200222 only). Pulled during that window. When it ships, append
+          a moved event to "owner:<RMA recipient>".
+
+  - serial_number: "48816072200219"
+    component: storage_device
+    description: Sabrent SB-RKT4P-8TB (Data2, /mnt/Data2, recordings)
+    events:
+      - event_id: e1
+        kind: installed
+        at: "2026-10-02"
+        at_precision: on_or_before
+        to: pancake0
+        position: NVMe behind the x8 chipset link, PCIe 20:01.1 -> 21:00.0 -> 22:xx -> 23:00.0, shared with the X550T
+        recorded_at: "2026-11-12"
+        evidence: >-
+          Listed in hosts/pancake0/config.yml storage_devices since 8de7639 (2026-10-02); position from the
+          pcie_topology record before 2026-11-12. The install date itself is unknown.
+      - event_id: e2
+        kind: moved
+        at: "2026-11-12T13:37:11-05:00"
+        at_precision: on_or_before
+        from: pancake0
+        to: pancake0
+        position: NVMe on CPU lanes, PCIe 20:01.3 -> 29:00.0 (the slot Data1 used)
+        by: Jeremy
+        reason: take the recording drive off the chipset link it shared with the X550T 10 GbE ports
+        recorded_at: "2026-11-12"
+        evidence: >-
+          Moved during the same shutdown as the Data1 pull (13:05:41-13:37:11 local). After the boot,
+          /sys/class/nvme shows serial 48816072200219 under root port 20:01.3; link 16 GT/s x4.
