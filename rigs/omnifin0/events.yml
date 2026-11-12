@@ -175,3 +175,23 @@ events:
       18,377,568 bytes (checked here). rig.yml rev 12 went in at 19:26:19Z. No Citrus process ran between
       the two installs (orientation agent, relayed by citrus-agent), so no stimulus frame was rendered at 120
       under rev 12. Every Citrus launch from 19:33:46Z renders 240.
+  - event_id: e9
+    kind: setting_changed
+    item: projector.benq.x3100i
+    setting: system.operation_settings.benq_hdmi_media_streaming_qs02
+    old: "on"
+    new: "off"
+    at_precision: window
+    not_before: "2026-11-12T20:15:58Z"     # projector power-on that showed the QS02 notice (RS-232 *pow=on#)
+    not_after: "2026-11-12T20:31:53Z"      # recorded here, after Jeremy reported the change
+    recorded_at: "2026-11-12"
+    by: Jeremy Delahanty
+    method: projector remote, OSD System > Operation Settings > BenQ HDMI Media Streaming (QS02) > Off
+    reason: >-
+      at every power-on the projector showed "BenQ HDMI media streaming (QS02) is not detected" and waited for
+      OK; omnifin0 uses no QS02 dongle. Off disables the reminder and the dongle handshake after power-on.
+    evidence: >-
+      Jeremy's photo of the notice on the projected film (2026-11-12) and his report that after setting Off the
+      projector came up without it. Not a picture setting: rig.yml projection_paths.main.projector_operation
+      (outside the physical digest). No RS-232 read exists for it. No Citrus or Orange session ran in the
+      window (recordings frozen for the clock watcher's 24 h criterion).

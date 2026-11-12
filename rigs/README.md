@@ -119,12 +119,44 @@ they are physical, so a menu change is a revision bump. The SpecSail record of t
 X3100i keeps a picture mode per input: moving the cable to another input changes the picture
 settings in effect without anyone touching the Picture menu (omnifin0 events e4/e5, 2026-11-10).
 
+**Colour and light settings (optional, rev 13 on omnifin0).** These set the canvas's colour and level
+response. Like the picture settings, they are physical once present, but outside the orientation digest.
+
+| Key | Values | Menu (Picture > Advanced Color Settings unless noted) | RS-232 read |
+|---|---|---|---|
+| `gamma` | "1.8" to "2.6", benq, native | Gamma Selection | `*gamma=?#` |
+| `color_temperature` | normal, cool, warm, native | Color Temperature | `*ct=?#` |
+| `color_temperature_tuning` | `{r_gain, g_gain, b_gain}` 0-200, `{r_offset, g_offset, b_offset}` 0-511 (neutral 100, 256) | Color Temperature Tuning | `*RGain=?#` ... `*BOffset=?#` |
+| `color_management` | per primary (red, green, blue, cyan, magenta, yellow): `{hue, saturation, gain}` | Color Management | only the selected primary: `*primcr=?#`, `*hue=?#`, `*saturation=?#`, `*gain=?#` |
+| `white_balance` | `{r_gain, g_gain, b_gain}` | Color Management > White Balance | `*WRGain=?#` ... |
+| `light_source_mode` | normal, eco, dynamic | Light Source Mode | `*lampm=?#` (LNOR = normal) |
+| `hdmi_signal_format` | auto, limited, full | Display > HDMI Settings > Signal Format | none |
+
+**`projection_paths.<id>.projector_operation` (optional, not physical).** These settings change how the
+projector powers on, which input it shows or how it identifies itself, but not the light on the canvas.
+They are outside the physical digest, so a change needs no revision, but goes in the events ledger.
+
+| Key | Values | Menu | RS-232 read | Why it matters |
+|---|---|---|---|---|
+| `qs02_media_streaming` | on, off | System > Operation Settings > BenQ HDMI Media Streaming (QS02) | none | On: a "dongle not detected" notice at every power-on that waits for OK |
+| `quick_auto_search` | on, off | Display > Auto Source Search | `*QAS=?#` | On: the projector may switch inputs if its input loses signal |
+| `direct_power_on` | on, off | System > Operation Settings > Power On/Off | `*directpower=?#` | On: powers up as soon as mains power arrives |
+| `auto_power_off` | disable, 3/10/15/20/25/30 (minutes) | same | none | Turns the projector off after that long without signal |
+| `high_altitude` | on, off | System > High Altitude Mode | `*Highaltitude=?#` | Fan speed |
+| `hdmi_edid` | enhanced, standard | Display > HDMI Settings > EDID | none | Standard caps the input at 1080p60 and changes the EDID the host saved ([`docs/display_and_projector_edid.md`](../docs/display_and_projector_edid.md)) |
+| `firmware` | `{system, scaler, mcu}` strings | — | `*sysfwversion=?#`, `*scalerfwversion=?#`, `*mcufwversion=?#` | A firmware update can change any of the above |
+
+**Checking the projector against rig.yml.** Read-only RS-232 reads (`=?#` only) cover most keys. For
+the rest (`upscaling_4k`, `digital_zoom_percent`, `hdmi_signal_format`, `qs02_media_streaming`,
+`auto_power_off`, `hdmi_edid`, and the non-selected primaries), look in the menu.
+
 **`projection_paths.<id>.display_mode` (optional)** `{width_px, height_px, refresh_rate_hz}` is the
 video mode the host drives this path at; canvas pixels (lens nadir, homographies) are in its width
 and height. Physical when present (a refresh change invalidates photometry), not part of the
 orientation digest. Citrus reads it with the host binding's `output_name` and refuses START when
-the live mode on that output differs. The mode itself is a desktop setting (GNOME `monitors.xml`,
-keyed by connector and EDID), so a cable swap that renames the connector loses it.
+the live mode on that output differs. On pancake0 the mode comes from the X configuration (screen 1's
+`metamodes`, with the projector's saved EDID; [`docs/display_and_projector_edid.md`](../docs/display_and_projector_edid.md)),
+so a cable swap that renames the connector needs that file changed.
 
 **`projection_paths.<id>.stimulus_render_rate_hz` (optional)** is how many frames per second the
 stimulus program (Citrus) renders on this path: a positive integer or `unknown`. Display refresh

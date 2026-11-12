@@ -14,7 +14,7 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 12
+rig_geometry_revision: 13
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
 last_physical_change: "2026-11-10"   # projector driven at 1920x1080@240 (rev 11); events.yml e4/e5
 
@@ -45,6 +45,27 @@ projection_paths:
       sharpness: 5
       input_source: HDMI-1       # rev 11; the picture settings above are HDMI-1's (events.yml e4/e5)
       picture_mode: User
+      gamma: "2.2"               # rev 13: colour and light settings, as found (RS-232 2026-11-12; OSD 2026-10-19)
+      color_temperature: normal
+      color_temperature_tuning: {r_gain: 100, g_gain: 100, b_gain: 100, r_offset: 256, g_offset: 256, b_offset: 256}
+      color_management:          # not round values, never adjusted by Jeremy; origin unknown (evidence)
+        red: {hue: 238, saturation: 196, gain: 220}
+        green: {hue: 252, saturation: 208, gain: 173}
+        blue: {hue: 138, saturation: 220, gain: 182}
+        cyan: {hue: 235, saturation: 223, gain: 194}
+        magenta: {hue: 259, saturation: 161, gain: 202}
+        yellow: {hue: 135, saturation: 178, gain: 200}
+      white_balance: {r_gain: 200, g_gain: 200, b_gain: 200}
+      light_source_mode: normal
+      hdmi_signal_format: auto
+    projector_operation:         # rev 13; not physical: power-on, input and identity (README)
+      qs02_media_streaming: "off"   # Jeremy turned it off 2026-11-12 (events.yml e9)
+      quick_auto_search: "on"
+      direct_power_on: "off"
+      auto_power_off: unknown
+      high_altitude: "off"
+      hdmi_edid: enhanced        # HDMI-1; Standard would cap it at 1080p60 and change the EDID the host saves
+      firmware: {system: "1.00", scaler: "1.04", mcu: "34.01-0.0.031"}
     display_mode:                # rev 11; Citrus refuses START when DP-2's live mode differs
       width_px: 1920
       height_px: 1080
@@ -82,6 +103,14 @@ projection_paths:
         from 11 to 50 with the remote between 2026-10-24T20:17:50Z and 22:04:44Z and kept it at 50;
         contrast and sharpness checked unchanged in the photo
         (~/SpecSail/runs/projector_settings_20261024/settings_change.json; dated event in events.yml).
+        Colour, light and operation settings (rev 13, as found, nothing changed except QS02): read-only
+        RS-232 on 2026-11-12 gave GAMMA 2.2, CT NORMAL, LAMPM LNOR, RGAIN/GGAIN/BGAIN 100, R/G/B OFFSET 256,
+        WRGAIN/WGGAIN/WBGAIN 200, red primary HUE 238 SATURATION 196 GAIN 220 (PRIMCR RED), QAS ON,
+        DIRECTPOWER OFF, HIGHALTITUDE OFF, firmware SYS 1.00 / SCALER 1.04 / MCU 34.01-0.0.031, all equal to the
+        2026-10-19 OSD record (~/SpecSail/runs/projector_settings_20261019/settings_as_found.json). Green to
+        yellow primaries, Signal Format Auto and EDID Enhanced for HDMI-1 have no RS-232 read and come from that
+        record only; Jeremy has never adjusted colour on this projector. Auto Power Off was not recorded.
+        QS02 Off: Jeremy, in the menu, 2026-11-12 (events.yml e9).
         Lens nadir (rev 9): specsail-calibration-protocol 2026-10-21, from tape (plumb 290 + spill shelf
         12.7 + 363 + shelf base 6.35 = 672 mm lens glass to film) plus CAD for the across-row placement.
         It is the film point directly above the lens front glass, not where the optical axis lands;

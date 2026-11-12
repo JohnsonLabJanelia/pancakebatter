@@ -326,6 +326,524 @@
                 }
               ],
               "description": "Picture > Picture Mode as the menu names it (e.g. User). Optional; physical when present."
+            },
+            "gamma": {
+              "enum": [
+                "1.8",
+                "2.0",
+                "2.1",
+                "2.2",
+                "2.3",
+                "2.4",
+                "2.5",
+                "2.6",
+                "benq",
+                "native",
+                "unknown"
+              ],
+              "description": "Picture > Advanced Color Settings > Gamma Selection (RS-232 *gamma=?#). Optional; physical when present."
+            },
+            "color_temperature": {
+              "enum": [
+                "normal",
+                "cool",
+                "warm",
+                "native",
+                "unknown"
+              ],
+              "description": "Picture > Advanced Color Settings > Color Temperature (RS-232 *ct=?#). Optional; physical when present."
+            },
+            "light_source_mode": {
+              "enum": [
+                "normal",
+                "eco",
+                "dynamic",
+                "unknown"
+              ],
+              "description": "Picture > Advanced Color Settings > Light Source Mode (RS-232 *lampm=?#; LNOR = normal). Optional; physical when present."
+            },
+            "hdmi_signal_format": {
+              "enum": [
+                "auto",
+                "limited",
+                "full",
+                "unknown"
+              ],
+              "description": "Display > HDMI Settings > Signal Format: the quantization range the projector assumes (no RS-232 read). Optional; physical when present."
+            },
+            "color_temperature_tuning": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "r_gain",
+                    "g_gain",
+                    "b_gain",
+                    "r_offset",
+                    "g_offset",
+                    "b_offset"
+                  ],
+                  "properties": {
+                    "r_gain": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 200
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "g_gain": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 200
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "b_gain": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 200
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "r_offset": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 511
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "g_offset": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 511
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "b_offset": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 511
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Advanced Color Settings > Color Temperature Tuning (RS-232 *RGain=?# ... *BOffset=?#; neutral is 100 and 256). Optional; physical when present."
+            },
+            "white_balance": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "r_gain",
+                    "g_gain",
+                    "b_gain"
+                  ],
+                  "properties": {
+                    "r_gain": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "g_gain": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "b_gain": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Advanced Color Settings > Color Management > White Balance (RS-232 *WRGain=?# ...). Optional; physical when present."
+            },
+            "color_management": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "red",
+                    "green",
+                    "blue",
+                    "cyan",
+                    "magenta",
+                    "yellow"
+                  ],
+                  "properties": {
+                    "red": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "hue",
+                            "saturation",
+                            "gain"
+                          ],
+                          "properties": {
+                            "hue": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "saturation": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "gain": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "green": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "hue",
+                            "saturation",
+                            "gain"
+                          ],
+                          "properties": {
+                            "hue": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "saturation": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "gain": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "blue": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "hue",
+                            "saturation",
+                            "gain"
+                          ],
+                          "properties": {
+                            "hue": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "saturation": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "gain": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "cyan": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "hue",
+                            "saturation",
+                            "gain"
+                          ],
+                          "properties": {
+                            "hue": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "saturation": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "gain": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "magenta": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "hue",
+                            "saturation",
+                            "gain"
+                          ],
+                          "properties": {
+                            "hue": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "saturation": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "gain": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    },
+                    "yellow": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "hue",
+                            "saturation",
+                            "gain"
+                          ],
+                          "properties": {
+                            "hue": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "saturation": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            },
+                            "gain": {
+                              "oneOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "const": "unknown"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "const": "unknown"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Advanced Color Settings > Color Management, per primary {hue, saturation, gain} (RS-232 reads only the selected primary: *primcr=?#, *hue=?#, *saturation=?#, *gain=?#). Optional; physical when present."
             }
           }
         },
@@ -521,6 +1039,90 @@
             }
           ],
           "description": "Optional. Frames per second the stimulus program (Citrus) renders on this path. When an integer, display_mode.refresh_rate_hz must be a number within 0.05 Hz of a whole multiple of it (rigconfig.validate; not expressible in JSON Schema). Citrus refuses to open its stimulus window when it is missing or unknown. Physical: a change bumps rig_geometry_revision."
+        },
+        "projector_operation": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional projector settings that change how it powers on, which input it shows or how it identifies itself, not the light on the canvas. Outside the physical digest (no revision bump); changes go in the events ledger. BenQ X3100i vocabulary.",
+          "properties": {
+            "qs02_media_streaming": {
+              "enum": [
+                "on",
+                "off",
+                "unknown"
+              ],
+              "description": "System > Operation Settings > BenQ HDMI Media Streaming (QS02). On shows a 'dongle not detected' notice at power-on that waits for OK. No RS-232 read."
+            },
+            "quick_auto_search": {
+              "enum": [
+                "on",
+                "off",
+                "unknown"
+              ],
+              "description": "Display > Auto Source Search (RS-232 *QAS=?#). On lets the projector switch inputs when its input loses signal."
+            },
+            "direct_power_on": {
+              "enum": [
+                "on",
+                "off",
+                "unknown"
+              ],
+              "description": "System > Operation Settings > Power On/Off Settings > Direct Power On (RS-232 *directpower=?#)."
+            },
+            "auto_power_off": {
+              "enum": [
+                "disable",
+                3,
+                10,
+                15,
+                20,
+                25,
+                30,
+                "unknown"
+              ],
+              "description": "System > Operation Settings > Power On/Off Settings > Auto Power Off, minutes without signal. No RS-232 read."
+            },
+            "high_altitude": {
+              "enum": [
+                "on",
+                "off",
+                "unknown"
+              ],
+              "description": "System > High Altitude Mode (RS-232 *Highaltitude=?#)."
+            },
+            "hdmi_edid": {
+              "enum": [
+                "enhanced",
+                "standard",
+                "unknown"
+              ],
+              "description": "Display > HDMI Settings > EDID for the input in use: Enhanced (HDMI 2.0, needed for 240 Hz) or Standard (HDMI 1.4, up to 1080p60). Changes the EDID the projector sends, so the host's saved EDID (docs/display_and_projector_edid.md) must change with it. No RS-232 read."
+            },
+            "firmware": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "system",
+                "scaler",
+                "mcu"
+              ],
+              "properties": {
+                "system": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "scaler": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mcu": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "description": "RS-232 *sysfwversion=?#, *scalerfwversion=?#, *mcufwversion=?#."
+            }
+          }
         }
       }
     },

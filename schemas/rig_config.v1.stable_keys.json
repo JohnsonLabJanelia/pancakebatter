@@ -56,7 +56,21 @@
     "projection_paths.*.display_mode.width_px",
     "projection_paths.*.display_mode.height_px",
     "projection_paths.*.display_mode.refresh_rate_hz",
-    "projection_paths.*.stimulus_render_rate_hz"
+    "projection_paths.*.stimulus_render_rate_hz",
+    "projection_paths.*.projector_settings.gamma",
+    "projection_paths.*.projector_settings.color_temperature",
+    "projection_paths.*.projector_settings.light_source_mode",
+    "projection_paths.*.projector_settings.hdmi_signal_format",
+    "projection_paths.*.projector_settings.color_temperature_tuning",
+    "projection_paths.*.projector_settings.white_balance",
+    "projection_paths.*.projector_settings.color_management",
+    "projection_paths.*.projector_operation.qs02_media_streaming",
+    "projection_paths.*.projector_operation.quick_auto_search",
+    "projection_paths.*.projector_operation.direct_power_on",
+    "projection_paths.*.projector_operation.auto_power_off",
+    "projection_paths.*.projector_operation.high_altitude",
+    "projection_paths.*.projector_operation.hdmi_edid",
+    "projection_paths.*.projector_operation.firmware"
   ],
   "optional_sections": [
     "media_stack",
@@ -87,6 +101,20 @@
     "projection_paths.*.display_mode.width_px",
     "projection_paths.*.display_mode.height_px",
     "projection_paths.*.display_mode.refresh_rate_hz",
-    "projection_paths.*.stimulus_render_rate_hz"
+    "projection_paths.*.stimulus_render_rate_hz",
+    "projection_paths.*.projector_settings.gamma",
+    "projection_paths.*.projector_settings.color_temperature",
+    "projection_paths.*.projector_settings.light_source_mode",
+    "projection_paths.*.projector_settings.hdmi_signal_format",
+    "projection_paths.*.projector_settings.color_temperature_tuning",
+    "projection_paths.*.projector_settings.white_balance",
+    "projection_paths.*.projector_settings.color_management",
+    "projection_paths.*.projector_operation.qs02_media_streaming",
+    "projection_paths.*.projector_operation.quick_auto_search",
+    "projection_paths.*.projector_operation.direct_power_on",
+    "projection_paths.*.projector_operation.auto_power_off",
+    "projection_paths.*.projector_operation.high_altitude",
+    "projection_paths.*.projector_operation.hdmi_edid",
+    "projection_paths.*.projector_operation.firmware"
   ]
 }

@@ -156,6 +156,57 @@ class ProjectorSettingsTests(unittest.TestCase):
                 p["projector_settings"]["input_source"] = bad
                 self.assertTrue(any("input_source" in e for e in rc.validate(doc)))
 
+    def test_colour_settings_are_optional_physical_and_outside_orientation(self):
+        doc, p = self.doc()
+        ps = p["projector_settings"]
+        for k in tuple(rc.PROJECTOR_PICTURE_ENUMS) + tuple(rc.PROJECTOR_PICTURE_GROUPS) + ("color_management",):
+            ps.pop(k, None)
+        base, orient = rc.physical_digest(doc), rc.orientation_digest(doc)
+        self.assertEqual(rc.validate(doc), [])
+        ps.update(gamma="2.2", color_temperature="normal", light_source_mode="normal", hdmi_signal_format="auto",
+                  color_temperature_tuning={"r_gain": 100, "g_gain": 100, "b_gain": 100,
+                                            "r_offset": 256, "g_offset": 256, "b_offset": 256},
+                  white_balance={"r_gain": 200, "g_gain": 200, "b_gain": 200},
+                  color_management={c: {"hue": 1, "saturation": 2, "gain": 3} for c in rc.PRIMARIES})
+        self.assertEqual(rc.validate(doc), [])
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        self.assertEqual(rc.orientation_digest(doc), orient)
+        changed = rc.physical_digest(doc)
+        ps["color_management"]["green"]["hue"] = 2
+        self.assertNotEqual(rc.physical_digest(doc), changed)
+        bad_cases = (("gamma", 2.2), ("color_temperature", "daylight"),
+                     ("color_temperature_tuning", {"r_gain": 201, "g_gain": 100, "b_gain": 100,
+                                                   "r_offset": 256, "g_offset": 256, "b_offset": 256}),
+                     ("white_balance", {"r_gain": 200, "g_gain": 200}),
+                     ("color_management", {"red": {"hue": 1, "saturation": 2, "gain": 3}}))
+        for key, bad in bad_cases:
+            with self.subTest(key=key):
+                good = ps[key]
+                ps[key] = bad
+                self.assertTrue(any(key in e for e in rc.validate(doc)))
+                ps[key] = good
+        ps["color_management"] = "unknown"
+        self.assertEqual(rc.validate(doc), [])
+
+    def test_projector_operation_is_optional_and_not_physical(self):
+        doc, p = self.doc()
+        p.pop("projector_operation", None)
+        base = rc.physical_digest(doc)
+        p["projector_operation"] = {"qs02_media_streaming": "off", "quick_auto_search": "on", "direct_power_on": "off",
+                                    "auto_power_off": "unknown", "high_altitude": "off", "hdmi_edid": "enhanced",
+                                    "firmware": {"system": "1.00", "scaler": "1.04", "mcu": "34.01-0.0.031"}}
+        self.assertEqual(rc.validate(doc), [])
+        self.assertEqual(rc.physical_digest(doc), base)
+        p["projector_operation"]["qs02_media_streaming"] = "on"
+        self.assertEqual(rc.physical_digest(doc), base)
+        for key, bad in (("quick_auto_search", True), ("auto_power_off", 5), ("hdmi_edid", "HDMI 2.0"),
+                         ("firmware", {"system": "1.00"}), ("colour", "x")):
+            with self.subTest(key=key):
+                op = dict(p["projector_operation"], **{key: bad})
+                doc2, p2 = self.doc()
+                p2["projector_operation"] = op
+                self.assertTrue(rc.validate(doc2))
+
     def test_display_mode_is_optional_physical_and_outside_orientation(self):
         doc, p = self.doc()
         p.pop("stimulus_render_rate_hz", None)  # needs a numeric refresh; tested on its own below

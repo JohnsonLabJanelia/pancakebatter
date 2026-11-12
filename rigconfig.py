@@ -56,7 +56,37 @@ PROJECTOR_PICTURE_RANGES = {"brightness": (0, 100), "contrast": (0, 100), "sharp
 # Optional, as the menu names them (e.g. HDMI-1, User): the projector keeps a picture mode per input, so
 # the input selects which picture settings apply (events.yml e4/e5, 2026-11-10). Physical when present.
 PROJECTOR_PICTURE_TEXT = ("input_source", "picture_mode")
-PROJECTOR_PICTURE = tuple(PROJECTOR_PICTURE_RANGES) + PROJECTOR_PICTURE_TEXT
+# Optional colour and light settings (Picture > Advanced Color Settings, Display > HDMI Settings). They set
+# the canvas's colour and level response, not where it lands. Physical when present (rev 13).
+PROJECTOR_PICTURE_ENUMS = {
+    "gamma": ("1.8", "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "benq", "native"),
+    "color_temperature": ("normal", "cool", "warm", "native"),
+    "light_source_mode": ("normal", "eco", "dynamic"),
+    "hdmi_signal_format": ("auto", "limited", "full"),
+}
+# Groups of integers: {key: (lo, hi)}, hi None = no range stated in the manual.
+PROJECTOR_PICTURE_GROUPS = {
+    "color_temperature_tuning": {"r_gain": (0, 200), "g_gain": (0, 200), "b_gain": (0, 200),
+                                 "r_offset": (0, 511), "g_offset": (0, 511), "b_offset": (0, 511)},
+    "white_balance": {"r_gain": (0, None), "g_gain": (0, None), "b_gain": (0, None)},
+}
+# Color Management, per primary: {hue, saturation, gain}, integers with no range stated in the manual.
+PRIMARIES = ("red", "green", "blue", "cyan", "magenta", "yellow")
+PRIMARY_KEYS = ("hue", "saturation", "gain")
+PROJECTOR_PICTURE = (tuple(PROJECTOR_PICTURE_RANGES) + PROJECTOR_PICTURE_TEXT + tuple(PROJECTOR_PICTURE_ENUMS)
+                     + tuple(PROJECTOR_PICTURE_GROUPS) + ("color_management",))
+# Optional, per projection path: projector settings that change how it powers on, which input it shows or
+# how it identifies itself, not the light on the canvas. Outside the physical digest: changing one needs no
+# revision, but goes in the events ledger. auto_power_off: "disable" or minutes.
+PROJECTOR_OPERATION_ENUMS = {
+    "qs02_media_streaming": ("on", "off"),
+    "quick_auto_search": ("on", "off"),
+    "direct_power_on": ("on", "off"),
+    "high_altitude": ("on", "off"),
+    "hdmi_edid": ("enhanced", "standard"),
+}
+AUTO_POWER_OFF = ("disable", 3, 10, 15, 20, 25, 30)
+FIRMWARE_KEYS = ("system", "scaler", "mcu")
 # BenQ Projector Position -> net firmware mirroring (BenQ convention; the manual does not state it).
 POSITION_FLIP = {"front": "none", "rear": "horizontal", "front_ceiling": "both", "rear_ceiling": "vertical"}
 # Optional; recorded for the deferred parallax model, consumed by no runtime today.
@@ -263,12 +293,63 @@ def _projector_settings_errors(where: str, p: dict[str, Any]) -> list[str]:
     for k in PROJECTOR_PICTURE_TEXT:
         if k in ps and not (isinstance(ps[k], str) and ps[k].strip()):
             errs.append(f"{where}.{k}: optional; the menu's name for it, or unknown")
+    for k, allowed in PROJECTOR_PICTURE_ENUMS.items():
+        if k in ps and ps[k] not in allowed + (UNKNOWN,):
+            errs.append(f"{where}.{k}: optional; one of {allowed + (UNKNOWN,)}")
+    for group, keys in PROJECTOR_PICTURE_GROUPS.items():
+        if group in ps:
+            errs += _int_group_errors(f"{where}.{group}", ps[group], keys)
+    if "color_management" in ps:
+        cm = ps["color_management"]
+        if cm != UNKNOWN and not (isinstance(cm, dict) and set(cm) == set(PRIMARIES)):
+            errs.append(f"{where}.color_management: {{{', '.join(PRIMARIES)}}} or unknown")
+        elif isinstance(cm, dict):
+            for prim in PRIMARIES:
+                errs += _int_group_errors(f"{where}.color_management.{prim}", cm[prim],
+                                          {k: (0, None) for k in PRIMARY_KEYS})
     menu, eff = ps.get("position_menu"), ps.get("position_effective")
     if menu in POSITION_FLIP and eff != menu:
         errs.append(f"{where}.position_effective: must equal position_menu ({menu!r}) unless the menu is auto")
     if eff in POSITION_FLIP and p.get("projector_firmware_flip") != POSITION_FLIP[eff]:
         errs.append(f"{where}: position_effective {eff!r} means projector_firmware_flip {POSITION_FLIP[eff]!r}, "
                     f"not {p.get('projector_firmware_flip')!r}")
+    return errs
+
+
+def _int_group_errors(where: str, group: Any, keys: dict[str, tuple[int, int | None]]) -> list[str]:
+    """A mapping with exactly `keys`, each an integer in its range or unknown; or the whole group unknown."""
+    if group == UNKNOWN:
+        return []
+    if not (isinstance(group, dict) and set(group) == set(keys)):
+        return [f"{where}: {{{', '.join(keys)}}} or unknown"]
+    errs = []
+    for k, (lo, hi) in keys.items():
+        v = group[k]
+        if not (v == UNKNOWN or (isinstance(v, int) and not isinstance(v, bool) and lo <= v
+                                 and (hi is None or v <= hi))):
+            errs.append(f"{where}.{k}: integer {lo}..{hi if hi is not None else ''} or unknown")
+    return errs
+
+
+def _projector_operation_errors(where: str, p: dict[str, Any]) -> list[str]:
+    if "projector_operation" not in p:
+        return []
+    po, where = p["projector_operation"], f"{where}.projector_operation"
+    if not isinstance(po, dict):
+        return [f"{where}: a mapping"]
+    known = set(PROJECTOR_OPERATION_ENUMS) | {"auto_power_off", "firmware"}
+    extra = sorted(set(po) - known)
+    errs = [f"{where}: unexpected keys {extra}"] if extra else []
+    for k, allowed in PROJECTOR_OPERATION_ENUMS.items():
+        if k in po and po[k] not in allowed + (UNKNOWN,):
+            errs.append(f"{where}.{k}: one of {allowed + (UNKNOWN,)}")
+    if "auto_power_off" in po and po["auto_power_off"] not in AUTO_POWER_OFF + (UNKNOWN,):
+        errs.append(f"{where}.auto_power_off: one of {AUTO_POWER_OFF + (UNKNOWN,)}")
+    if "firmware" in po:
+        fw = po["firmware"]
+        if not (isinstance(fw, dict) and set(fw) == set(FIRMWARE_KEYS)
+                and all(isinstance(fw[k], str) and fw[k].strip() for k in FIRMWARE_KEYS)):
+            errs.append(f"{where}.firmware: {{{', '.join(FIRMWARE_KEYS)}}} version strings (unknown allowed)")
     return errs
 
 
@@ -466,6 +547,7 @@ def validate(doc: Any) -> list[str]:
         if not _count_ok(p.get("optical_mirror_count")):
             errs.append(f"{where}.optical_mirror_count: integer >= 0 or unknown")
         errs += _projector_settings_errors(where, p)
+        errs += _projector_operation_errors(where, p)
         errs += _projection_nominal_errors(where, p)
         errs += _display_mode_errors(where, p)
         errs += _stimulus_render_rate_errors(where, p)
