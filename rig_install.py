@@ -88,7 +88,22 @@ def sidecar(item: dict, installed: Path, events_installed: Path | None, commit: 
              f"rig_geometry_revision: {item['rig_geometry_revision']}"]
     if events_installed is not None:
         lines += [f"events_source: {item['events']}", f"events_sha256: {_sha256(events_installed)}"]
+    lines += attestation_lines(installed, events_installed)
     return "\n".join(lines) + "\n"
+
+
+def attestation_lines(installed: Path, events_installed: Path | None) -> list[str]:
+    """pancakebatter's verdict on the installed bytes, so consumers copy it rather than recompute it:
+    the installed rig.yml's orientation digest, and per attestable field the event_ids of the `attested`
+    events still current for it (rig_events.current_attestations), comma separated; empty = none."""
+    import rig_events
+    doc = yaml.safe_load(installed.read_text())
+    events = (yaml.safe_load(events_installed.read_text()) or {}).get("events") or [] if events_installed else []
+    lines = [f"orientation_sha256: {rigconfig.orientation_digest(doc)}"]
+    for field in rig_events.ATTESTABLE:
+        ids = ",".join(str(ev["event_id"]) for ev in rig_events.current_attestations(events, doc, field))
+        lines.append(f"current_attestations.{field}: {ids}".rstrip())
+    return lines
 
 
 def _install_file(src: Path, dest: Path) -> None:

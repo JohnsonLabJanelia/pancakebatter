@@ -324,9 +324,16 @@ Set `last_physical_change` when the hardware itself moved, not when a declaratio
    rig_geometry_revision: <n>
    events_source: ...            # only with an events ledger
    events_sha256: <sha256 of the installed events file>
+   orientation_sha256: <rigconfig.orientation_digest of the installed rig file>
+   current_attestations.room_orientation: e3     # one line per attestable field; empty = none current
    ```
 
-   (`host.yml.source` now records the full commit sha too);
+   (`host.yml.source` now records the full commit sha too). The last two lines are pancakebatter's
+   verdict on the installed bytes: `current_attestations.<field>` lists, comma separated, the
+   `attested` events whose `orientation_sha256` still equals the installed rig's
+   (`rig_events.current_attestations`). Consumers copy it rather than recompute it, and trust it only
+   when the sidecar's `sha256`/`events_sha256` match the files they pinned. A rig_geometry_revision
+   bump alone (a picture setting, say) does not end an attestation; a change to an orientation field does;
 5. removes installed rig files the host no longer binds, so a missing file means "not driven
    by this host", never "use a default".
 

@@ -7,7 +7,9 @@ from unittest import mock
 
 import yaml
 
+import rig_events
 import rig_install as ri
+import rigconfig
 
 REPO = Path(__file__).resolve().parent.parent
 HOST_CONFIGS = {p.parent.name: yaml.safe_load(p.read_text()) for p in sorted((REPO / "hosts").glob("*/config.yml"))}
@@ -61,10 +63,30 @@ class InstallTests(unittest.TestCase):
                 self.assertEqual(side["sha256"], ri._sha256(installed))
                 self.assertEqual(side["rig_geometry_revision"], item["rig_geometry_revision"])
                 self.assertEqual("events_sha256" in side, item["events"] is not None)
+                doc = yaml.safe_load(installed.read_text())
+                self.assertEqual(side["orientation_sha256"], rigconfig.orientation_digest(doc))
+                events = (yaml.safe_load(item["events"].read_text())["events"] if item["events"] else [])
+                want = ",".join(ev["event_id"] for ev in rig_events.current_attestations(events, doc, "room_orientation"))
+                self.assertEqual(side["current_attestations.room_orientation"] or "", want)
                 self.assertEqual(yaml.safe_load(installed.read_text())["rig_id"], rid)
             self.assertEqual(ri.check(cfg, dest), [])
             (dest / f"{items[0]['rig_id']}.yml").write_text("edited")
             self.assertTrue(any("differs" in p for p in ri.check(cfg, dest)))
+
+    def test_attestation_lines_follow_the_installed_bytes(self):
+        rig = REPO / "rigs" / "omnifin0" / "rig.yml"
+        events = rig.parent / "events.yml"
+        lines = ri.attestation_lines(rig, events)
+        self.assertEqual(lines[0], f"orientation_sha256: {rigconfig.orientation_digest(yaml.safe_load(rig.read_text()))}")
+        self.assertIn("current_attestations.room_orientation: e3", lines)
+        self.assertEqual(ri.attestation_lines(rig, None)[1], "current_attestations.room_orientation:")
+        with tempfile.TemporaryDirectory() as tmp:
+            doc = yaml.safe_load(rig.read_text())
+            doc["room_orientation"]["canvas_minus_x"] = "operator_right"   # an orientation field
+            moved = Path(tmp) / "rig.yml"
+            moved.write_text(yaml.safe_dump(doc))
+            self.assertNotEqual(ri.attestation_lines(moved, events)[0], lines[0])
+            self.assertEqual(ri.attestation_lines(moved, events)[1], "current_attestations.room_orientation:")
 
 
 if __name__ == "__main__":
