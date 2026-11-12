@@ -8,14 +8,14 @@ clear. Each file here is byte-identical to its source when it was recorded; chec
 
 | File here | Source | sha256 | State |
 |---|---|---|---|
-| `xorg.conf.two-screens` | `/etc/X11/xorg.conf` | `77dea3e2d68ea4110a8563b2d578ff300c92692d0391c41712a8a0d6f0daea99` | **Installed** 2026-11-10 19:09:51 local, X restarted 19:13:39. In use and working. |
+| `xorg.conf.two-screens` | `/etc/X11/xorg.conf` | `77dea3e2d68ea4110a8563b2d578ff300c92692d0391c41712a8a0d6f0daea99` | Installed 2026-11-10 19:09:51 to 2026-11-12 (replaced by v2). Kept on the host as `/etc/X11/xorg.conf.before-forced-edid-v2`; the rollback target. |
 | `xorg.conf.single-screen-draft` | compositor-vsync-investigator's `xorg-drafts/xorg.conf.draft-single-screen` | `d34f47ae58579e8bd629cd3b931ba697df5372851f42c2866929b3c77d25fe6b` | Rollback candidate, **never installed or tested**. |
 | `xorg.conf.two-screens-forced-edid` | drafted here 2026-11-12 | `89f83479c281547f4cdef3d0128c5f98b68673b585ea8f981a5eee8296ea9cc0` | **Broken, do not install.** Installed 2026-11-12 14:51, gdm restarted 14:53:36: the operator monitor went dark (below). Rolled back to `xorg.conf.two-screens`. Kept as the record of what failed. |
-| `xorg.conf.two-screens-forced-edid-v2` | drafted here 2026-11-12 | `73a58f135af47faa7cfe1b6601fa954aea32f73702df3ce98f947942a89e1c8b` | v2: `ConnectedMonitor "DP-0, DP-2"` and the `CustomEDID` in **both** Device sections. **Not installed.** Test with `test_xorg_config.sh` first (below). |
+| `xorg.conf.two-screens-forced-edid-v2` | drafted here 2026-11-12 | `73a58f135af47faa7cfe1b6601fa954aea32f73702df3ce98f947942a89e1c8b` | **Installed** 2026-11-12, gdm restarted about 15:19 local, after the three tests below passed. In use and working. Its first comment line still says DRAFT; the file is kept byte-identical to the installed one. |
 | `benq-x3100i-dp2.edid.bin` | `xrandr --verbose` on `:1.1`, DP-2, 2026-11-12 (projector on, through the active adapter) | `9cb0c241bb3b777b6ac3bce0e5f859a91efa2973b3c7c4fc3193602e77a39bf5` | The projector's 256-byte EDID ("BenQ PJ", BNQ 0x6d04; both checksums valid), for `CustomEDID`. Installs to `/etc/X11/benq-x3100i-dp2.edid.bin`. |
 | `monitors.xml` | `~/.config/monitors.xml` (GNOME, per user) | `483cb6605490c01f716f0905b23fcbe7f8a2adc949e5365c4c9ed22d674844a9` | As of 2026-11-10 10:36:45 local. |
 
-## Two screens (installed)
+## Two screens
 
 One RTX A6000 drives two X screens on display `:1`:
 
@@ -143,6 +143,28 @@ sudo systemctl restart gdm
 # Back in the desktop, with both screens right:
 sudo systemctl stop xorg-rollback.timer
 ```
+
+### v2 test results and install (2026-11-12)
+
+Run with `test_xorg_config.sh`; results are in `/var/log/xorg-test/<time>/` on pancake0.
+
+| Test | Run | Result |
+|---|---|---|
+| 1, projector on | `20261112T151058` | Pass: driver used `"DFP-0, DFP-2"`, Dell and BenQ PJ connected; `:9.0` DP-0 3840x2160 at 60, `:9.1` DP-2 1920x1080 at 240.00 |
+| 2, projector off (`*pow=off#`, about 1 min of cool-down first) | `20261112T151344` | Pass: same as test 1, with DP-2 from the custom EDID. The old config gives `No valid modes` and an empty screen 1 here |
+| 3, projector switched on mid-run (`*pow=on#` 20 s in) | `20261112T151537` | Pass: the projector showed the test server's black screen; the log shows only connect events and no mode change on either screen. The `xrandr` capture was taken before the power-on |
+
+Also seen: under the old config, after the projector was switched off and back on, the live `:1.1` showed
+DP-2 connected with no mode set (Citrus would refuse START). v2 sets the mode at X start whatever the
+projector's state.
+
+Installed with the 10-minute automatic rollback above. The live check after the restart showed:
+- `:1.0`: DP-0 only.
+- `:1.1`: DP-2 only, at 1920x1080 240.00.
+- DP-2 output: dithering 1/2, ColorSpace 0, ColorRange 0, as before.
+
+The rollback timer was then cancelled. citrus-agent confirmed the mode against rig.yml rev 12, and SpecSail
+logged the new sha. Switching the projector on or off doesn't affect screen 0.
 
 ## Rolling back to one screen
 
