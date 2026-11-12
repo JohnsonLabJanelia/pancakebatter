@@ -1,3 +1,4 @@
+# BROKEN, DO NOT INSTALL (2026-11-12): ConnectedMonitor applied GPU-wide, the operator monitor went dark. See README.md.
 # DRAFT 2026-11-12 (not installed, untested): two X screens on the one RTX A6000, projector forced on screen 1.
 # Screen 0 = operator monitor (DP-0, managed by GNOME). Screen 1 = projector (DP-2), no window manager.
 # Same as xorg.conf.two-screens (installed 2026-11-10) plus ConnectedMonitor and CustomEDID on Device1, so

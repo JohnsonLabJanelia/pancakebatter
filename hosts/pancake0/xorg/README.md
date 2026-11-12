@@ -10,7 +10,7 @@ clear. Each file here is byte-identical to its source when it was recorded; chec
 |---|---|---|---|
 | `xorg.conf.two-screens` | `/etc/X11/xorg.conf` | `77dea3e2d68ea4110a8563b2d578ff300c92692d0391c41712a8a0d6f0daea99` | **Installed** 2026-11-10 19:09:51 local, X restarted 19:13:39. In use and working. |
 | `xorg.conf.single-screen-draft` | compositor-vsync-investigator's `xorg-drafts/xorg.conf.draft-single-screen` | `d34f47ae58579e8bd629cd3b931ba697df5372851f42c2866929b3c77d25fe6b` | Rollback candidate, **never installed or tested**. |
-| `xorg.conf.two-screens-forced-edid` | drafted here 2026-11-12 | `89f83479c281547f4cdef3d0128c5f98b68673b585ea8f981a5eee8296ea9cc0` | Proposed replacement for the installed file: same layout, screen 1 claims DP-2 even with the projector off. **Not installed or tested.** |
+| `xorg.conf.two-screens-forced-edid` | drafted here 2026-11-12 | `89f83479c281547f4cdef3d0128c5f98b68673b585ea8f981a5eee8296ea9cc0` | **Broken, do not install.** Installed 2026-11-12 14:51, gdm restarted 14:53:36: the operator monitor went dark (below). Rolled back to `xorg.conf.two-screens`. Kept as the record of what failed. |
 | `benq-x3100i-dp2.edid.bin` | `xrandr --verbose` on `:1.1`, DP-2, 2026-11-12 (projector on, through the active adapter) | `9cb0c241bb3b777b6ac3bce0e5f859a91efa2973b3c7c4fc3193602e77a39bf5` | The projector's 256-byte EDID ("BenQ PJ", BNQ 0x6d04; both checksums valid), for `CustomEDID`. Installs to `/etc/X11/benq-x3100i-dp2.edid.bin`. |
 | `monitors.xml` | `~/.config/monitors.xml` (GNOME, per user) | `483cb6605490c01f716f0905b23fcbe7f8a2adc949e5365c4c9ed22d674844a9` | As of 2026-11-10 10:36:45 local. |
 
@@ -83,6 +83,25 @@ Test, in order:
 
 Rollback: `sudo cp -p /etc/X11/xorg.conf.before-forced-edid-2026-11-12 /etc/X11/xorg.conf` (the
 installed two-screen file, `77dea3e2…`), then `sudo systemctl restart gdm`. The EDID file can stay.
+
+### What happened when it was installed (2026-11-12)
+
+`ConnectedMonitor` is not per X screen. Both Device sections name the same GPU (`PCI:1:0:0`), and the
+driver applied Device1's option to screen 0 too. The greeter's X server (`journalctl -b _PID=<Xorg pid>`)
+logged:
+
+- `NVIDIA(0): ConnectedMonitor string: "DP-2"` and then `Using ConnectedMonitor string "DFP-2"`;
+- `DFP-0: disconnected`, `BenQ PJ (DFP-2): connected`;
+- `NVIDIA(0): No valid modes for "DP-0:nvidia-auto-select+0+0"; removing.` and a 640x480 screen 0.
+
+Screen 1 came up correctly at 1920x1080 on DP-2. Screen 0, where the login screen and the GNOME desktop
+run, had no output, so the Dell showed nothing. gdm itself was running. Found by the rescue-gdm and
+citrus-agent sessions and pancakebatter from the same log lines. Fixed by the rollback above.
+
+The draft was never tested before it was installed. A retry would list both outputs,
+`Option "ConnectedMonitor" "DP-0, DP-2"` in both Device sections, keeping `CustomEDID` for DP-2. That's
+untested too: it needs a way back that doesn't depend on the desktop, such as a text console or ssh
+session open before the gdm restart.
 
 ## Rolling back to one screen
 
