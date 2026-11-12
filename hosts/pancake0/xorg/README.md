@@ -10,6 +10,8 @@ clear. Each file here is byte-identical to its source when it was recorded; chec
 |---|---|---|---|
 | `xorg.conf.two-screens` | `/etc/X11/xorg.conf` | `77dea3e2d68ea4110a8563b2d578ff300c92692d0391c41712a8a0d6f0daea99` | **Installed** 2026-11-10 19:09:51 local, X restarted 19:13:39. In use and working. |
 | `xorg.conf.single-screen-draft` | compositor-vsync-investigator's `xorg-drafts/xorg.conf.draft-single-screen` | `d34f47ae58579e8bd629cd3b931ba697df5372851f42c2866929b3c77d25fe6b` | Rollback candidate, **never installed or tested**. |
+| `xorg.conf.two-screens-forced-edid` | drafted here 2026-11-12 | `89f83479c281547f4cdef3d0128c5f98b68673b585ea8f981a5eee8296ea9cc0` | Proposed replacement for the installed file: same layout, screen 1 claims DP-2 even with the projector off. **Not installed or tested.** |
+| `benq-x3100i-dp2.edid.bin` | `xrandr --verbose` on `:1.1`, DP-2, 2026-11-12 (projector on, through the active adapter) | `9cb0c241bb3b777b6ac3bce0e5f859a91efa2973b3c7c4fc3193602e77a39bf5` | The projector's 256-byte EDID ("BenQ PJ", BNQ 0x6d04; both checksums valid), for `CustomEDID`. Installs to `/etc/X11/benq-x3100i-dp2.edid.bin`. |
 | `monitors.xml` | `~/.config/monitors.xml` (GNOME, per user) | `483cb6605490c01f716f0905b23fcbe7f8a2adc949e5365c4c9ed22d674844a9` | As of 2026-11-10 10:36:45 local. |
 
 ## Two screens (installed)
@@ -35,6 +37,52 @@ byte-identical to the installed file, so the header is stale.
 
 The file's comment and the unused `1920x1080_120.00` Modeline are left over from earlier
 drafts. They have no effect, because the metamode names the EDID mode `1920x1080_240`.
+
+## Power-on order (2026-11-12) and the forced-EDID draft
+
+With the installed `xorg.conf.two-screens`, **the projector must be on before X starts** (boot or
+`sudo systemctl restart gdm`). On 2026-11-12 pancake0 booted with it off:
+
+- `Xorg.1.log`: `NVIDIA(1): No valid modes for "DP-2:1920x1080_240+0+0"; removing.` Screen 1 started
+  empty at 640x480.
+- When the projector was switched on later, GNOME found DP-2 and added it to screen 0 as an extended
+  desktop at 1920x1080 240 Hz (+3840+0). Citrus, on `:1.1`, would have had no projector.
+- Restarting gdm with the projector on put DP-2 back on screen 1 (`Setting mode "DP-2:1920x1080_240+0+0"`).
+
+`xorg.conf.two-screens-forced-edid` adds two options to `Device1` (screen 1):
+
+```
+Option "ConnectedMonitor" "DP-2"
+Option "CustomEDID" "DP-2:/etc/X11/benq-x3100i-dp2.edid.bin"
+```
+
+so screen 1 treats DP-2 as connected with the projector's own EDID whether or not the projector answers.
+`DP-2` is one of the display's name aliases in the X log (`BenQ PJ (DFP-2)`). The EDID is the projector's
+own, read through the adapter, so no timing beyond what it advertises is allowed. Unproven until tested:
+that the link comes up when the projector is switched on after X started, still at 240 Hz.
+
+Install (root; check with Orange first, the gdm restart ends the desktop session):
+
+```bash
+cd ~/pancakebatter/hosts/pancake0/xorg
+sha256sum xorg.conf.two-screens-forced-edid benq-x3100i-dp2.edid.bin   # compare with the table above
+sudo install -o root -g root -m 0644 benq-x3100i-dp2.edid.bin /etc/X11/benq-x3100i-dp2.edid.bin
+sudo cp -p /etc/X11/xorg.conf /etc/X11/xorg.conf.before-forced-edid-2026-11-12
+sudo install -o root -g root -m 0644 xorg.conf.two-screens-forced-edid /etc/X11/xorg.conf
+sudo systemctl restart gdm
+```
+
+Test, in order:
+
+1. Projector on, after the restart above: `DISPLAY=:1.1 xrandr` shows DP-2 1920x1080 at 240.00, and
+   screen 0 shows only DP-0. The X log says `Setting mode "DP-2:1920x1080_240+0+0"` for `NVIDIA(1)`.
+2. Projector off (`*pow=off#`, then wait for its cool-down), `sudo systemctl restart gdm`: screen 1 still
+   lists DP-2 at 240 and no `No valid modes` line appears.
+3. Projector on again (`*pow=on#`): the picture appears on the projector, the live mode is still 240 Hz,
+   and screen 0 still has only DP-0. Citrus's own display-mode check passes.
+
+Rollback: `sudo cp -p /etc/X11/xorg.conf.before-forced-edid-2026-11-12 /etc/X11/xorg.conf` (the
+installed two-screen file, `77dea3e2…`), then `sudo systemctl restart gdm`. The EDID file can stay.
 
 ## Rolling back to one screen
 
