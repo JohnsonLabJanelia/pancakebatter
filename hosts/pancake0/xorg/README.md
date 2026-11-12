@@ -11,6 +11,7 @@ clear. Each file here is byte-identical to its source when it was recorded; chec
 | `xorg.conf.two-screens` | `/etc/X11/xorg.conf` | `77dea3e2d68ea4110a8563b2d578ff300c92692d0391c41712a8a0d6f0daea99` | **Installed** 2026-11-10 19:09:51 local, X restarted 19:13:39. In use and working. |
 | `xorg.conf.single-screen-draft` | compositor-vsync-investigator's `xorg-drafts/xorg.conf.draft-single-screen` | `d34f47ae58579e8bd629cd3b931ba697df5372851f42c2866929b3c77d25fe6b` | Rollback candidate, **never installed or tested**. |
 | `xorg.conf.two-screens-forced-edid` | drafted here 2026-11-12 | `89f83479c281547f4cdef3d0128c5f98b68673b585ea8f981a5eee8296ea9cc0` | **Broken, do not install.** Installed 2026-11-12 14:51, gdm restarted 14:53:36: the operator monitor went dark (below). Rolled back to `xorg.conf.two-screens`. Kept as the record of what failed. |
+| `xorg.conf.two-screens-forced-edid-v2` | drafted here 2026-11-12 | `73a58f135af47faa7cfe1b6601fa954aea32f73702df3ce98f947942a89e1c8b` | v2: `ConnectedMonitor "DP-0, DP-2"` and the `CustomEDID` in **both** Device sections. **Not installed.** Test with `test_xorg_config.sh` first (below). |
 | `benq-x3100i-dp2.edid.bin` | `xrandr --verbose` on `:1.1`, DP-2, 2026-11-12 (projector on, through the active adapter) | `9cb0c241bb3b777b6ac3bce0e5f859a91efa2973b3c7c4fc3193602e77a39bf5` | The projector's 256-byte EDID ("BenQ PJ", BNQ 0x6d04; both checksums valid), for `CustomEDID`. Installs to `/etc/X11/benq-x3100i-dp2.edid.bin`. |
 | `monitors.xml` | `~/.config/monitors.xml` (GNOME, per user) | `483cb6605490c01f716f0905b23fcbe7f8a2adc949e5365c4c9ed22d674844a9` | As of 2026-11-10 10:36:45 local. |
 
@@ -102,6 +103,46 @@ The draft was never tested before it was installed. A retry would list both outp
 `Option "ConnectedMonitor" "DP-0, DP-2"` in both Device sections, keeping `CustomEDID` for DP-2. That's
 untested too: it needs a way back that doesn't depend on the desktop, such as a text console or ssh
 session open before the gdm restart.
+
+### v2 and how to test it without risking the desktop
+
+`xorg.conf.two-screens-forced-edid-v2` gives both Device sections the same two options, so whichever
+one the driver reads, both outputs count as connected:
+
+```
+Option "ConnectedMonitor" "DP-0, DP-2"
+Option "CustomEDID" "DP-2:/etc/X11/benq-x3100i-dp2.edid.bin"
+```
+
+`test_xorg_config.sh` runs a config on a throwaway X server (`:9`, VT 8). It records `xrandr` for both
+screens, then stops that server and switches back to the desktop's VT by itself. gdm and
+`/etc/X11/xorg.conf` are not touched. While it runs, the monitors show the test server (black).
+
+```bash
+cd ~/pancakebatter/hosts/pancake0/xorg
+sudo ./test_xorg_config.sh xorg.conf.two-screens-forced-edid-v2 20     # results in /var/log/xorg-test/<time>/
+```
+
+Pass criteria, from `summary.txt`:
+
+1. Projector on: `:9.0` shows DP-0 3840x2160 and `:9.1` shows DP-2 1920x1080 at 240.00. No
+   `No valid modes` line.
+2. Projector off (`*pow=off#`, wait for the cool-down): the same as test 1. DP-2 is listed as connected
+   from the custom EDID.
+3. Projector switched on during a longer run (`... 90`, `*pow=on#` at about 20 s): the projector shows
+   the test server's black screen, and the `:9.1` mode stays at 240.
+
+Only after all three pass, install with an automatic rollback, so a bad result undoes itself:
+
+```bash
+sudo cp -p /etc/X11/xorg.conf /etc/X11/xorg.conf.before-forced-edid-v2
+sudo systemd-run --on-active=10min --unit xorg-rollback /bin/sh -c \
+  'cp -p /etc/X11/xorg.conf.before-forced-edid-v2 /etc/X11/xorg.conf && systemctl restart gdm'
+sudo install -o root -g root -m 0644 xorg.conf.two-screens-forced-edid-v2 /etc/X11/xorg.conf
+sudo systemctl restart gdm
+# Back in the desktop, with both screens right:
+sudo systemctl stop xorg-rollback.timer
+```
 
 ## Rolling back to one screen
 
