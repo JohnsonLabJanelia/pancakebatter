@@ -11,22 +11,25 @@
 # Results go to /var/log/xorg-test/<time>/ (Xorg.log, xrandr-screen0.txt, xrandr-screen1.txt,
 # summary.txt), readable by everyone.
 set -euo pipefail
+trap 'echo "test_xorg_config.sh: stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 CONFIG="${1:?usage: sudo $0 CONFIG [SECONDS]}"
 SECONDS_UP="${2:-20}"
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 [[ -f "$CONFIG" ]] || { echo "no such file: $CONFIG" >&2; exit 1; }
 [[ "$SECONDS_UP" =~ ^[0-9]+$ && "$SECONDS_UP" -ge 8 && "$SECONDS_UP" -le 600 ]] || { echo "SECONDS: 8-600" >&2; exit 1; }
-[[ -e /tmp/.X11-unix/X9 ]] && { echo "display :9 is already in use" >&2; exit 1; }
+if [[ -e /tmp/.X11-unix/X9 ]]; then echo "display :9 is already in use" >&2; exit 1; fi
 CONFIG="$(readlink -f "$CONFIG")"
 
 USER_NAME="${SUDO_USER:?run through sudo}"
 # The VT of the user's active graphical session: where to switch back to.
-BACK_VT="$(loginctl list-sessions --no-legend | while read -r id _ user _; do
+BACK_VT=""
+while read -r id _ user _; do
     [[ "$user" == "$USER_NAME" ]] || continue
     [[ "$(loginctl show-session "$id" -p Type --value)" == x11 ]] || continue
-    vt="$(loginctl show-session "$id" -p VTNr --value)"; [[ "$vt" -gt 0 ]] && echo "$vt"
-done | head -1)"
+    vt="$(loginctl show-session "$id" -p VTNr --value)"
+    if [[ "$vt" =~ ^[0-9]+$ && "$vt" -gt 0 ]]; then BACK_VT="$vt"; break; fi
+done < <(loginctl list-sessions --no-legend)
 [[ -n "$BACK_VT" ]] || { echo "could not find the desktop VT" >&2; exit 1; }
 
 OUT="/var/log/xorg-test/$(date +%Y%m%dT%H%M%S)"
@@ -38,7 +41,7 @@ sha256sum "$CONFIG" > "$OUT/config.sha256"
 
 XPID=""
 finish() {
-    [[ -n "$XPID" ]] && kill "$XPID" 2>/dev/null && wait "$XPID" 2>/dev/null || true
+    if [[ -n "$XPID" ]]; then kill "$XPID" 2>/dev/null || true; wait "$XPID" 2>/dev/null || true; XPID=""; fi
     chvt "$BACK_VT" || true
     rm -f "$AUTH"
     chmod -R a+rX "$OUT"
