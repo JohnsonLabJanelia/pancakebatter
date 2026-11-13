@@ -245,6 +245,10 @@ media_stack:
     arena_3: {dish_base: {thickness_mm: unknown}}
   assumptions:
     fish_eye_height_above_dish_floor_mm: unknown   # assumed, not built
+  support:                              # optional: the dish hangs from a fixed datum
+    dish_floor_above_film_mm: unknown   # top of the dish floor above the film's fish-side face
+    fill_layer: water_film_to_dish      # the layer that takes up what the dish base leaves
+    evidence: {note, declared_by, declared_at}
   evidence: {note, declared_by, declared_at}       # layers may carry their own evidence too
   derived:                              # per arena, computed by rigconfig.py
     arena_3: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
@@ -267,8 +271,17 @@ media_stack:
   offset x subtends x / that distance at the eye. A product with any `unknown` is `unknown`, as
   with parities. The values are stored, and tests check them against `rigconfig.py`.
 
-Layers, arena overrides, assumptions and the no-air flag are physical, so changing them needs a
-revision bump. The assumed eye height counts too, because it feeds a derived value.
+- `support` (optional) is for a dish that does not rest on the layers below it but hangs from a
+  fixed datum, such as winglets on the holder rim. `dish_floor_above_film_mm` is then the height of
+  the fish water's floor above the film's fish-side face, whatever the dish base, and
+  `eye_to_film_mm` = that height + the assumed eye height, with no dish base needed. `fill_layer`
+  names the layer between the film and the fish's water whose thickness is what is left over, usually
+  the water under the dish. It may stay `unknown`: when every other layer between the film and the
+  fish's water is known for an arena, `rigconfig.py` fills it in for the paraxial value. When all of
+  them are declared, they must add up to `dish_floor_above_film_mm`, and `rigconfig.py` checks this.
+
+Layers, arena overrides, assumptions, `support` (except its evidence) and the no-air flag are
+physical, so changing them needs a revision bump. The assumed eye height counts too, because it feeds a derived value.
 `evidence`, `refractive_index_source` and `derived` do not.
 
 ## Room orientation

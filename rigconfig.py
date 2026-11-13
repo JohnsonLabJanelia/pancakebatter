@@ -113,7 +113,13 @@ LAYER_PHYSICAL = ("medium", "part_id", "thickness_mm", "refractive_index")
 LAYER_KEYS = ("id",) + LAYER_PHYSICAL + ("refractive_index_source", "evidence")
 ARENA_OVERRIDES = ("part_id", "thickness_mm", "refractive_index")
 STACK_ASSUMPTIONS = ("fish_eye_height_above_dish_floor_mm",)
-STACK_KEYS = ("air_between_film_and_fish", "layers", "arenas", "assumptions", "evidence", "derived")
+STACK_KEYS = ("air_between_film_and_fish", "layers", "arenas", "assumptions", "support", "evidence", "derived")
+# Optional media_stack.support: the dish hangs from a fixed datum (winglets on the holder rim) instead of
+# resting on the layers below it, so the top of its floor sits a fixed height above the film's fish-side
+# face whatever its base thickness, and fill_layer (a layer between the film and the dish) takes up the rest.
+SUPPORT_PHYSICAL = ("dish_floor_above_film_mm", "fill_layer")
+SUPPORT_KEYS = SUPPORT_PHYSICAL + ("evidence",)
+SUM_TOLERANCE_MM = 0.0005
 LAYER_ID = re.compile(r"^[a-z0-9_]+$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -164,19 +170,48 @@ def arena_layers(stack: dict[str, Any], arena: str) -> list[dict[str, Any]]:
     return [{**layer, **(overrides.get(layer["id"]) or {})} for layer in stack["layers"]]
 
 
-def eye_to_film(layers: list[dict[str, Any]], eye_height: Any) -> dict[str, Any]:
+def _between(layers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The layers strictly between the film and the fish's water."""
+    film = next(i for i, layer in enumerate(layers) if layer["medium"] == "film")
+    return layers[film + 1:-1]
+
+
+def resolve_support(layers: list[dict[str, Any]], support: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """The layers with support.fill_layer's thickness filled in, when it is unknown and the support height
+    and every other layer between the film and the fish's water are known."""
+    datum = (support or {}).get("dish_floor_above_film_mm", UNKNOWN)
+    if datum == UNKNOWN:
+        return layers
+    between = _between(layers)
+    fill = [layer for layer in between if layer["id"] == support.get("fill_layer")]
+    others = [layer["thickness_mm"] for layer in between if layer["id"] != support.get("fill_layer")]
+    if len(fill) != 1 or fill[0]["thickness_mm"] != UNKNOWN or UNKNOWN in others:
+        return layers
+    rest = round(datum - sum(others), 3)
+    return [{**layer, "thickness_mm": rest} if layer is fill[0] else layer for layer in layers]
+
+
+def eye_to_film(layers: list[dict[str, Any]], eye_height: Any, support: dict[str, Any] | None = None) -> dict[str, Any]:
     """Distance from the film's fish-side face to the fish eye, which sits eye_height above the floor of
     the last layer (the water it swims in). Layers between film and that water count whole.
 
-    eye_to_film_mm is the geometric sum. eye_to_film_paraxial_mm is the distance a film feature would
-    have if every layer were the eye's medium, n_eye * sum(t_i / n_i): with flat parallel layers and
-    small angles, the visual angle at the eye of a feature at lateral offset x is x / that distance."""
-    film = next(i for i, layer in enumerate(layers) if layer["medium"] == "film")
-    between, eye_medium = layers[film + 1:-1], layers[-1]
+    eye_to_film_mm is the geometric sum; with a declared support height it is that height plus the eye
+    height, which equals the sum whenever the layers are known (validate checks) and needs no dish base.
+    eye_to_film_paraxial_mm is the distance a film feature would have if every layer were the eye's
+    medium, n_eye * sum(t_i / n_i): with flat parallel layers and small angles, the visual angle at the
+    eye of a feature at lateral offset x is x / that distance."""
+    layers = resolve_support(layers, support)
+    between, eye_medium = _between(layers), layers[-1]
+    datum = (support or {}).get("dish_floor_above_film_mm", UNKNOWN)
     thicknesses = [layer["thickness_mm"] for layer in between] + [eye_height]
-    if UNKNOWN in thicknesses:
+    if eye_height != UNKNOWN and datum != UNKNOWN:
+        geometric = round(datum + eye_height, 3)
+    elif UNKNOWN in thicknesses:
         return {"eye_to_film_mm": UNKNOWN, "eye_to_film_paraxial_mm": UNKNOWN}
-    geometric = round(sum(thicknesses), 3)
+    else:
+        geometric = round(sum(thicknesses), 3)
+    if UNKNOWN in thicknesses:
+        return {"eye_to_film_mm": geometric, "eye_to_film_paraxial_mm": UNKNOWN}
     indices = [layer["refractive_index"] for layer in between] + [eye_medium["refractive_index"]]
     if UNKNOWN in indices:
         return {"eye_to_film_mm": geometric, "eye_to_film_paraxial_mm": UNKNOWN}
@@ -187,7 +222,7 @@ def eye_to_film(layers: list[dict[str, Any]], eye_height: Any) -> dict[str, Any]
 
 def derived_media_stack(stack: dict[str, Any]) -> dict[str, Any]:
     eye = (stack.get("assumptions") or {}).get("fish_eye_height_above_dish_floor_mm", UNKNOWN)
-    return {arena: eye_to_film(arena_layers(stack, arena), eye) for arena in stack["arenas"]}
+    return {arena: eye_to_film(arena_layers(stack, arena), eye, stack.get("support")) for arena in stack["arenas"]}
 
 
 def derived(doc: dict[str, Any]) -> dict[str, Any]:
@@ -227,6 +262,8 @@ def physical_fields(doc: dict[str, Any]) -> dict[str, Any]:
                        for layer in doc["media_stack"]["layers"]],
             "arenas": doc["media_stack"]["arenas"],
             "assumptions": doc["media_stack"].get("assumptions", {}),
+            **({"support": {k: doc["media_stack"]["support"][k] for k in SUPPORT_PHYSICAL
+                            if k in doc["media_stack"]["support"]}} if "support" in doc["media_stack"] else {}),
         }} if "media_stack" in doc else {}),
         **({"room_orientation": {k: doc["room_orientation"][k] for k in ROOM_KEYS[:3]}}
            if "room_orientation" in doc else {}),
@@ -506,7 +543,43 @@ def _media_stack_errors(stack: Any) -> list[str]:
                 depth = arena_layers(stack, arena)[-1].get("thickness_mm")
                 if depth != UNKNOWN and eye > depth:
                     errs.append(f"{where}: {arena} eye height {eye} mm is above its water depth {depth} mm")
+    if "support" in stack:
+        errs += _support_errors(stack, arenas if isinstance(arenas, dict) else {}, errs == [])
     errs += _evidence_errors(where, stack.get("evidence"))
+    return errs
+
+
+def _support_errors(stack: dict[str, Any], arenas: dict[str, Any], structure_ok: bool) -> list[str]:
+    where = "media_stack.support"
+    sup = stack["support"]
+    if not isinstance(sup, dict):
+        return [f"{where}: a mapping"]
+    errs = [f"{where}: unexpected keys {sorted(set(sup) - set(SUPPORT_KEYS))}"] if set(sup) - set(SUPPORT_KEYS) else []
+    errs += [f"{where}.{k}: required" for k in SUPPORT_KEYS if k not in sup]
+    datum = sup.get("dish_floor_above_film_mm", UNKNOWN)
+    if not _number_or_unknown(datum, 0):
+        errs.append(f"{where}.dish_floor_above_film_mm: number >= 0 or unknown")
+    if "evidence" in sup:
+        errs += _evidence_errors(where, sup["evidence"])
+    if errs or not structure_ok:
+        return errs
+    between_ids = [layer["id"] for layer in _between(stack["layers"])]
+    if sup["fill_layer"] not in between_ids:
+        return [f"{where}.fill_layer: a layer id between the film and the fish's water ({between_ids})"]
+    if datum == UNKNOWN:
+        return errs
+    for arena in arenas:
+        between = _between(arena_layers(stack, arena))
+        others = [layer["thickness_mm"] for layer in between if layer["id"] != sup["fill_layer"]]
+        if UNKNOWN in others:
+            continue
+        if sum(others) > datum + SUM_TOLERANCE_MM:
+            errs.append(f"{where}: {arena} layers between the film and {sup['fill_layer']} are {round(sum(others), 3)} mm, "
+                        f"more than dish_floor_above_film_mm {datum}")
+        thicknesses = [layer["thickness_mm"] for layer in between]
+        if UNKNOWN not in thicknesses and abs(sum(thicknesses) - datum) > SUM_TOLERANCE_MM:
+            errs.append(f"{where}: {arena} layers between the film and the fish's water sum to "
+                        f"{round(sum(thicknesses), 3)} mm, but dish_floor_above_film_mm is {datum}")
     return errs
 
 

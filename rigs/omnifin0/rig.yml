@@ -14,7 +14,7 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 13
+rig_geometry_revision: 14
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
 last_physical_change: "2026-11-10"   # projector driven at 1920x1080@240 (rev 11); events.yml e4/e5
 
@@ -230,58 +230,96 @@ media_stack:
         note: >-
           The shared shelf's acrylic base (acrlyicBase in the edited imaging_cabinet_5 FCStd), one sheet
           under all four arenas. 6.35 mm is the CAD value, not calipered (Jeremy approved using it,
-          2026-10-27). The gasket (1.59), machined aluminum tank holder (6.35) and vinyl (0.26) above
+          2026-10-27). The gasket (1.59), machined aluminum tank holder (6.35) and vinyl (0.25-0.26) above
           it have 92 mm bores at the arenas, so arena light crosses only this acrylic (rig-designer).
         declared_by: rig-designer from CAD; approved by Jeremy
         declared_at: "2026-10-27"
     - id: water_under_film
       medium: water
-      thickness_mm: unknown
+      thickness_mm: 0
       refractive_index: 1.333
       refractive_index_source: pure water, visible, room temperature (textbook value)
+      evidence:
+        note: >-
+          Declared, not measured: Jeremy presses the film flat onto the cup floor, so the water under it is
+          about as thin as the film (calipers record 2026-11-13). It lies below the scattering surface, so
+          it changes no distance to the fish.
+        declared_by: Jeremy, via Orange and rig-designer
+        declared_at: "2026-11-13"
     - id: film
       medium: film
       part_id: optic.fish_imaging.arena_diffuser_disc
-      thickness_mm: unknown
+      thickness_mm: 0.06
       refractive_index: unknown
+      evidence:
+        note: >-
+          Rosco Cinegel 3026, calipered by Jeremy 2026-11-13: 0.06 mm, about +/-0.02 at caliper resolution.
+          Below its fish-side face, so not counted in eye_to_film.
+        declared_by: Jeremy (calipers), via Orange and rig-designer
+        declared_at: "2026-11-13"
     - id: water_film_to_dish
       medium: water
-      thickness_mm: unknown
+      thickness_mm: unknown          # support.fill_layer: dish_floor_above_film_mm minus the arena's dish base
       refractive_index: 1.333
       refractive_index_source: pure water, visible, room temperature (textbook value)
     - id: dish_base
       medium: acrylic
-      thickness_mm: unknown
+      thickness_mm: unknown          # per arena below; the two dish types are 3 mm and 5 mm (calipers)
       refractive_index: unknown
       evidence:
         note: >-
-          One dish per arena sits in the shelf bore above the film (Jeremy 2026-10-20, relayed by
-          rig-designer). The palm1 dish has no hardware_library record and is unmeasured.
-        declared_by: Jeremy, via rig-designer
-        declared_at: "2026-10-27"
+          Two dish types, calipered by Jeremy 2026-11-13: thin base 3 mm and thick base 5 mm (agreeing with
+          Citrus targets/tank_designs 3.0 and 5.0). Which type is in which arena is unconfirmed, and the
+          names are disputed (Jeremy: 3 mm = palm2, 5 mm = palm1; the Citrus design files say the reverse),
+          so the arenas stay unknown until Jeremy settles both. Acrylic index unmeasured (Citrus's 1.49 is
+          unverified). An unassigned 2.8 mm "tank rim" (calipers) may be the winglet thickness.
+        declared_by: Jeremy (calipers), via Orange and rig-designer
+        declared_at: "2026-11-13"
     - id: dish_water
       medium: water
-      thickness_mm: unknown
+      thickness_mm: 3
       refractive_index: 1.333
       refractive_index_source: pure water, visible, room temperature (textbook value)
+      evidence:
+        note: >-
+          Fish water depth at recording fill, declared by Jeremy 2026-11-12; replaces the 5.0 mm nominal in
+          the Citrus design files. The per-recording fill goes in session metadata.
+        declared_by: Jeremy, via Orange and rig-designer
+        declared_at: "2026-11-12"
   arenas:
     arena_1: {dish_base: {thickness_mm: unknown}}
     arena_2: {dish_base: {thickness_mm: unknown}}
     arena_3: {dish_base: {thickness_mm: unknown}}
     arena_4: {dish_base: {thickness_mm: unknown}}
   assumptions:
-    fish_eye_height_above_dish_floor_mm: unknown   # ASSUMED once declared; Citrus's shadow.json 8 mm conflicts with its 5 mm fill
+    fish_eye_height_above_dish_floor_mm: 1.5   # ASSUMED: mid-column of the 3 mm water (range 0-3), not measured
+  support:
+    dish_floor_above_film_mm: 8.13
+    fill_layer: water_film_to_dish
+    evidence:
+      note: >-
+        Each dish hangs by winglets on the top of the holder (the cup rim), and the top of its floor is level
+        with the holder top (Jeremy's sketch, 2026-11-13), so the fish water sits at the same height for both
+        dish types; the base only sets how much water is under the dish. 8.13 = cup depth 8.19 (shelf CAD:
+        gasket 1.59 + aluminum tank holder 6.35 + vinyl 0.25, cup floor to holder top, not as-built) minus
+        the film 0.06, with the water under the film taken as 0. Derived, not measured; +/-0.1 suggested
+        (gasket compression, how level floor and rim are). To settle it: a depth gauge from the holder top
+        to the dish floor top and to the film, or the wet-minus-dry scale capture (wet minus dry = this
+        height). Record: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md (f6f1089).
+      declared_by: rig-designer from Jeremy's sketch, calipers and the shelf CAD; via Orange
+      declared_at: "2026-11-13"
   evidence:
     note: >-
-      Order from Jeremy 2026-10-20 (relayed by zebrafish-vision-teacher): light -> acrylic base ->
-      water -> film -> water -> acrylic dish -> water -> fish, "no air between film and fish". Film
-      part from hardware_library 3383437. Thicknesses other than the shelf are unmeasured; Citrus's
-      untracked shadow.json assumptions (diffuser_sandwich_mm 0, eye height 8 mm with a 5 mm fill) are
-      not used because they contradict each other.
-    declared_by: pancakebatter session from Jeremy's description; rev 9 approved by Jeremy
-    declared_at: "2026-10-27"
+      Order from Jeremy 2026-10-20, confirmed 2026-11-13: light -> acrylic shelf -> thin water -> film ->
+      water-filled cup -> acrylic dish base -> fish water, no air between film and fish. The dish does not
+      rest on the film; it hangs from the holder rim (support). Film part from hardware_library 3383437.
+      Records: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md and
+      20261113_dish_gel_calipers.md (commit f6f1089), with 20261113_stack_sketch_jeremy.png. Citrus's palm
+      JSONs and code defaults (shelf 4.76, eye 8/3/1.5, z_eff 14.94) conflict with this and are not used.
+    declared_by: pancakebatter session from rig-designer's record of Jeremy's measurements and sketch
+    declared_at: "2026-11-13"
   derived:
-    arena_1: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
-    arena_2: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
-    arena_3: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
-    arena_4: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+    arena_1: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}
+    arena_2: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}
+    arena_3: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}
+    arena_4: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}

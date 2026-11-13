@@ -494,3 +494,68 @@ class MediaStackTests(unittest.TestCase):
     def test_json_schema_accepts_the_stack(self):
         import jsonschema
         hostconfig.schema_validator(jsonschema, SCHEMA).validate(with_stack(media_stack()))
+        hostconfig.schema_validator(jsonschema, SCHEMA).validate(with_stack(supported_stack()))
+
+
+SUPPORT_EVIDENCE = {"note": "test", "declared_by": "test", "declared_at": "2026-11-13"}
+
+
+def supported_stack(datum=8.0, base_1="unknown", base_3=5.0):
+    """The dish hangs from the holder rim: its floor top is `datum` above the film whatever its base."""
+    s = media_stack(support={"dish_floor_above_film_mm": datum, "fill_layer": "water_film_to_dish",
+                             "evidence": SUPPORT_EVIDENCE})
+    s["layers"][3]["thickness_mm"] = "unknown"
+    s["layers"][4]["thickness_mm"] = "unknown"
+    s["arenas"] = {"arena_1": {"dish_base": {"thickness_mm": base_1}}, "arena_3": {"dish_base": {"thickness_mm": base_3}}}
+    s["derived"] = rc.derived_media_stack(s)
+    return s
+
+
+class MediaStackSupportTests(unittest.TestCase):
+    def test_eye_to_film_needs_no_dish_base(self):
+        s = supported_stack()
+        self.assertEqual(rc.validate(with_stack(s)), [])
+        # Same geometric distance in both arenas: datum 8.0 + eye 2.0, whichever dish is there.
+        self.assertEqual(s["derived"]["arena_1"], {"eye_to_film_mm": 10.0, "eye_to_film_paraxial_mm": "unknown"})
+        self.assertEqual(s["derived"]["arena_3"]["eye_to_film_mm"], 10.0)
+        # arena_3's base is known, so the water under its dish is 8.0 - 5.0 and the paraxial value follows.
+        want = round(1.333 * (3.0 / 1.333 + 5.0 / 1.49) + 2.0, 3)
+        self.assertEqual(s["derived"]["arena_3"]["eye_to_film_paraxial_mm"], want)
+        filled = rc.resolve_support(rc.arena_layers(s, "arena_3"), s["support"])
+        self.assertEqual(filled[3]["thickness_mm"], 3.0)
+
+    def test_declared_layers_must_add_up_to_the_support_height(self):
+        s = supported_stack()
+        s["arenas"]["arena_1"]["water_film_to_dish"] = {"thickness_mm": 4.0}
+        s["arenas"]["arena_1"]["dish_base"] = {"thickness_mm": 3.0}
+        s["derived"] = rc.derived_media_stack(s)
+        self.assertTrue(any("sum to 7.0 mm" in e for e in rc.validate(with_stack(s))))
+        s["arenas"]["arena_1"]["water_film_to_dish"] = {"thickness_mm": 5.0}
+        s["derived"] = rc.derived_media_stack(s)
+        self.assertEqual(rc.validate(with_stack(s)), [])
+
+    def test_support_errors(self):
+        for mutate, needle in (
+            (lambda s: s["support"].update(fill_layer="shelf"), "fill_layer"),
+            (lambda s: s["support"].update(dish_floor_above_film_mm=-1), "number >= 0"),
+            (lambda s: s["support"].pop("evidence"), "evidence"),
+            (lambda s: s["support"].update(winglets=True), "unexpected keys"),
+            (lambda s: s["arenas"]["arena_1"].update(dish_base={"thickness_mm": 9.0}), "more than dish_floor_above_film_mm"),
+        ):
+            s = supported_stack()
+            mutate(s)
+            with self.subTest(needle=needle):
+                errs = rc.validate(with_stack(s))
+                self.assertTrue(any(needle in e for e in errs), errs)
+
+    def test_unknown_support_height_falls_back_to_the_layers(self):
+        s = supported_stack(datum="unknown")
+        self.assertEqual(rc.validate(with_stack(s)), [])
+        self.assertEqual(s["derived"]["arena_3"]["eye_to_film_mm"], "unknown")
+
+    def test_digest_tracks_support_not_its_evidence(self):
+        base = rc.physical_digest(with_stack(supported_stack()))
+        self.assertNotEqual(rc.physical_digest(with_stack(supported_stack(datum=8.1))), base)
+        d = with_stack(supported_stack())
+        d["media_stack"]["support"]["evidence"] = {**SUPPORT_EVIDENCE, "note": "edited"}
+        self.assertEqual(rc.physical_digest(d), base)

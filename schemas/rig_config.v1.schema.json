@@ -1459,6 +1459,59 @@
             }
           }
         },
+        "support": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "dish_floor_above_film_mm",
+            "fill_layer",
+            "evidence"
+          ],
+          "description": "Optional. The dish hangs from a fixed datum (e.g. winglets on the holder rim) rather than resting on the layers below it. Physical except evidence. rigs/README.md#media-stack.",
+          "properties": {
+            "dish_floor_above_film_mm": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Height of the top of the dish floor (the floor of the fish's water) above the film's fish-side face. With it, eye_to_film_mm = this + the assumed eye height, whatever the dish base."
+            },
+            "fill_layer": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$",
+              "description": "Id of the layer between the film and the fish's water whose thickness is what the support height leaves over (checked: the layers between the film and the fish's water sum to dish_floor_above_film_mm when all are known)."
+            },
+            "evidence": {
+              "type": "object",
+              "required": [
+                "note",
+                "declared_by",
+                "declared_at"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "note": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "declared_by": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "declared_at": {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                }
+              },
+              "description": "Who declared this field group, when, and on what evidence (menu wording, photo, measurement, document)."
+            }
+          }
+        },
         "evidence": {
           "type": "object",
           "required": [
