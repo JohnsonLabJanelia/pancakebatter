@@ -1490,7 +1490,8 @@
                   "const": "unknown"
                 }
               ],
-              "description": "Height of the top of the dish floor (the floor of the fish's water) above the film's fish-side face. Declare it only when the floor does not depend on which dish is used; otherwise declare holder_top_above_film_mm and let the consumer derive the floor. With it, eye_to_film_mm = this + the assumed eye height, whatever the dish base."
+              "description": "LEGACY (omnifin0 revision 14 only): do not declare in new revisions; declare holder_top_above_film_mm. Height of the top of the dish floor above the film's fish-side face; with it, eye_to_film_mm = this + the assumed eye height. The per-arena floor height is derived by the consumer (Citrus: dish_floor_above_image_plane_mm).",
+              "deprecated": true
             },
             "fill_layer": {
               "type": "string",

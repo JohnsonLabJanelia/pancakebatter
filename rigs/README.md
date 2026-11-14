@@ -278,8 +278,9 @@ media_stack:
     differ. The dish floor is then this minus the dish's own seat-to-floor drop, which the consumer
     derives per arena from the dish in it (Citrus logs it as `dish_floor_above_image_plane_mm`). On
     its own it gives no `eye_to_film_mm` and fills no layer.
-  - `dish_floor_above_film_mm` is the fish water's floor height. Declare it only when that does not
-    depend on which dish is used. Then, whatever the dish base,
+  - `dish_floor_above_film_mm` is **legacy** (omnifin0 revision 14 only; Jeremy, 2026-11-14). It is
+    still accepted, so v1 documents stay valid, but new revisions declare `holder_top_above_film_mm`
+    instead. It meant the fish water's floor height; with it, whatever the dish base,
   `eye_to_film_mm` = that height + the assumed eye height, with no dish base needed. `fill_layer`
   names the layer between the film and the fish's water whose thickness is what is left over, usually
   the water under the dish. It may stay `unknown`: when every other layer between the film and the

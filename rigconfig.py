@@ -118,8 +118,8 @@ STACK_KEYS = ("air_between_film_and_fish", "layers", "arenas", "assumptions", "s
 # resting on the layers below it, and fill_layer (a layer between the film and the dish) takes up the rest.
 # holder_top_above_film_mm is the datum's height above the film's fish-side face (a rig fact); the dish
 # floor is that minus the dish's own seat-to-floor drop, which the consumer derives per arena from the dish
-# in it. dish_floor_above_film_mm (declared floor height) is kept for v1 compatibility; declare it only when
-# the floor does not depend on which dish is used. At least one of the two is required.
+# in it (Citrus: dish_floor_above_image_plane_mm). dish_floor_above_film_mm is LEGACY (omnifin0 rev 14 only):
+# still accepted so v1 documents stay valid, but do not declare it in new revisions. One of the two is required.
 SUPPORT_HEIGHTS = ("holder_top_above_film_mm", "dish_floor_above_film_mm")
 SUPPORT_PHYSICAL = SUPPORT_HEIGHTS + ("fill_layer",)
 SUPPORT_KEYS = SUPPORT_PHYSICAL + ("evidence",)
