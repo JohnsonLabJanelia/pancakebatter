@@ -264,16 +264,22 @@ media_stack:
       refractive_index_source: pure water, visible, room temperature (textbook value)
     - id: dish_base
       medium: acrylic
-      thickness_mm: unknown          # per arena below; the two dish types are 3 mm and 5 mm (calipers)
-      refractive_index: unknown
+      thickness_mm: unknown          # per arena below: 5 mm (palm1) in arenas 1-2, 3 mm (palm2) in arenas 3-4
+      refractive_index: 1.49
+      refractive_index_source: >-
+        UNVERIFIED, declared by Jeremy 2026-11-13: typical PMMA at about 589 nm (textbook); the dish acrylic's
+        grade and dispersion are not measured. A 1.48-1.50 range moves paraxial eye_to_film by about
+        +/-0.03 mm for a 5 mm base.
       evidence:
         note: >-
-          Two dish types, calipered by Jeremy 2026-11-13: thin base 3 mm and thick base 5 mm (agreeing with
-          Citrus targets/tank_designs 3.0 and 5.0). Which type is in which arena is unconfirmed, and the
-          names are disputed (Jeremy: 3 mm = palm2, 5 mm = palm1; the Citrus design files say the reverse),
-          so the arenas stay unknown until Jeremy settles both. Acrylic index unmeasured (Citrus's 1.49 is
-          unverified). An unassigned 2.8 mm "tank rim" (calipers) may be the winglet thickness.
-        declared_by: Jeremy (calipers), via Orange and rig-designer
+          Two dish types, calipered by Jeremy 2026-11-13: thick base 5 mm (palm1) and thin base 3 mm (palm2),
+          matching Citrus targets/tank_designs 5.0 and 3.0, whose palm names are swapped (rig-designer has
+          asked Citrus to fix them; Citrus's shadow.json mapping is right). Jeremy, 2026-11-13: the thick dish
+          normally sits in arenas 1 and 2 and the thin dish in arenas 3 and 4. This is the usual placement,
+          not a check of any one night's setup. Acrylic index 1.49 declared, unverified (see refractive_index_source). The
+          2.8 mm "tank rim" (calipers) is the dish wall height above the floor (Jeremy, 2026-11-13); see
+          dish_water.
+        declared_by: Jeremy (calipers and usual placement), via Orange and rig-designer
         declared_at: "2026-11-13"
     - id: dish_water
       medium: water
@@ -283,14 +289,16 @@ media_stack:
       evidence:
         note: >-
           Fish water depth at recording fill, declared by Jeremy 2026-11-12; replaces the 5.0 mm nominal in
-          the Citrus design files. The per-recording fill goes in session metadata.
+          the Citrus design files. Jeremy, 2026-11-13: each dish is filled to the top of its 2.8 mm wall
+          (calipers), about 15 mL, which is 2.98 mm over an 80 mm inner diameter; so 3 mm, range 2.8-3.0.
+          The per-recording fill (15 mL, declared) goes in session metadata.
         declared_by: Jeremy, via Orange and rig-designer
         declared_at: "2026-11-12"
   arenas:
-    arena_1: {dish_base: {thickness_mm: unknown}}
-    arena_2: {dish_base: {thickness_mm: unknown}}
-    arena_3: {dish_base: {thickness_mm: unknown}}
-    arena_4: {dish_base: {thickness_mm: unknown}}
+    arena_1: {dish_base: {thickness_mm: 5}}   # palm1
+    arena_2: {dish_base: {thickness_mm: 5}}   # palm1
+    arena_3: {dish_base: {thickness_mm: 3}}   # palm2
+    arena_4: {dish_base: {thickness_mm: 3}}   # palm2
   assumptions:
     fish_eye_height_above_dish_floor_mm: 1.5   # ASSUMED: mid-column of the 3 mm water (range 0-3), not measured
   support:
@@ -319,7 +327,7 @@ media_stack:
     declared_by: pancakebatter session from rig-designer's record of Jeremy's measurements and sketch
     declared_at: "2026-11-13"
   derived:
-    arena_1: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}
-    arena_2: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}
-    arena_3: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}
-    arena_4: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: unknown}
+    arena_1: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.103}
+    arena_2: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.103}
+    arena_3: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.314}
+    arena_4: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.314}
