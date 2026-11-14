@@ -12,7 +12,7 @@
 #
 # Usage: ./reboot_cams.sh [--no-apply] [--outlet <id|all>] [--wait-seconds <s>]
 #   ORANGE_CAMERA_READY_ROOT  tree holding targets/release/evt_camera_ready
-#                          (default /home/jeremy/orange-integration-20260921)
+#                          (default /home/jeremy/orange)
 #   ORANGE_CAMERA_CONFIG   camera config folder with <serial>.json
 #                          (default ~/orange_data/config/local/100_cam4_ptp_fourcam)
 #   PDU_HOST               default 192.168.20.177
@@ -60,7 +60,7 @@ if ! "$RIG_CONTROL_PYTHON" -c 'import pexpect, yaml, rich' 2>/dev/null; then
 fi
 # ORANGE_ROOT is a system-wide variable on this host (/opt/orange), so use a
 # dedicated one for the readiness tool.
-ORANGE_CAMERA_READY_ROOT="${ORANGE_CAMERA_READY_ROOT:-/home/jeremy/orange-integration-20260921}"
+ORANGE_CAMERA_READY_ROOT="${ORANGE_CAMERA_READY_ROOT:-/home/jeremy/orange}"
 ORANGE_CAMERA_CONFIG="${ORANGE_CAMERA_CONFIG:-$HOME/orange_data/config/local/100_cam4_ptp_fourcam}"
 READY_BIN="$ORANGE_CAMERA_READY_ROOT/targets/release/evt_camera_ready"
 OUTLET="all"

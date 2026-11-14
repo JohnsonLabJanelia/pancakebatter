@@ -269,7 +269,7 @@ def program_camera(plan: Plan, args: argparse.Namespace) -> None:
     time.sleep(args.settle_seconds)
 
 
-DEFAULT_ORANGE_ROOT = "/home/jeremy/orange-integration-20260921"   # same default as reboot_cams.sh
+DEFAULT_ORANGE_ROOT = "/home/jeremy/orange"   # same default as reboot_cams.sh
 
 
 def reboot_tool(args: argparse.Namespace) -> Path | None:
