@@ -310,23 +310,11 @@ media_stack:
         +/-0.3 (gasket compression, how level floor and rim are). The dish floor is this minus the dish's
         seat-to-floor drop (0 for both built dishes, 2026-11-14); Citrus derives it per arena at START as
         dish_floor_above_image_plane_mm. Rev 14 declared this same 8.13 as dish_floor_above_film_mm.
-        To settle it: a depth gauge from the holder top to the film, or the wet-minus-dry scale capture.
+        To settle it: a depth gauge from the holder top to the film (the wet-minus-dry scale capture is
+        circular without an independent camera height, per Orange, so it does not settle it).
         Record: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md (4934d7c).
       declared_by: rig-designer from Jeremy's sketch, calipers and the shelf CAD; via Orange
       declared_at: "2026-11-14"
-  evidence:
-      note: >-
-        Each dish hangs by winglets on the top of the holder (the cup rim), and the top of its floor is level
-        with the holder top (Jeremy's sketch, 2026-11-13), so the fish water sits at the same height for both
-        dish types; the base only sets how much water is under the dish. 8.13 = cup depth 8.19 (shelf CAD:
-        gasket 1.59 + aluminum tank holder 6.35 + vinyl 0.25, cup floor to holder top, not as-built) minus
-        the film 0.06, with the water under the film taken as 0. Derived, not measured; +/-0.1 suggested
-        (gasket compression, how level floor and rim are). To settle it: a depth gauge from the holder top
-        to the dish floor top and to the film, or the wet-minus-dry scale capture (wet minus dry = this
-        height). Read by Citrus at START for z_eff. Record: phd-projects
-        rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md (f6f1089).
-      declared_by: rig-designer from Jeremy's sketch, calipers and the shelf CAD; via Orange
-      declared_at: "2026-11-13"
   evidence:
     note: >-
       Order from Jeremy 2026-10-20, confirmed 2026-11-13: light -> acrylic shelf -> thin water -> film ->

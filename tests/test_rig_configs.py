@@ -30,9 +30,33 @@ def camera(**kw):
     return c
 
 
+class _NoDuplicateKeys(yaml.SafeLoader):
+    """safe_load keeps the last of two equal keys without a word; rig files must not rely on that."""
+
+
+def _mapping_without_duplicates(loader, node, deep=False):
+    keys = [loader.construct_object(k, deep=deep) for k, _ in node.value]
+    dupes = sorted({str(k) for k in keys if keys.count(k) > 1})
+    if dupes:
+        raise yaml.constructor.ConstructorError(None, None, f"duplicate keys {dupes}", node.start_mark)
+    return loader.construct_mapping(node, deep)
+
+
+_NoDuplicateKeys.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping_without_duplicates)
+
+
 class RigDocumentTests(unittest.TestCase):
     def test_there_is_at_least_one_rig(self):
         self.assertTrue(RIG_FILES)
+
+    def test_rig_files_have_no_duplicate_keys(self):
+        for f in RIG_FILES + sorted((REPO / "rigs").glob("*/events.yml")):
+            with self.subTest(file=str(f.relative_to(REPO))):
+                yaml.load(f.read_text(), Loader=_NoDuplicateKeys)
+
+    def test_the_duplicate_key_check_catches_one(self):
+        with self.assertRaises(yaml.constructor.ConstructorError):
+            yaml.load("a:\n  b: 1\n  b: 2\n", Loader=_NoDuplicateKeys)
 
     def test_every_rig_validates_and_is_named_by_its_directory(self):
         for name, doc in RIGS.items():
