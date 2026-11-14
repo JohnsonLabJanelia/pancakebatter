@@ -280,6 +280,15 @@ media_stack:
   fish's water is known for an arena, `rigconfig.py` fills it in for the paraxial value. When all of
   them are declared, they must add up to `dish_floor_above_film_mm`, and `rigconfig.py` checks this.
 
+- **Rig, dish and session.** When dishes are swapped between recordings, rig.yml holds only what
+  is at or below the image plane (shelf, film, holder) and the `support` height. The layers above the
+  film stay in the list as slots, which keeps the order and the no-air flag, but their thicknesses are
+  `unknown`. The dish's base and index come from the dish's own record (a hardware_library tank
+  part). Which dish is in which arena, the fill and the eye height come from the session. Arenas are
+  then `{}`, `assumptions` is left out, and `derived` is `unknown`. The consumer, for example Citrus at
+  START, computes eye-to-film from `support.dish_floor_above_film_mm` plus the session's eye height.
+  omnifin0 works this way from revision 14.
+
 Layers, arena overrides, assumptions, `support` (except its evidence) and the no-air flag are
 physical, so changing them needs a revision bump. The assumed eye height counts too, because it feeds a derived value.
 `evidence`, `refractive_index_source` and `derived` do not.

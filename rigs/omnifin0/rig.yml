@@ -259,48 +259,40 @@ media_stack:
         declared_at: "2026-11-13"
     - id: water_film_to_dish
       medium: water
-      thickness_mm: unknown          # support.fill_layer: dish_floor_above_film_mm minus the arena's dish base
+      thickness_mm: unknown          # support.fill_layer: dish_floor_above_film_mm minus the dish's base
       refractive_index: 1.333
       refractive_index_source: pure water, visible, room temperature (textbook value)
     - id: dish_base
       medium: acrylic
-      thickness_mm: unknown          # per arena below: 5 mm (palm1) in arenas 1-2, 3 mm (palm2) in arenas 3-4
-      refractive_index: 1.49
-      refractive_index_source: >-
-        UNVERIFIED, declared by Jeremy 2026-11-13: typical PMMA at about 589 nm (textbook); the dish acrylic's
-        grade and dispersion are not measured. A 1.48-1.50 range moves paraxial eye_to_film by about
-        +/-0.03 mm for a 5 mm base.
+      thickness_mm: unknown          # a dish property: not the rig's
+      refractive_index: unknown      # a dish property: not the rig's
       evidence:
         note: >-
-          Two dish types, calipered by Jeremy 2026-11-13: thick base 5 mm (palm1) and thin base 3 mm (palm2),
-          matching Citrus targets/tank_designs 5.0 and 3.0, whose palm names are swapped (rig-designer has
-          asked Citrus to fix them; Citrus's shadow.json mapping is right). Jeremy, 2026-11-13: the thick dish
-          normally sits in arenas 1 and 2 and the thin dish in arenas 3 and 4. This is the usual placement,
-          not a check of any one night's setup. Acrylic index 1.49 declared, unverified (see refractive_index_source). The
-          2.8 mm "tank rim" (calipers) is the dish wall height above the floor (Jeremy, 2026-11-13); see
-          dish_water.
-        declared_by: Jeremy (calipers and usual placement), via Orange and rig-designer
+          Slot only. Split adopted by Jeremy 2026-11-13 (rig-designer's proposal, via citrus-agent): rig.yml
+          holds what is at or below the image plane (shelf, film, holder) and the dish-floor height (support);
+          the dish's base thickness and index belong to the dish (hardware_library tank.fish_imaging.palm1
+          and tank.fish_imaging.palm2, rig-designer branch feat/tank-palm-dishes aae971f, pending Jeremy's OK;
+          Citrus tank_designs until then); which dish is in which arena, the fill and the eye height belong to the
+          session. Values as of 2026-11-13 (Jeremy, calipers; record f6f1089): thick base 5 mm (palm1) and
+          thin base 3 mm (palm2), acrylic n 1.49 unverified; the 2.8 mm "rim" is the dish wall height.
+        declared_by: pancakebatter session, per the split
         declared_at: "2026-11-13"
     - id: dish_water
       medium: water
-      thickness_mm: 3
+      thickness_mm: unknown          # the session's fill: not the rig's
       refractive_index: 1.333
       refractive_index_source: pure water, visible, room temperature (textbook value)
       evidence:
         note: >-
-          Fish water depth at recording fill, declared by Jeremy 2026-11-12; replaces the 5.0 mm nominal in
-          the Citrus design files. Jeremy, 2026-11-13: each dish is filled to the top of its 2.8 mm wall
-          (calipers), about 15 mL, which is 2.98 mm over an 80 mm inner diameter; so 3 mm, range 2.8-3.0.
-          The per-recording fill (15 mL, declared) goes in session metadata.
-        declared_by: Jeremy, via Orange and rig-designer
-        declared_at: "2026-11-12"
+          Slot only; the fill is a session value. As of 2026-11-13 (Jeremy): filled to the top of the
+          2.8 mm wall, about 15 mL, about 2.98 mm over an 80 mm inner diameter.
+        declared_by: pancakebatter session, per the split
+        declared_at: "2026-11-13"
   arenas:
-    arena_1: {dish_base: {thickness_mm: 5}}   # palm1
-    arena_2: {dish_base: {thickness_mm: 5}}   # palm1
-    arena_3: {dish_base: {thickness_mm: 3}}   # palm2
-    arena_4: {dish_base: {thickness_mm: 3}}   # palm2
-  assumptions:
-    fish_eye_height_above_dish_floor_mm: 1.5   # ASSUMED: mid-column of the 3 mm water (range 0-3), not measured
+    arena_1: {}
+    arena_2: {}
+    arena_3: {}
+    arena_4: {}
   support:
     dish_floor_above_film_mm: 8.13
     fill_layer: water_film_to_dish
@@ -313,21 +305,23 @@ media_stack:
         the film 0.06, with the water under the film taken as 0. Derived, not measured; +/-0.1 suggested
         (gasket compression, how level floor and rim are). To settle it: a depth gauge from the holder top
         to the dish floor top and to the film, or the wet-minus-dry scale capture (wet minus dry = this
-        height). Record: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md (f6f1089).
+        height). Read by Citrus at START for z_eff. Record: phd-projects
+        rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md (f6f1089).
       declared_by: rig-designer from Jeremy's sketch, calipers and the shelf CAD; via Orange
       declared_at: "2026-11-13"
   evidence:
     note: >-
       Order from Jeremy 2026-10-20, confirmed 2026-11-13: light -> acrylic shelf -> thin water -> film ->
       water-filled cup -> acrylic dish base -> fish water, no air between film and fish. The dish does not
-      rest on the film; it hangs from the holder rim (support). Film part from hardware_library 3383437.
-      Records: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md and
-      20261113_dish_gel_calipers.md (commit f6f1089), with 20261113_stack_sketch_jeremy.png. Citrus's palm
-      JSONs and code defaults (shelf 4.76, eye 8/3/1.5, z_eff 14.94) conflict with this and are not used.
+      rest on the film; it hangs from the holder rim (support). Rig, dish and session split (Jeremy,
+      2026-11-13): the layers above the film are slots whose values come from the dish and the session, so
+      eye_to_film is not derivable from rig.yml alone (Citrus computes it at START). Film part from
+      hardware_library 3383437. Records: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md
+      and 20261113_dish_gel_calipers.md (commit f6f1089), with 20261113_stack_sketch_jeremy.png.
     declared_by: pancakebatter session from rig-designer's record of Jeremy's measurements and sketch
     declared_at: "2026-11-13"
   derived:
-    arena_1: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.103}
-    arena_2: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.103}
-    arena_3: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.314}
-    arena_4: {eye_to_film_mm: 9.63, eye_to_film_paraxial_mm: 9.314}
+    arena_1: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+    arena_2: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+    arena_3: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
+    arena_4: {eye_to_film_mm: unknown, eye_to_film_paraxial_mm: unknown}
