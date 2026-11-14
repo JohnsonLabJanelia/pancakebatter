@@ -58,6 +58,11 @@ projection_paths:
       white_balance: {r_gain: 200, g_gain: 200, b_gain: 200}
       light_source_mode: normal
       hdmi_signal_format: auto
+      details_adjustment: "off"  # rev 15: as found, OSD 2026-10-19 (SpecSail); no RS-232 read for these five
+      auto_game_mode: "off"
+      hdr_brightness: 0
+      noise_reduction: 0
+      test_pattern: "off"
     projector_operation:         # rev 13; not physical: power-on, input and identity (README)
       qs02_media_streaming: "off"   # Jeremy turned it off 2026-11-12 (events.yml e9)
       quick_auto_search: "on"
@@ -65,6 +70,7 @@ projection_paths:
       auto_power_off: unknown
       high_altitude: "off"
       hdmi_edid: enhanced        # HDMI-1; Standard would cap it at 1080p60 and change the EDID the host saves
+      hdmi_equalizer: auto       # rev 15; HDMI-1, as found (OSD 2026-10-19)
       firmware: {system: "1.00", scaler: "1.04", mcu: "34.01-0.0.031"}
     display_mode:                # rev 11; Citrus refuses START when DP-2's live mode differs
       width_px: 1920
@@ -111,6 +117,12 @@ projection_paths:
         yellow primaries, Signal Format Auto and EDID Enhanced for HDMI-1 have no RS-232 read and come from that
         record only; Jeremy has never adjusted colour on this projector. Auto Power Off was not recorded.
         QS02 Off: Jeremy, in the menu, 2026-11-12 (events.yml e9).
+        Game, noise and test-pattern settings (rev 15, as found; added at Jeremy's request 2026-11-14, deferred
+        from rev 13): Details Adjustment Off, Auto Game Mode Off, HDR Brightness 0, Noise Reduction 0, Test
+        Pattern Off, HDMI-1 Equalizer Auto, from the 2026-10-19 OSD record only (settings_as_found.json,
+        sha256 ef2ab8e7c323c8a3b7ad21e4117b9cad501d36ff870b0b756978dca29f6fe82b). None has an RS-232 read
+        (*hdrbri=?# answered "Block item" on 2026-11-14T03:10Z with SDR input), and none is known to have
+        changed since. Ranges are from the X3100i manual's menu table.
         Lens nadir (rev 9): specsail-calibration-protocol 2026-10-21, from tape (plumb 290 + spill shelf
         12.7 + 363 + shelf base 6.35 = 672 mm lens glass to film) plus CAD for the across-row placement.
         It is the film point directly above the lens front glass, not where the optical axis lands;

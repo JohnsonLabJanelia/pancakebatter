@@ -212,18 +212,42 @@ class ProjectorSettingsTests(unittest.TestCase):
         ps["color_management"] = "unknown"
         self.assertEqual(rc.validate(doc), [])
 
+    def test_game_noise_and_test_pattern_settings_are_optional_and_physical(self):
+        doc, p = self.doc()
+        ps = p["projector_settings"]
+        new = {"details_adjustment": "off", "auto_game_mode": "off", "hdr_brightness": 0, "noise_reduction": 0,
+               "test_pattern": "off"}
+        for k in new:
+            ps.pop(k, None)
+        base, orient = rc.physical_digest(doc), rc.orientation_digest(doc)
+        self.assertEqual(rc.validate(doc), [])
+        ps.update(new)
+        self.assertEqual(rc.validate(doc), [])
+        self.assertNotEqual(rc.physical_digest(doc), base)
+        self.assertEqual(rc.orientation_digest(doc), orient)
+        ps["hdr_brightness"] = -2
+        self.assertEqual(rc.validate(doc), [])
+        for key, bad in (("hdr_brightness", 3), ("noise_reduction", 16), ("details_adjustment", "medium"),
+                         ("auto_game_mode", "reset"), ("test_pattern", True)):
+            with self.subTest(key=key):
+                good = ps[key]
+                ps[key] = bad
+                self.assertTrue(any(key in e for e in rc.validate(doc)))
+                ps[key] = good
+
     def test_projector_operation_is_optional_and_not_physical(self):
         doc, p = self.doc()
         p.pop("projector_operation", None)
         base = rc.physical_digest(doc)
         p["projector_operation"] = {"qs02_media_streaming": "off", "quick_auto_search": "on", "direct_power_on": "off",
                                     "auto_power_off": "unknown", "high_altitude": "off", "hdmi_edid": "enhanced",
+                                    "hdmi_equalizer": "auto",
                                     "firmware": {"system": "1.00", "scaler": "1.04", "mcu": "34.01-0.0.031"}}
         self.assertEqual(rc.validate(doc), [])
         self.assertEqual(rc.physical_digest(doc), base)
         p["projector_operation"]["qs02_media_streaming"] = "on"
         self.assertEqual(rc.physical_digest(doc), base)
-        for key, bad in (("quick_auto_search", True), ("auto_power_off", 5), ("hdmi_edid", "HDMI 2.0"),
+        for key, bad in (("quick_auto_search", True), ("auto_power_off", 5), ("hdmi_edid", "HDMI 2.0"), ("hdmi_equalizer", 6),
                          ("firmware", {"system": "1.00"}), ("colour", "x")):
             with self.subTest(key=key):
                 op = dict(p["projector_operation"], **{key: bad})

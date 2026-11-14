@@ -131,6 +131,11 @@ response. Like the picture settings, they are physical once present, but outside
 | `white_balance` | `{r_gain, g_gain, b_gain}` | Color Management > White Balance | `*WRGain=?#` ... |
 | `light_source_mode` | normal, eco, dynamic | Light Source Mode | `*lampm=?#` (LNOR = normal) |
 | `hdmi_signal_format` | auto, limited, full | Display > HDMI Settings > Signal Format | none |
+| `hdr_brightness` | -2 to 2 | HDR Brightness (rev 15) | `*hdrbri=?#` answers "Block item" with SDR input |
+| `noise_reduction` | 0-15 | Noise Reduction (rev 15) | none |
+| `details_adjustment` | off, low, high | Game & Pic > Details Adjustment (rev 15) | none |
+| `auto_game_mode` | on, off | Game & Pic > Auto Game Mode (rev 15); on can switch the picture mode on a game signal | none |
+| `test_pattern` | on, off | Installation > Test Pattern (rev 15); on replaces the canvas | none |
 
 **`projection_paths.<id>.projector_operation` (optional, not physical).** These settings change how the
 projector powers on, which input it shows or how it identifies itself, but not the light on the canvas.
@@ -144,6 +149,7 @@ They are outside the physical digest, so a change needs no revision, but goes in
 | `auto_power_off` | disable, 3/10/15/20/25/30 (minutes) | same | none | Turns the projector off after that long without signal |
 | `high_altitude` | on, off | System > High Altitude Mode | `*Highaltitude=?#` | Fan speed |
 | `hdmi_edid` | enhanced, standard | Display > HDMI Settings > EDID | none | Standard caps the input at 1080p60 and changes the EDID the host saved ([`docs/display_and_projector_edid.md`](../docs/display_and_projector_edid.md)) |
+| `hdmi_equalizer` | auto, 1-5 | Display > HDMI Settings > Equalizer, for the input in use (rev 15) | none | keeps the HDMI signal clean over long cables; not the light on the canvas |
 | `firmware` | `{system, scaler, mcu}` strings | — | `*sysfwversion=?#`, `*scalerfwversion=?#`, `*mcufwversion=?#` | A firmware update can change any of the above |
 
 **Checking the projector against rig.yml.** Read-only RS-232 reads (`=?#` only) cover most keys. For

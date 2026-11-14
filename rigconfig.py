@@ -52,7 +52,9 @@ PROJECTOR_SETTINGS_RANGES = {"keystone_h": (-30, 30), "keystone_v": (-30, 30), "
 PROJECTOR_SETTINGS = tuple(PROJECTOR_SETTINGS_ENUMS) + tuple(PROJECTOR_SETTINGS_RANGES)
 # Optional picture settings (Picture menu): they change how bright the canvas is, not where it lands.
 # Physical when present; a rig that omits them keeps its digest. None = no upper bound stated.
-PROJECTOR_PICTURE_RANGES = {"brightness": (0, 100), "contrast": (0, 100), "sharpness": (0, None)}
+PROJECTOR_PICTURE_RANGES = {"brightness": (0, 100), "contrast": (0, 100), "sharpness": (0, None),
+                            # rev 15, from the manual's menu table: HDR Brightness -2..2, Noise Reduction 0-15
+                            "hdr_brightness": (-2, 2), "noise_reduction": (0, 15)}
 # Optional, as the menu names them (e.g. HDMI-1, User): the projector keeps a picture mode per input, so
 # the input selects which picture settings apply (events.yml e4/e5, 2026-11-10). Physical when present.
 PROJECTOR_PICTURE_TEXT = ("input_source", "picture_mode")
@@ -63,6 +65,11 @@ PROJECTOR_PICTURE_ENUMS = {
     "color_temperature": ("normal", "cool", "warm", "native"),
     "light_source_mode": ("normal", "eco", "dynamic"),
     "hdmi_signal_format": ("auto", "limited", "full"),
+    # rev 15: Game & Pic > Details Adjustment and Auto Game Mode (which can switch the picture mode on a game
+    # signal), Installation > Test Pattern (on replaces the canvas). Reset is an action, not a state.
+    "details_adjustment": ("off", "low", "high"),
+    "auto_game_mode": ("on", "off"),
+    "test_pattern": ("on", "off"),
 }
 # Groups of integers: {key: (lo, hi)}, hi None = no range stated in the manual.
 PROJECTOR_PICTURE_GROUPS = {
@@ -84,6 +91,7 @@ PROJECTOR_OPERATION_ENUMS = {
     "direct_power_on": ("on", "off"),
     "high_altitude": ("on", "off"),
     "hdmi_edid": ("enhanced", "standard"),
+    "hdmi_equalizer": ("auto", "1", "2", "3", "4", "5"),   # rev 15; HDMI signal over long cables, not the light
 }
 AUTO_POWER_OFF = ("disable", 3, 10, 15, 20, 25, 30)
 FIRMWARE_KEYS = ("system", "scaler", "mcu")

@@ -844,6 +844,57 @@
                 }
               ],
               "description": "Picture > Advanced Color Settings > Color Management, per primary {hue, saturation, gain} (RS-232 reads only the selected primary: *primcr=?#, *hue=?#, *saturation=?#, *gain=?#). Optional; physical when present."
+            },
+            "hdr_brightness": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": -2,
+                  "maximum": 2
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Advanced Color Settings > HDR Brightness (-2..2). Applies to HDR input; RS-232 *hdrbri=?# answers 'Block item' with SDR input. Optional; physical when present (rev 15)."
+            },
+            "noise_reduction": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 15
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Picture > Advanced Color Settings > Noise Reduction (0-15). Filters the image, so it can change the projected light. No RS-232 read. Optional; physical when present (rev 15)."
+            },
+            "details_adjustment": {
+              "enum": [
+                "off",
+                "low",
+                "high",
+                "unknown"
+              ],
+              "description": "Game & Pic > Details Adjustment (Off/Low/High). Sharpens detail, so it can change the projected light. No RS-232 read. Optional; physical when present (rev 15)."
+            },
+            "auto_game_mode": {
+              "enum": [
+                "on",
+                "off",
+                "unknown"
+              ],
+              "description": "Game & Pic > Auto Game Mode (On/Off; Reset is an action). On can switch the picture mode when a game signal is detected. No RS-232 read. Optional; physical when present (rev 15)."
+            },
+            "test_pattern": {
+              "enum": [
+                "on",
+                "off",
+                "unknown"
+              ],
+              "description": "Installation > Test Pattern (Off/On). On replaces the canvas with the pattern. No RS-232 read. Optional; physical when present (rev 15)."
             }
           }
         },
@@ -1121,6 +1172,18 @@
                 }
               },
               "description": "RS-232 *sysfwversion=?#, *scalerfwversion=?#, *mcufwversion=?#."
+            },
+            "hdmi_equalizer": {
+              "enum": [
+                "auto",
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "unknown"
+              ],
+              "description": "Display > HDMI Settings > Equalizer for the input in use (Auto/1-5): keeps the HDMI signal clean over long cables, not the light on the canvas. No RS-232 read. Not physical (rev 15)."
             }
           }
         }

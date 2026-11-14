@@ -63,6 +63,11 @@
     "projection_paths.*.projector_settings.gamma",
     "projection_paths.*.projector_settings.color_temperature",
     "projection_paths.*.projector_settings.light_source_mode",
+    "projection_paths.*.projector_settings.hdr_brightness",
+    "projection_paths.*.projector_settings.noise_reduction",
+    "projection_paths.*.projector_settings.details_adjustment",
+    "projection_paths.*.projector_settings.auto_game_mode",
+    "projection_paths.*.projector_settings.test_pattern",
     "projection_paths.*.projector_settings.hdmi_signal_format",
     "projection_paths.*.projector_settings.color_temperature_tuning",
     "projection_paths.*.projector_settings.white_balance",
@@ -73,6 +78,7 @@
     "projection_paths.*.projector_operation.auto_power_off",
     "projection_paths.*.projector_operation.high_altitude",
     "projection_paths.*.projector_operation.hdmi_edid",
+    "projection_paths.*.projector_operation.hdmi_equalizer",
     "projection_paths.*.projector_operation.firmware"
   ],
   "optional_sections": [
@@ -111,6 +117,11 @@
     "projection_paths.*.projector_settings.gamma",
     "projection_paths.*.projector_settings.color_temperature",
     "projection_paths.*.projector_settings.light_source_mode",
+    "projection_paths.*.projector_settings.hdr_brightness",
+    "projection_paths.*.projector_settings.noise_reduction",
+    "projection_paths.*.projector_settings.details_adjustment",
+    "projection_paths.*.projector_settings.auto_game_mode",
+    "projection_paths.*.projector_settings.test_pattern",
     "projection_paths.*.projector_settings.hdmi_signal_format",
     "projection_paths.*.projector_settings.color_temperature_tuning",
     "projection_paths.*.projector_settings.white_balance",
@@ -121,6 +132,7 @@
     "projection_paths.*.projector_operation.auto_power_off",
     "projection_paths.*.projector_operation.high_altitude",
     "projection_paths.*.projector_operation.hdmi_edid",
+    "projection_paths.*.projector_operation.hdmi_equalizer",
     "projection_paths.*.projector_operation.firmware"
   ]
 }
