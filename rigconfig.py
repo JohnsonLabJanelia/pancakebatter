@@ -115,9 +115,13 @@ ARENA_OVERRIDES = ("part_id", "thickness_mm", "refractive_index")
 STACK_ASSUMPTIONS = ("fish_eye_height_above_dish_floor_mm",)
 STACK_KEYS = ("air_between_film_and_fish", "layers", "arenas", "assumptions", "support", "evidence", "derived")
 # Optional media_stack.support: the dish hangs from a fixed datum (winglets on the holder rim) instead of
-# resting on the layers below it, so the top of its floor sits a fixed height above the film's fish-side
-# face whatever its base thickness, and fill_layer (a layer between the film and the dish) takes up the rest.
-SUPPORT_PHYSICAL = ("dish_floor_above_film_mm", "fill_layer")
+# resting on the layers below it, and fill_layer (a layer between the film and the dish) takes up the rest.
+# holder_top_above_film_mm is the datum's height above the film's fish-side face (a rig fact); the dish
+# floor is that minus the dish's own seat-to-floor drop, which the consumer derives per arena from the dish
+# in it. dish_floor_above_film_mm (declared floor height) is kept for v1 compatibility; declare it only when
+# the floor does not depend on which dish is used. At least one of the two is required.
+SUPPORT_HEIGHTS = ("holder_top_above_film_mm", "dish_floor_above_film_mm")
+SUPPORT_PHYSICAL = SUPPORT_HEIGHTS + ("fill_layer",)
 SUPPORT_KEYS = SUPPORT_PHYSICAL + ("evidence",)
 SUM_TOLERANCE_MM = 0.0005
 LAYER_ID = re.compile(r"^[a-z0-9_]+$")
@@ -555,10 +559,13 @@ def _support_errors(stack: dict[str, Any], arenas: dict[str, Any], structure_ok:
     if not isinstance(sup, dict):
         return [f"{where}: a mapping"]
     errs = [f"{where}: unexpected keys {sorted(set(sup) - set(SUPPORT_KEYS))}"] if set(sup) - set(SUPPORT_KEYS) else []
-    errs += [f"{where}.{k}: required" for k in SUPPORT_KEYS if k not in sup]
+    errs += [f"{where}.{k}: required" for k in ("fill_layer", "evidence") if k not in sup]
+    if not any(k in sup for k in SUPPORT_HEIGHTS):
+        errs.append(f"{where}: one of {', '.join(SUPPORT_HEIGHTS)} is required")
+    for k in SUPPORT_HEIGHTS:
+        if k in sup and not _number_or_unknown(sup[k], 0):
+            errs.append(f"{where}.{k}: number >= 0 or unknown")
     datum = sup.get("dish_floor_above_film_mm", UNKNOWN)
-    if not _number_or_unknown(datum, 0):
-        errs.append(f"{where}.dish_floor_above_film_mm: number >= 0 or unknown")
     if "evidence" in sup:
         errs += _evidence_errors(where, sup["evidence"])
     if errs or not structure_ok:

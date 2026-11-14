@@ -553,6 +553,22 @@ class MediaStackSupportTests(unittest.TestCase):
         self.assertEqual(rc.validate(with_stack(s)), [])
         self.assertEqual(s["derived"]["arena_3"]["eye_to_film_mm"], "unknown")
 
+    def test_holder_top_alone_leaves_the_floor_to_the_dish(self):
+        s = supported_stack()
+        del s["support"]["dish_floor_above_film_mm"]
+        s["support"]["holder_top_above_film_mm"] = 8.13
+        s["derived"] = rc.derived_media_stack(s)
+        self.assertEqual(rc.validate(with_stack(s)), [])
+        # The floor depends on the dish's seat, so the rig alone gives no eye distance and fills no layer.
+        self.assertEqual(s["derived"]["arena_3"]["eye_to_film_mm"], "unknown")
+        self.assertEqual(rc.resolve_support(rc.arena_layers(s, "arena_3"), s["support"])[3]["thickness_mm"], "unknown")
+        self.assertNotEqual(rc.physical_digest(with_stack(s)), rc.physical_digest(with_stack(supported_stack())))
+        s["support"]["holder_top_above_film_mm"] = -1
+        self.assertTrue(any("holder_top_above_film_mm: number >= 0" in e for e in rc.validate(with_stack(s))))
+        del s["support"]["holder_top_above_film_mm"]
+        self.assertTrue(any("one of holder_top_above_film_mm, dish_floor_above_film_mm is required" in e
+                            for e in rc.validate(with_stack(s))))
+
     def test_digest_tracks_support_not_its_evidence(self):
         base = rc.physical_digest(with_stack(supported_stack()))
         self.assertNotEqual(rc.physical_digest(with_stack(supported_stack(datum=8.1))), base)

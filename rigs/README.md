@@ -246,7 +246,7 @@ media_stack:
   assumptions:
     fish_eye_height_above_dish_floor_mm: unknown   # assumed, not built
   support:                              # optional: the dish hangs from a fixed datum
-    dish_floor_above_film_mm: unknown   # top of the dish floor above the film's fish-side face
+    holder_top_above_film_mm: unknown   # the datum the dish hangs from, above the film's fish-side face
     fill_layer: water_film_to_dish      # the layer that takes up what the dish base leaves
     evidence: {note, declared_by, declared_at}
   evidence: {note, declared_by, declared_at}       # layers may carry their own evidence too
@@ -272,8 +272,14 @@ media_stack:
   with parities. The values are stored, and tests check them against `rigconfig.py`.
 
 - `support` (optional) is for a dish that does not rest on the layers below it but hangs from a
-  fixed datum, such as winglets on the holder rim. `dish_floor_above_film_mm` is then the height of
-  the fish water's floor above the film's fish-side face, whatever the dish base, and
+  fixed datum, such as winglets on the holder rim. It needs one of two heights above the film's
+  fish-side face:
+  - `holder_top_above_film_mm` is the datum's height. This is the rig fact to declare when dishes
+    differ. The dish floor is then this minus the dish's own seat-to-floor drop, which the consumer
+    derives per arena from the dish in it (Citrus logs it as `dish_floor_above_image_plane_mm`). On
+    its own it gives no `eye_to_film_mm` and fills no layer.
+  - `dish_floor_above_film_mm` is the fish water's floor height. Declare it only when that does not
+    depend on which dish is used. Then, whatever the dish base,
   `eye_to_film_mm` = that height + the assumed eye height, with no dish base needed. `fill_layer`
   names the layer between the film and the fish's water whose thickness is what is left over, usually
   the water under the dish. It may stay `unknown`: when every other layer between the film and the
@@ -286,8 +292,9 @@ media_stack:
   `unknown`. The dish's base and index come from the dish's own record (a hardware_library tank
   part). Which dish is in which arena, the fill and the eye height come from the session. Arenas are
   then `{}`, `assumptions` is left out, and `derived` is `unknown`. The consumer, for example Citrus at
-  START, computes eye-to-film from `support.dish_floor_above_film_mm` plus the session's eye height.
-  omnifin0 works this way from revision 14.
+  START, computes eye-to-film from `support.holder_top_above_film_mm`, the dish's seat-to-floor drop
+  and the session's eye height. omnifin0 works this way from revision 14 (revision 15 for
+  `holder_top_above_film_mm`; revision 14 declared the same 8.13 as `dish_floor_above_film_mm`).
 
 Layers, arena overrides, assumptions, `support` (except its evidence) and the no-air flag are
 physical, so changing them needs a revision bump. The assumed eye height counts too, because it feeds a derived value.

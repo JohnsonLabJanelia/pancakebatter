@@ -14,7 +14,7 @@ schema:
 rig_id: omnifin0
 # 1-3 were Citrus's untracked targets/rigs/omnifin0/omnifin0_config.json (rig_config_v1);
 # 4 is the first declaration here, so a pinned 3 still means Citrus's file.
-rig_geometry_revision: 14
+rig_geometry_revision: 15
 description: Four-arena projection rig on pancake0; one BenQ projector, four 20 MP cameras (HB-20000-SB).
 last_physical_change: "2026-11-10"   # projector driven at 1920x1080@240 (rev 11); events.yml e4/e5
 
@@ -225,7 +225,11 @@ media_stack:
     - id: shelf
       medium: acrylic
       thickness_mm: 6.35
-      refractive_index: unknown
+      refractive_index: 1.49
+      refractive_index_source: >-
+        typical cast PMMA (n_d), not stated by McMaster; shelf believed to be McMaster 8560K-series clear cast
+        acrylic (Jeremy 2026-11-13, "as far as I know"); via rig-designer-bom 2026-11-14. Below the image
+        plane, so it changes no eye_to_film value.
       evidence:
         note: >-
           The shared shelf's acrylic base (acrlyicBase in the edited imaging_cabinet_5 FCStd), one sheet
@@ -259,7 +263,7 @@ media_stack:
         declared_at: "2026-11-13"
     - id: water_film_to_dish
       medium: water
-      thickness_mm: unknown          # support.fill_layer: dish_floor_above_film_mm minus the dish's base
+      thickness_mm: unknown          # support.fill_layer: the dish floor (holder top minus the dish's seat) minus its base
       refractive_index: 1.333
       refractive_index_source: pure water, visible, room temperature (textbook value)
     - id: dish_base
@@ -268,15 +272,17 @@ media_stack:
       refractive_index: unknown      # a dish property: not the rig's
       evidence:
         note: >-
-          Slot only. Split adopted by Jeremy 2026-11-13 (rig-designer's proposal, via citrus-agent): rig.yml
-          holds what is at or below the image plane (shelf, film, holder) and the dish-floor height (support);
-          the dish's base thickness and index belong to the dish (hardware_library tank.fish_imaging.palm1
-          and tank.fish_imaging.palm2, rig-designer branch feat/tank-palm-dishes aae971f, pending Jeremy's OK;
-          Citrus tank_designs until then); which dish is in which arena, the fill and the eye height belong to the
-          session. Values as of 2026-11-13 (Jeremy, calipers; record f6f1089): thick base 5 mm (palm1) and
-          thin base 3 mm (palm2), acrylic n 1.49 unverified; the 2.8 mm "rim" is the dish wall height.
+          Slot only. Split adopted by Jeremy 2026-11-13: rig.yml holds what is at or below the image plane
+          (shelf, film, holder) and the holder-top height (support); the dish's base thickness, index and
+          seat-to-floor drop belong to the dish (hardware_library dish parts, PR #11; Citrus tank_designs
+          until it merges); which dish is in which arena, the fill and the eye height belong to the session.
+          As of 2026-11-14 (Jeremy, calipers; record 4934d7c): two dishes, bases 3 mm and 6 mm, each built as
+          a base plus a 2.8 mm winglet layer that is also the wall above the floor, so the floor is flush
+          with the holder top (seat-to-floor 0; the CAD's middle ring is not built). Water under the dish is
+          then about 5.13 mm (3 mm base) and 2.13 mm (6 mm base). Acrylic n 1.49 unverified. Dish names
+          are unresolved and kept out of this file.
         declared_by: pancakebatter session, per the split
-        declared_at: "2026-11-13"
+        declared_at: "2026-11-14"
     - id: dish_water
       medium: water
       thickness_mm: unknown          # the session's fill: not the rig's
@@ -284,19 +290,31 @@ media_stack:
       refractive_index_source: pure water, visible, room temperature (textbook value)
       evidence:
         note: >-
-          Slot only; the fill is a session value. As of 2026-11-13 (Jeremy): filled to the top of the
-          2.8 mm wall, about 15 mL, about 2.98 mm over an 80 mm inner diameter.
+          Slot only; the fill is a session value. As of 2026-11-14 (Jeremy): filled to the top of the
+          2.8 mm winglet layer, about 14 mL, so about 2.8 mm deep (the earlier 3 mm / 15 mL was approximate).
         declared_by: pancakebatter session, per the split
-        declared_at: "2026-11-13"
+        declared_at: "2026-11-14"
   arenas:
     arena_1: {}
     arena_2: {}
     arena_3: {}
     arena_4: {}
   support:
-    dish_floor_above_film_mm: 8.13
+    holder_top_above_film_mm: 8.13
     fill_layer: water_film_to_dish
     evidence:
+      note: >-
+        Each dish hangs by its winglets on the top of the holder (the cup rim). 8.13 = cup depth 8.19 (shelf
+        CAD: gasket 1.59 + aluminum tank holder 6.35 + vinyl 0.25, cup floor to holder top, not as-built)
+        minus the film 0.06, with the water under the film taken as 0. Derived from CAD, not measured; about
+        +/-0.3 (gasket compression, how level floor and rim are). The dish floor is this minus the dish's
+        seat-to-floor drop (0 for both built dishes, 2026-11-14); Citrus derives it per arena at START as
+        dish_floor_above_image_plane_mm. Rev 14 declared this same 8.13 as dish_floor_above_film_mm.
+        To settle it: a depth gauge from the holder top to the film, or the wet-minus-dry scale capture.
+        Record: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md (4934d7c).
+      declared_by: rig-designer from Jeremy's sketch, calipers and the shelf CAD; via Orange
+      declared_at: "2026-11-14"
+  evidence:
       note: >-
         Each dish hangs by winglets on the top of the holder (the cup rim), and the top of its floor is level
         with the holder top (Jeremy's sketch, 2026-11-13), so the fish water sits at the same height for both
@@ -313,7 +331,7 @@ media_stack:
     note: >-
       Order from Jeremy 2026-10-20, confirmed 2026-11-13: light -> acrylic shelf -> thin water -> film ->
       water-filled cup -> acrylic dish base -> fish water, no air between film and fish. The dish does not
-      rest on the film; it hangs from the holder rim (support). Rig, dish and session split (Jeremy,
+      rest on the film; it hangs from the holder rim (support, holder_top_above_film_mm). Rig, dish and session split (Jeremy,
       2026-11-13): the layers above the film are slots whose values come from the dish and the session, so
       eye_to_film is not derivable from rig.yml alone (Citrus computes it at START). Film part from
       hardware_library 3383437. Records: phd-projects rigs/evidence/rig-odmz/20261113_omnifin0_imaging_stack.md

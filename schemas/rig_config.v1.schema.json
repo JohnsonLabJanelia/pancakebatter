@@ -1463,12 +1463,23 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "dish_floor_above_film_mm",
             "fill_layer",
             "evidence"
           ],
-          "description": "Optional. The dish hangs from a fixed datum (e.g. winglets on the holder rim) rather than resting on the layers below it. Physical except evidence. rigs/README.md#media-stack.",
+          "description": "Optional. The dish hangs from a fixed datum (e.g. winglets on the holder rim) rather than resting on the layers below it. Needs holder_top_above_film_mm or dish_floor_above_film_mm. Physical except evidence. rigs/README.md#media-stack.",
           "properties": {
+            "holder_top_above_film_mm": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "const": "unknown"
+                }
+              ],
+              "description": "Height of the datum the dish hangs from (e.g. the holder top its winglets rest on) above the film's fish-side face. A rig fact. The dish floor is this minus the dish's own seat-to-floor drop, derived per arena by the consumer from the dish in that arena (Citrus: dish_floor_above_image_plane_mm)."
+            },
             "dish_floor_above_film_mm": {
               "oneOf": [
                 {
@@ -1479,7 +1490,7 @@
                   "const": "unknown"
                 }
               ],
-              "description": "Height of the top of the dish floor (the floor of the fish's water) above the film's fish-side face. With it, eye_to_film_mm = this + the assumed eye height, whatever the dish base."
+              "description": "Height of the top of the dish floor (the floor of the fish's water) above the film's fish-side face. Declare it only when the floor does not depend on which dish is used; otherwise declare holder_top_above_film_mm and let the consumer derive the floor. With it, eye_to_film_mm = this + the assumed eye height, whatever the dish base."
             },
             "fill_layer": {
               "type": "string",
@@ -1510,7 +1521,19 @@
               },
               "description": "Who declared this field group, when, and on what evidence (menu wording, photo, measurement, document)."
             }
-          }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "holder_top_above_film_mm"
+              ]
+            },
+            {
+              "required": [
+                "dish_floor_above_film_mm"
+              ]
+            }
+          ]
         },
         "evidence": {
           "type": "object",
