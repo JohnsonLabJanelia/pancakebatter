@@ -168,8 +168,9 @@ cameras:
         a tape measurement. Uncertainty about +/-35 mm: +/-20 statistical, plus +/-29 from P_floor (CAD-derived
         +/-0.3 mm, no gauge; 0.3 mm moves H about 3.7 %, the same way on all four cameras). Fit outputs per
         camera (2010093-96): 765, 774, 779, 788 mm, 1 sigma about 63, 50, 43, 53 mm, consistent with one
-        height (chi2 0.11 on 3 dof). The file's value is k / s_gel + e (e = 1.5 mm, the fish-above-floor
-        offset); that 1.5 mm is well inside the uncertainty. The principal point was not located. Because H
+        height (chi2 0.11 on 3 dof). The file's value is k / s_gel + 1.5 mm: the gel fit measures hole
+        centres at the mid-plane of the 3 mm target lying on the film, so k / s_gel reaches that mid-plane
+        and the 1.5 mm brings it to the film (Orange, 2026-11-15). The principal point was not located. Because H
         is derived from P_floor, it cannot be used to check P_floor (media_stack.support). Source: Orange
         commissioning record omnifin0_20261113T230405Z_wet_commissioning_holder_check_fish_plane_scale_, step
         08 fish_plane_scale.json (orange.calibration.fish_plane_scale v1, accepted, sha256
