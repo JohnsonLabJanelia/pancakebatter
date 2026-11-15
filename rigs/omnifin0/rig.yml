@@ -148,7 +148,7 @@ cameras:
     rotation_deg: 0
     mount_notes: ""
     nominal_geometry:            # optional; parallax model only, consumed by nothing today
-      height_above_gel_mm: 776            # effective pinhole distance, about +/-35; see evidence
+      height_above_gel_mm: 765            # effective pinhole distance, about +/-63 (1 sigma); see evidence
       optical_axis_tilt_from_nadir_deg: unknown
     evidence: &camera_evidence
       note: >-
@@ -161,16 +161,16 @@ cameras:
         2026-10-13 answer on palette #377 says no software rotation is applied before recording, and
         Jeremy confirmed 2026-10-14 there is no rotation of the camera's view down to the fish. Camera->arena
         assignment is Citrus registered geometry and deliberately not here.
-        Height (rev 16, Jeremy 2026-11-15 "We should log that number", via Orange): an effective pinhole
-        distance from the gel, H = k / s_gel, not a tape measurement. k = 41021 px is the weighted mean over
-        the four cameras of the two-height scale fit (gel dry and dish floor at P_floor 8.13); s_gel is each
-        camera's own scale at the gel (52.82-52.86 px/mm), so the four values differ only through s_gel.
-        Each camera's own k gives 764, 772, 778 and 787 mm (2010093-96), consistent with the pooled k
-        (chi2 0.11 on 3 dof). Uncertainty: about +/-20 mm statistical on the pooled k, plus about +/-29 mm
-        from P_floor (CAD-derived +/-0.3 mm, no gauge; 0.3 mm moves H about 3.7 %, the same way on all four
-        cameras), about +/-35 mm combined. The principal point was not located. Because H is derived from
-        P_floor, it cannot be used to check P_floor (media_stack.support). Source: Orange commissioning
-        record omnifin0_20261113T230405Z_wet_commissioning_holder_check_fish_plane_scale_, step 08
+        Height (rev 16, Jeremy 2026-11-15 "We should log that number", via Orange): each camera's
+        implied_camera_height_above_gel_mm from its own two-height scale fit (gel dry, and dish floor at
+        P_floor 8.13), as the file states it: 765, 774, 779, 788 mm (2010093-96). An effective pinhole
+        distance from the gel, not a tape measurement. 1 sigma per camera from k_sigma_total_px / k_px
+        (statistical plus P_floor): about 63, 50, 43, 53 mm. The four agree with one rig-wide height of
+        about 775 +/- 30 mm (pooled k 41021 px, chi2 0.11 on 3 dof), so the spread between cameras is not
+        resolved. P_floor is CAD-derived (+/-0.3 mm, no gauge); 0.3 mm moves H about 3.7 %, the same way
+        on all four cameras. The principal point was not located. Because H is derived from P_floor, it
+        cannot be used to check P_floor (media_stack.support). Source: Orange commissioning record
+        omnifin0_20261113T230405Z_wet_commissioning_holder_check_fish_plane_scale_, step 08
         fish_plane_scale.json (orange.calibration.fish_plane_scale v1, accepted, sha256
         47a9f05038cb015fc17a27e33c1a0280f15e1348154f7664f16e819871833b10); model in Orange
         docs/omnifin0_calibration_procedure.md section 5.
@@ -188,7 +188,7 @@ cameras:
     rotation_deg: 0
     mount_notes: ""
     nominal_geometry:            # optional; parallax model only, consumed by nothing today
-      height_above_gel_mm: 776            # effective pinhole distance, about +/-35; see evidence
+      height_above_gel_mm: 774            # effective pinhole distance, about +/-50 (1 sigma); see evidence
       optical_axis_tilt_from_nadir_deg: unknown
     evidence: *camera_evidence
     derived:
@@ -203,7 +203,7 @@ cameras:
     rotation_deg: 0
     mount_notes: ""
     nominal_geometry:            # optional; parallax model only, consumed by nothing today
-      height_above_gel_mm: 777            # effective pinhole distance, about +/-35; see evidence
+      height_above_gel_mm: 779            # effective pinhole distance, about +/-43 (1 sigma); see evidence
       optical_axis_tilt_from_nadir_deg: unknown
     evidence: *camera_evidence
     derived:
@@ -218,7 +218,7 @@ cameras:
     rotation_deg: 0
     mount_notes: ""
     nominal_geometry:            # optional; parallax model only, consumed by nothing today
-      height_above_gel_mm: 777            # effective pinhole distance, about +/-35; see evidence
+      height_above_gel_mm: 788            # effective pinhole distance, about +/-53 (1 sigma); see evidence
       optical_axis_tilt_from_nadir_deg: unknown
     evidence: *camera_evidence
     derived:
