@@ -18,8 +18,9 @@ The cards still answered on the PCI bus, so a firmware reset through MFT
 a host reboot. The PCI fallback does by hand what level 3 does: remove the
 functions, pulse Secondary Bus Reset on the upstream bridge, rescan.
 
-What it refuses to do: reset while Orange is recording (pgrep targets/release/orange)
-unless --force; reset a healthy card unless you name it with --card.
+What it refuses to do: reset while Orange is running (its GUI, orange_client or recorder, from a dev
+tree's targets/release/ or an /opt/orange release) unless --force; reset a healthy card unless you name
+it with --card.
 
 After the netdevs return, the udev rules restore the mlnx names and
 NetworkManager re-activates the static profiles (autoconnect=yes; the tool
@@ -49,8 +50,16 @@ import hostconfig
 SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_DIR = SCRIPT_DIR / "logs" / "nic_reset"
 PCI_DEVICES = Path("/sys/bus/pci/devices")
-ORANGE_PATTERN = "targets/release/orange"
-ORANGE_HEADLESS = "orange_client"  # headless client (orange-local-benchmark); process name, matched with pgrep -x
+# Orange processes that hold the cameras: the GUI, the headless client (orange-local-benchmark) and the recorder.
+ORANGE_EXECUTABLES = ("orange", "orange_client", "external_recorder_ipc_probe_native")
+# Where they run from: a dev tree (~/orange/targets/release/, also through the orange-dev-* wrappers) or an installed
+# release (/opt/orange/releases/<tag>/bin/, reached through /opt/orange/current; argv[0] is then the physical release
+# path, but current/ and previous/ are accepted too in case one is started through the symlink).
+ORANGE_ARGV0_RE = re.compile(
+    r"(?:^|/)targets/release/(?:{names})$|^/opt/orange/(?:releases/[^/]+|current|previous)/bin/(?:{names})$".format(
+        names="|".join(re.escape(n) for n in ORANGE_EXECUTABLES)))
+ORANGE_PGREP = "targets/release/|/opt/orange/"  # pgrep -f candidates; argv[0] is then checked against ORANGE_ARGV0_RE
+ORANGE_HEADLESS = "orange_client"  # also matched by process name with pgrep -x, wherever it runs from
 PTP_PROCESSES = ("ptp4l", "phc2sys")  # start order matters: phc2sys talks to ptp4l's socket
 HEALTH_PATTERNS = (
     "temp_warn",
@@ -275,13 +284,13 @@ def firmware_dead(sys_: System, pcie_ids: list[str], since: str) -> list[str]:
 
 
 def orange_pids(sys_: System) -> list[int]:
-    """PIDs whose executable is Orange (argv[0] check, so a shell merely mentioning the path does not count),
-    plus the headless client orange_client, which streams the cameras just like the GUI."""
-    res = sys_.run(["pgrep", "-f", ORANGE_PATTERN])
+    """PIDs whose executable is Orange's GUI, headless client or recorder, from a dev tree or an /opt release
+    (argv[0] check, so a shell merely mentioning the path does not count), plus any process named orange_client."""
+    res = sys_.run(["pgrep", "-f", ORANGE_PGREP])
     pids = []
     for pid in (res.stdout.split() if res.returncode == 0 else []):
         argv0 = (sys_.read(f"/proc/{pid}/cmdline") or "").split("\0")[0]
-        if argv0.endswith(ORANGE_PATTERN) or os.path.basename(argv0) == "orange":
+        if ORANGE_ARGV0_RE.search(argv0) or os.path.basename(argv0) == "orange":
             pids.append(int(pid))
     res = sys_.run(["pgrep", "-x", ORANGE_HEADLESS])
     pids += [int(pid) for pid in (res.stdout.split() if res.returncode == 0 else []) if int(pid) not in pids]

@@ -81,6 +81,13 @@ class FakeSystem(rcn.System):
         if p.startswith("/proc/") and p.endswith("/cmdline"):
             return {"101": "ptp4l\0-i\0mlnx1_p1_25g\0-m", "102": "phc2sys\0-a\0-rr", "555": "/bin/bash\0-c\0pgrep targets/release/orange",
                     "777": "/opt/orange/targets/release/orange\0--config\0x",
+                    "801": "/opt/orange/releases/orange-v2026.11.18.4/bin/orange\0--config\0x",
+                    "802": "/opt/orange/releases/orange-v2026.11.18.4/bin/orange_client\0--benchmark",
+                    "803": "/opt/orange/releases/orange-v2026.11.18.4/bin/external_recorder_ipc_probe_native\0--ipc",
+                    "804": "/home/jeremy/orange/targets/release/external_recorder_ipc_probe_native\0--ipc",
+                    "805": "/opt/orange/releases/orange-v2026.11.18.4/bin/nic_thermal_monitor",
+                    "806": "/usr/bin/less\0/opt/orange/releases/orange-v2026.11.18.4/bin/orange",
+                    "807": "/opt/orange/current/bin/orange\0--config\0x",
                     "201": "/usr/sbin/ptp4l\0-i\0mlnx1_p1_25g\0-f\0/etc/ptp4l.conf\0-m", "202": "/usr/sbin/phc2sys\0-a\0-rr"}.get(p.split("/")[2], "")
         if p.startswith("/proc/") and p.endswith("/cgroup"):
             return {"201": "0::/system.slice/ptp4l.service", "202": "0::/system.slice/phc2sys.service",
@@ -182,6 +189,18 @@ class StatusTests(unittest.TestCase):
         sys_ = FakeSystem(netdevs=HEALTHY, commands={("pgrep", "-f"): (0, "555\n777\n", "")})
         self.assertEqual(rcn.orange_pids(sys_), [777])
 
+    def test_orange_detection_covers_opt_releases_and_the_recorder(self):
+        # 801-803: the GUI, client and recorder of an installed release; 804: a dev-tree recorder; 807: started
+        # through the current symlink. 805 is another release binary and 806 a pager on the GUI's path: neither counts.
+        sys_ = FakeSystem(netdevs=HEALTHY, commands={("pgrep", "-f"): (0, "801\n802\n803\n804\n805\n806\n807\n", "")})
+        self.assertEqual(rcn.orange_pids(sys_), [801, 802, 803, 804, 807])
+
+    def test_orange_detection_asks_pgrep_for_dev_trees_and_opt_releases(self):
+        seen = []
+        sys_ = FakeSystem(netdevs=HEALTHY, commands={("pgrep", "-f"): lambda cmd: (seen.append(cmd), (1, "", ""))[1]})
+        rcn.orange_pids(sys_)
+        self.assertEqual(seen, [["pgrep", "-f", "targets/release/|/opt/orange/"]])
+
     def test_ptp_processes_come_with_their_argv(self):
         sys_ = FakeSystem(netdevs=HEALTHY, commands={("pgrep", "-x", "ptp4l"): (0, "101\n", ""), ("pgrep", "-x", "phc2sys"): (0, "102\n", "")})
         procs = rcn.ptp_processes(sys_)
@@ -257,6 +276,12 @@ class ResetFlowTests(unittest.TestCase):
 
     def test_refuses_while_orange_is_running_unless_forced(self):
         sys_ = FakeSystem(netdevs={}, commands={("pgrep", "-f"): (0, "777\n", "")})
+        report = rcn.status(sys_, CONFIG)
+        self.assertEqual(rcn.do_reset(sys_, CONFIG, report, self._args(), sys_.log), 2)
+        self.assertEqual(sys_.mutations, [])
+
+    def test_refuses_while_an_opt_release_of_orange_is_running(self):
+        sys_ = FakeSystem(netdevs={}, commands={("pgrep", "-f"): (0, "801\n", "")})
         report = rcn.status(sys_, CONFIG)
         self.assertEqual(rcn.do_reset(sys_, CONFIG, report, self._args(), sys_.log), 2)
         self.assertEqual(sys_.mutations, [])

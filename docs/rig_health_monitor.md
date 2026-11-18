@@ -31,7 +31,7 @@ sudo ./install_rig_health_timer.sh --uninstall
 | `nvme_firmware` | `/sys/class/nvme/*/{model,firmware_rev,serial}` | same-model drives on different firmware, or firmware differing from `storage_devices` in the host config: warn |
 | `clock_steps` | `/run/clock-watch/status.json` from `clock-watch.service` (below) | a CPU whose clock is frozen between ticks or off the reference CPU's now, or at any time since the last run: crit, naming the CPUs; status older than 15 s while the unit is installed: warn; not installed: info |
 | `uptime` | `/proc/uptime`, the current clocksource, `/proc/cmdline` | warn from 28 days, crit from 32: the chiplet counter fault appeared after 32.64 days ([`time_and_clocks.md`](time_and_clocks.md#the-2026-11-11-chiplet-clock-fault)); notes `tsc=reliable` (kernel TSC watchdog off) |
-| `acquisition` | `pgrep` for `targets/release/orange` (argv[0] checked) | info only |
+| `acquisition` | `pgrep` for Orange's GUI, `orange_client` or recorder, from a dev tree's `targets/release/` or `/opt/orange/releases/<tag>/bin/` (argv[0] checked) | info only |
 
 Thresholds are overridable per run: `--threshold nic_warn=80 --threshold disk_warn_pct=15`.
 

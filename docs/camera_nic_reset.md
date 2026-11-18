@@ -35,7 +35,10 @@ against the vanished interfaces. Nothing noticed for two days, which is what
 
 ## What `--reset` does
 
-1. Refuses if Orange is running (`targets/release/orange`) unless `--force`,
+1. Refuses if Orange is running unless `--force`: the GUI (`orange`), the headless
+   client (`orange_client`) or the recorder (`external_recorder_ipc_probe_native`),
+   from a dev tree's `targets/release/` or an installed release under
+   `/opt/orange/releases/<tag>/bin/` (argv[0] checked),
    and only touches cards that are missing netdevs unless you name them with
    `--card`.
 2. Writes a transcript to `logs/nic_reset/nic_reset_<stamp>.log`, starting with
